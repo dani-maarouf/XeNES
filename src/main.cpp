@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 
-#include "CPU.hpp"
+#include "NES.hpp"
 
 
 int main(int argc, char ** argv) {
@@ -12,12 +12,14 @@ int main(int argc, char ** argv) {
 		return 1;
 	}
 
-	CPU nes;
+	NES nesSystem;
 
-	if (!nes.openROM(argv[1])) {
+	if (!nesSystem.openROM(argv[1])) {
 		std::cerr << "Could not read file" << std::endl;
 		return 1;
 	}
+
+	std::cout << std::endl;
 
 	return 0;
 }
