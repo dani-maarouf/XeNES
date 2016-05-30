@@ -8,6 +8,8 @@ class PPU {
 public:
 	uint8_t memory[0x4000];
 
+	void init();
+
 };
 
 #endif

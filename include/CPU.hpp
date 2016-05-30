@@ -3,6 +3,8 @@
 
 #include <cstdint>
 
+#include "APU.hpp"
+
 enum ProcessorStatusIndex {
 	N,		//is number negative
 	V,		//overflow
@@ -26,6 +28,10 @@ public:
 	bool PS[8];			//processor status word
 
 	uint8_t memory[0x10000];
+
+	APU nesAPU;
+
+	void init();
 
 };
 

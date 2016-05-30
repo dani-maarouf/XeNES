@@ -13,6 +13,7 @@ int main(int argc, char ** argv) {
 	}
 
 	NES nesSystem;
+	nesSystem.init();
 
 	if (!nesSystem.openROM(argv[1])) {
 		std::cerr << "Could not read file" << std::endl;

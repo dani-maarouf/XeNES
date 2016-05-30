@@ -4,6 +4,13 @@
 
 #include "NES.hpp"
 
+void NES::init() {
+	nesCPU.init();
+	nesPPU.init();
+
+	return;
+}
+
 bool NES::openROM(const char * fileLoc) {
 
 	if (fileLoc == NULL) {
