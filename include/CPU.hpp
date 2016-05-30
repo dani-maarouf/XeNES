@@ -15,6 +15,7 @@ enum ProcessorStatusIndex {
 
 class CPU {
 
+private:
 	uint16_t PC;		//program counter
 	uint8_t SP;			//stack pointer
 
@@ -26,6 +27,8 @@ class CPU {
 
 	uint8_t RAM[0x10000];
 
+public:
+	bool openROM(const char *);
 };
 
 #endif

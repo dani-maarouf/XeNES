@@ -3,34 +3,6 @@
 
 #include "CPU.hpp"
 
-bool openROM(const char * fileLoc) {
-
-	if (fileLoc == NULL) {
-		return false;
-	}
-
-	std::ifstream romFile;
-	romFile.open(fileLoc, std::ios::binary);
-
-	if (!romFile.is_open()) {
-		return false;
-	}
-
-
-
-	while (romFile) {
-		char c;
-		romFile.get(c);
-		unsigned char u = (unsigned char) c;
-		int binaryValue = (int) u;
-
-		std::cout << std::hex << binaryValue << ' ';
-	}
-	std::cout << std::endl;
-
-	romFile.close();
-	return true;
-}
 
 int main(int argc, char ** argv) {
 
@@ -40,7 +12,9 @@ int main(int argc, char ** argv) {
 		return 1;
 	}
 
-	if (!openROM(argv[1])) {
+	CPU nes;
+
+	if (!nes.openROM(argv[1])) {
 		std::cerr << "Could not read file" << std::endl;
 		return 1;
 	}
