@@ -32,6 +32,7 @@ public:
 	APU nesAPU;
 
 	void init();
+	bool executeNextOpcode();
 
 };
 

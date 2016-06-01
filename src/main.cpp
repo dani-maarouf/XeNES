@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <bitset>
 
 #include "NES.hpp"
 
@@ -20,7 +21,9 @@ int main(int argc, char ** argv) {
 		return 1;
 	}
 
-	std::cout << std::endl;
+	nesSystem.nesCPU.PC = 0x8000;
+	nesSystem.nesCPU.executeNextOpcode();
+
 
 	return 0;
 }
