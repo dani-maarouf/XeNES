@@ -136,38 +136,16 @@ bool CPU::executeNextOpcode() {
 			uint16_t total;
 			total = A + memByte + PS[C];
 
-			if ((A & 0x80) != (total & 0x80)) {
-				PS[V] = true;
-			} else {
-				PS[V] = false;
-			}
-
-			if (A & 0x80) {
-				PS[N] = true;
-			} else {
-				PS[N] = false;
-			}
-
-			if (total == 0) {
-				PS[Z] = true;
-			} else {
-				PS[Z] = false;
-			}
+			P[V] = (getBit(A, 7) != getBit(total, 7)) ? true : false;
+			PS[N] = getBit(A, 7);
+			PS[Z] = (total == 0) ? true : false;
 
 			if (PS[D]) {
 				total = binToBcd(A) + binToBcd(memByte) + PS[C];
-				if (total > 99) {
-					PS[C] = true;
-				} else {
-					PS[C] = false;
-				}
+				PS[C] = (total > 99) ? true : false;
 				A = bcdToBin(total) & 0xFF;
 			} else {
-				if (total > 255) {
-					PS[C] = true;
-				} else {
-					PS[C] = false;
-				}
+				PS[C] = (total > 255) ? true : false;
 				A = total & 0xFF;
 			}
 			break;
@@ -232,17 +210,8 @@ bool CPU::executeNextOpcode() {
 
 			A = A & memByte;
 
-			if (A & 0x80) {
-				PS[N] = true;
-			} else {
-				PS[N] = false;
-			}
-
-			if (A == 0x0) {
-				PS[Z] = true;
-			} else {
-				PS[Z] = false;
-			}
+			PS[N] = getBit(A, 7);
+			PS[Z] = (A == 0x0) ? true : false;
 
 			break;
 		}
@@ -255,25 +224,11 @@ bool CPU::executeNextOpcode() {
 
 			if (opcode == 0x0A) {
 
-				if (A & 0x80) {
-					PS[C] = true;
-				} else {
-					PS[C] = false;
-				}
+				PS[C] = getBit(A, 7);
+				A = ((A << 1) & 0xFE);
+				PS[N] = getBit(A, 7);
+				PS[Z] = (A == 0) ? true : false;
 
-				A = (A << 1) & 0xFE;
-
-				if (A & 0x80) {
-					PS[N] = true;
-				} else {
-					PS[N] = false;
-				}
-
-				if (A == 0) {
-					PS[Z] = true;
-				} else {
-					PS[Z] = false;
-				}
 				PC++;
 				tCnt = 2;
 
@@ -282,25 +237,11 @@ bool CPU::executeNextOpcode() {
 				uint8_t address;
 				address = iByte2;
 
-				if (memory[address] & 0x80) {
-					PS[C] = true;
-				} else {
-					PS[C] = false;
-				}
+				PS[C] = getBit(memory[address], 7);
+				memory[address] = ((memory[address] << 1) & 0xFE);
+				PS[N] = getBit(memory[address], 7);
+				PS[Z] = (memory[address] == 0) ? true : false;
 
-				memory[address] = (memory[address] << 1) & 0xFE;
-
-				if (memory[address] & 0x80) {
-					PS[N] = true;
-				} else {
-					PS[N] = false;
-				}
-
-				if (memory[address] == 0) {
-					PS[Z] = true;
-				} else {
-					PS[Z] = false;
-				}
 				PC += 2;
 				tCnt = 5;
 
@@ -309,25 +250,11 @@ bool CPU::executeNextOpcode() {
 				uint8_t address;
 				address = (iByte2 + X) & 0xFF;
 
-				if (memory[address] & 0x80) {
-					PS[C] = true;
-				} else {
-					PS[C] = false;
-				}
+				PS[C] = getBit(memory[address], 7);
+				memory[address] = ((memory[address] << 1) & 0xFE);
+				PS[N] = getBit(memory[address], 7);
+				PS[Z] = (memory[address] == 0) ? true : false;
 
-				memory[address] = (memory[address] << 1) & 0xFE;
-
-				if (memory[address] & 0x80) {
-					PS[N] = true;
-				} else {
-					PS[N] = false;
-				}
-
-				if (memory[address] == 0) {
-					PS[Z] = true;
-				} else {
-					PS[Z] = false;
-				}
 				PC += 2;
 				tCnt = 6;
 
@@ -336,25 +263,11 @@ bool CPU::executeNextOpcode() {
 				uint16_t address;
 				address = (iByte2 | (iByte3 << 8));
 
-				if (memory[address] & 0x80) {
-					PS[C] = true;
-				} else {
-					PS[C] = false;
-				}
+				PS[C] = getBit(memory[address], 7);
+				memory[address] = ((memory[address] << 1) & 0xFE);
+				PS[N] = getBit(memory[address], 7);
+				PS[Z] = (memory[address] == 0) ? true : false;
 
-				memory[address] = (memory[address] << 1) & 0xFE;
-
-				if (memory[address] & 0x80) {
-					PS[N] = true;
-				} else {
-					PS[N] = false;
-				}
-
-				if (memory[address] == 0) {
-					PS[Z] = true;
-				} else {
-					PS[Z] = false;
-				}
 				PC += 3;
 				tCnt = 6;
 
@@ -363,25 +276,11 @@ bool CPU::executeNextOpcode() {
 				uint16_t address;
 				address = ((iByte2 | (iByte3 << 8)) + X) & 0xFFFF;
 
-				if (memory[address] & 0x80) {
-					PS[C] = true;
-				} else {
-					PS[C] = false;
-				}
+				PS[C] = getBit(memory[address], 7);
+				memory[address] = ((memory[address] << 1) & 0xFE);
+				PS[N] = getBit(memory[address], 7);
+				PS[Z] = (memory[address] == 0) ? true : false;
 
-				memory[address] = (memory[address] << 1) & 0xFE;
-
-				if (memory[address] & 0x80) {
-					PS[N] = true;
-				} else {
-					PS[N] = false;
-				}
-
-				if (memory[address] == 0) {
-					PS[Z] = true;
-				} else {
-					PS[Z] = false;
-				}
 				PC += 3;
 				tCnt = 7;
 
@@ -442,11 +341,8 @@ bool CPU::executeNextOpcode() {
 			PS[N] = getBit(num, 7);
 			PS[V] = getBit(num, 6);
 
-			if (num == 0) {
-				PS[Z] = true;
-			} else {
-				PS[Z] = false;
-			}
+			PS[Z] = (num == 0) ? true : false;
+
 			break;
 		}
 
@@ -583,17 +479,80 @@ bool CPU::executeNextOpcode() {
 			num = A - memByte;
 			PS[N] = getBit(num, 7);
 
-			if (A >= memByte) {
-				PS[C] = true;
+			PS[C] = (A >= memByte) ? true : false;
+			PS[Z] = (num == 0) ? true : false;
+
+			break;
+		}
+
+		case 0xE0:			//CPX
+		case 0xE4:
+		case 0xEC: {
+
+			uint8_t memByte;
+
+			if (opcode == 0xE0) {
+				memByte = iByte2;
+				PC += 2;
+				tCnt = 2;
+			} else if (opcode == 0xE4) {
+				memByte = memory[iByte2];
+				PC += 2;
+				tCnt = 3;
+			} else if (opcode == 0xEC) {
+				memByte = memory[(iByte2 | (iByte3 << 8))];
+				PC += 3;
+				tCnt = 4;
 			} else {
-				PS[C] = false;
+				return false;
 			}
 
-			if (num == 0) {
-				PS[Z] = true;
+			int total;
+			total = X - memByte;
+			PS[N] = (total & 0x80) ? true : false;
+			PS[C] = (X >= memByte) ? true : false;
+			PS[Z] = (total == 0) ? 1 : 0;
+
+			break;
+		}
+
+		case 0xC0:			//CPY
+		case 0xC4:
+		case 0xCC: {
+
+			uint8_t memByte;
+
+			if (opcode == 0xC0) {
+				memByte = iByte2;
+				PC += 2;
+				tCnt = 2;
+			} else if (opcode == 0xC4) {
+				memByte = memory[iByte2];
+				PC += 2;
+				tCnt = 3;
+			} else if (opcode == 0xCC) {
+				memByte = memory[(iByte2 | (iByte3 << 8))];
+				PC += 3;
+				tCnt = 4;
 			} else {
-				PS[Z] = false;
+				return false;
 			}
+
+			int total;
+			total = Y - memByte;
+			PS[N] = (total & 0x80) ? true : false;
+			PS[C] = (Y >= memByte) ? true : false;
+			PS[Z] = (total == 0) ? 1 : 0;
+
+			break;
+		}
+
+		case 0xC6:			//DEC: todo
+		case 0xD6:
+		case 0xCE:
+		case 0xDE: {
+
+
 
 			break;
 		}
