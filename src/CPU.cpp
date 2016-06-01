@@ -77,6 +77,8 @@ bool CPU::executeNextOpcode() {
 	iByte2 = memory[PC + 1];
 	iByte3 = memory[PC + 2];
 
+	std:: cout << "Current opcode : " << std::hex << (int) opcode << std::endl;
+
 	switch (opcode) {
 
 		case 0x69:		//ADC
@@ -110,25 +112,25 @@ bool CPU::executeNextOpcode() {
 				PC += 3;
 			} else if (opcode == 0x7D) {
 				uint16_t address;
-				address = (iByte2 | (iByte3 << 8));
-				memByte = memory[(address + X) & 0xFFFF];
+				address = (((iByte2 | (iByte3 << 8)) + X) & 0xFFFF);
+				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
 			} else if (opcode == 0x79) {
 				uint16_t address;
-				address = (iByte2 | (iByte3 << 8));
-				memByte = memory[(address + Y) & 0xFFFF];
+				address = (((iByte2 | (iByte3 << 8)) + Y) & 0xFFFF);
+				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
 			} else if (opcode == 0x61) {
 				uint16_t address;
-				address = (memory[(iByte2 + X) & 0xFF]) | ((memory[iByte3 + X] & 0xFF) << 8);
+				address = (memory[(iByte2 + X) & 0xFF]) | ((memory[iByte2 + 1 + X] & 0xFF) << 8);
 				memByte = memory[address];
 				tCnt = 6;
 				PC += 2;
 			} else if (opcode == 0x71) {
 				uint16_t address;
-				address = (memory[iByte2]) | (memory[iByte3] << 8);
+				address = (memory[iByte2]) | (memory[iByte 2 + 1] << 8);
 				memByte = memory[(address + Y) & 0xFFFF];
 				tCnt = 5;
 				PC += 2;
@@ -720,19 +722,19 @@ bool CPU::executeNextOpcode() {
 		case 0x4C:				//JMP
 		case 0x6C: {
 
-			uint16_t memByte;
+			uint16_t store;
 
 			if (opcode == 0x4C) {
 				tCnt = 3;
-				memByte = (iByte2 | (iByte3 << 8));
+				store = (iByte2 | (iByte3 << 8));
 			} else if (opcode == 0x6C) {
 				tCnt = 5;
-				memByte = memory[(iByte2 | (iByte3 << 8))];
+				store = memory[(iByte2 | (iByte3 << 8))];
 			} else {
 				return false;
 			}
 
-			PC = memByte;
+			PC = store;
 			break;
 		}
 
@@ -952,7 +954,7 @@ bool CPU::executeNextOpcode() {
 		tCnt = 2;
 		break;
 
-		case 0x09:				//ORA: todo
+		case 0x09:				//ORA
 		case 0x05:
 		case 0x15:
 		case 0x0D:
@@ -961,8 +963,57 @@ bool CPU::executeNextOpcode() {
 		case 0x01:
 		case 0x11: {
 
+			uint8_t memByte;
 
+			if (opcode == 0x09) {
+				memByte = iByte2;
+				tCnt = 2;
+				PC += 2;
+			} else if (opcode == 0x05) {
+				memByte = memory[iByte2];
+				tCnt = 2;
+				PC += 2;
+			} else if (opcode == 0x15) {
+				memByte = memory[(iByte2 + X) & 0xFF];
+				tCnt = 3;
+				PC += 2;
+			} else if (opcode == 0x0D) {
+				uint16_t address;
+				address = (iByte2 | (iByte3 << 8));
+				memByte = memory[address];
+				tCnt = 4;
+				PC += 3;
+			} else if (opcode == 0x1D) {
+				uint16_t address;
+				address = (iByte2 | (iByte3 << 8));
+				memByte = memory[(address + X) & 0xFFFF];
+				tCnt = 4;
+				PC += 3;
+			} else if (opcode == 0x19) {
+				uint16_t address;
+				address = (iByte2 | (iByte3 << 8));
+				memByte = memory[(address + Y) & 0xFFFF];
+				tCnt = 4;
+				PC += 3;
+			} else if (opcode == 0x01) {
+				uint16_t address;
+				address = (memory[(iByte2 + X) & 0xFF]) | ((memory[iByte3 + X] & 0xFF) << 8);
+				memByte = memory[address];
+				tCnt = 6;
+				PC += 2;
+			} else if (opcode == 0x11) {
+				uint16_t address;
+				address = (memory[iByte2]) | (memory[iByte3] << 8);
+				memByte = memory[(address + Y) & 0xFFFF];
+				tCnt = 5;
+				PC += 2;
+			} else {
+				return false;
+			}
 
+			A = A | memByte;
+			PS[N] = getBit(A, 7);
+			PS[Z] = (A == 0) ? true : false;
 
 			break;
 		}
@@ -1021,23 +1072,122 @@ bool CPU::executeNextOpcode() {
 		}
 
 
-		case 0x2A:				//ROL: todo
+		case 0x2A:				//ROL
 		case 0x26:
 		case 0x36:
 		case 0x2E:
 		case 0x3E: {
 
 
+			if (opcode == 0x2A) {
+				PC++;
+				tCnt = 2;
+
+				bool store;
+				store = getBit(A, 7);
+
+				A = (A << 1) & 0xFE;
+				A |= PS[C];
+				PS[C] = store;
+				PS[Z] = (A == 0) ? true : false;
+				PS[N] = getBit(A, 7);
+
+			} else {
+
+				uint16_t address;
+
+				if (opcode == 0x26) {
+					PC+=2;
+					tCnt = 5;
+					address = iByte2;
+				} else if (opcode == 0x36) {
+					PC += 2;
+					tCnt = 6;
+					address = (iByte2 + X) & 0xFF;
+				} else if (opcode == 0x2E) {
+					PC += 3;
+					tCnt = 6;
+					address = (iByte2 | (iByte3 << 8));
+				} else if (opcode == 0x3E) {
+					PC += 3;
+					tCnt = 7;
+					address = ((iByte2 | (iByte3 << 8)) + X) & 0xFFFF;
+				} else {
+					return false;
+				}
+
+				bool store;
+				store = getBit(memory[address], 7);
+
+				memory[address] = (memory[address] << 1) & 0xFE;
+				memory[address] |= PS[C];
+				PS[C] = store;
+				PS[Z] = (memory[address] == 0) ? true : false;
+				PS[N] = getBit(memory[address], 7);
+			}
+
+			break;
+
 
 			break;
 		}
 
-		case 0x6A:				//ROR: todo
+		case 0x6A:				//ROR
 		case 0x66:
 		case 0x76:
 		case 0x6E:
 		case 0x7E: {
 
+
+			if (opcode == 0x6A) {
+				PC++;
+				tCnt = 2;
+
+				bool store;
+				store = getBit(A, 0);
+
+				A = (A >> 1) & 0x7F;
+				A |= (PS[C] ? 0x80 : 0x0);
+				PS[C] = store;
+				PS[Z] = (A == 0) ? true : false;
+				PS[N] = getBit(A, 7);
+
+			} else {
+
+				uint16_t address;
+
+				if (opcode == 0x66) {
+					PC+=2;
+					tCnt = 5;
+					address = iByte2;
+				} else if (opcode == 0x76) {
+					PC += 2;
+					tCnt = 6;
+					address = (iByte2 + X) & 0xFF;
+				} else if (opcode == 0x6E) {
+					PC += 3;
+					tCnt = 6;
+					address = (iByte2 | (iByte3 << 8));
+				} else if (opcode == 0x7E) {
+					PC += 3;
+					tCnt = 7;
+					address = ((iByte2 | (iByte3 << 8)) + X) & 0xFFFF;
+				} else {
+					return false;
+				}
+
+				bool store;
+				store = getBit(memory[address], 0);
+
+				memory[address] = (memory[address] >> 1) & 0x7F;
+				memory[address] |= (PS[C] ? 0x80 : 0x0);
+				PS[C] = store;
+				PS[Z] = (memory[address] == 0) ? true : false;
+				PS[N] = getBit(memory[address], 7);
+
+			}
+
+			break;
 
 
 
@@ -1207,11 +1357,11 @@ bool CPU::executeNextOpcode() {
 				PC += 3;
 				tCnt = 5;
 			} else if (opcode == 0x81) {
-				address = (memory[(iByte2 + X) & 0xFF]) | ((memory[iByte3 + X] & 0xFF) << 8);
+				address = (memory[(iByte2 + X) & 0xFF]) | ((memory[iByte2 + 1 + X] & 0xFF) << 8);
 				PC += 2;
 				tCnt = 6;
 			} else if (opcode == 0x91) {
-				address = (((memory[iByte2]) | (memory[iByte3] << 8) + Y) & 0xFFFF);
+				address = (((memory[iByte2]) | (memory[iByte2 + 1] << 8) + Y) & 0xFFFF);
 				PC += 2;
 				tCnt = 6;
 			} else {
@@ -1323,7 +1473,7 @@ bool CPU::executeNextOpcode() {
 		break;
 
 		default:
-		std::cerr << "Unrecognized opcode " << opcode << std::endl;
+		std:: cout << "Unrecognized opcode : " << std::hex << (int) opcode << std::endl;
 		return false;
 	}
 
