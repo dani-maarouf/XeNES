@@ -92,48 +92,57 @@ bool CPU::executeNextOpcode() {
 
 			uint8_t memByte;
 
-			if (opcode == 0x69) {
+			if (opcode == 0x69) {							//Immediate
 				memByte = iByte2;
 				tCnt = 2;
 				PC += 2;
-			} else if (opcode == 0x65) {
+			} else if (opcode == 0x65) {					//Zero Page
 				memByte = memory[iByte2];
 				tCnt = 3;
 				PC += 2;
-			} else if (opcode == 0x75) {
-				memByte = memory[(iByte2 + X) & 0xFF];
+			} else if (opcode == 0x75) {					//Zero Page,X 
+				memByte = memory[ (iByte2 + X) & 0xFF ];
 				tCnt = 4;
 				PC += 2;
-			} else if (opcode == 0x6D) {
+			} else if (opcode == 0x6D) {					//Absolute
 				uint16_t address;
 				address = (iByte2 | (iByte3 << 8));
 				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
-			} else if (opcode == 0x7D) {
+			} else if (opcode == 0x7D) {					//Absolute,X
 				uint16_t address;
 				address = (((iByte2 | (iByte3 << 8)) + X) & 0xFFFF);
 				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
-			} else if (opcode == 0x79) {
+			} else if (opcode == 0x79) {					//Absolute,Y
 				uint16_t address;
 				address = (((iByte2 | (iByte3 << 8)) + Y) & 0xFFFF);
 				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
-			} else if (opcode == 0x61) {
+			} else if (opcode == 0x61) {					//(Indirect,X)
 				uint16_t address;
-				address = (memory[(iByte2 + X) & 0xFF]) | ((memory[iByte2 + 1 + X] & 0xFF) << 8);
+
+				uint16_t low;
+				uint16_t high;
+				low = memory[(iByte2 + X) & 0xFF];
+				high = (memory[iByte2 + 1 + X & 0xFF]) << 8;
+				address = low | high;
 				memByte = memory[address];
+
 				tCnt = 6;
 				PC += 2;
-			} else if (opcode == 0x71) {
+			} else if (opcode == 0x71) {					//(Indirect),Y
+
 				uint16_t address;
-				address = (memory[iByte2]) | (memory[iByte 2 + 1] << 8);
-				memByte = memory[(address + Y) & 0xFFFF];
+				address = ((((memory[iByte2]) | (memory[iByte2 + 1 & 0xFF]) << 8) + Y) & 0xFFFF);
+				memByte = memory[address];
+
 				tCnt = 5;
 				PC += 2;
+
 			} else {
 				return false;
 			}
@@ -176,7 +185,7 @@ bool CPU::executeNextOpcode() {
 				tCnt = 2;
 				PC += 2;
 			} else if (opcode == 0x35) {
-				memByte = memory[(iByte2 + X) & 0xFF];
+				memByte = memory[ (iByte2 + X) & 0xFF ];
 				tCnt = 3;
 				PC += 2;
 			} else if (opcode == 0x2D) {
@@ -187,26 +196,33 @@ bool CPU::executeNextOpcode() {
 				PC += 3;
 			} else if (opcode == 0x3D) {
 				uint16_t address;
-				address = ((iByte2 | (iByte3 << 8)) + X) & 0xFFFF;
+				address = (((iByte2 | (iByte3 << 8)) + X) & 0xFFFF);
 				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
 			} else if (opcode == 0x39) {
 				uint16_t address;
-				address = (iByte2 | (iByte3 << 8));
-				memByte = memory[(address + Y) & 0xFFFF];
+				address = (((iByte2 | (iByte3 << 8)) + Y) & 0xFFFF);
+				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
 			} else if (opcode == 0x21) {
 				uint16_t address;
-				address = (memory[(iByte2 + X) & 0xFF]) | ((memory[iByte3 + X] & 0xFF) << 8);
+
+				uint16_t low;
+				uint16_t high;
+				low = memory[(iByte2 + X) & 0xFF];
+				high = (memory[iByte2 + 1 + X & 0xFF]) << 8;
+				address = low | high;
 				memByte = memory[address];
 				tCnt = 6;
 				PC += 2;
 			} else if (opcode == 0x31) {
+
 				uint16_t address;
-				address = (memory[iByte2]) | (memory[iByte3] << 8);
-				memByte = memory[(address + Y) & 0xFFFF];
+				address = ((((memory[iByte2]) | (memory[iByte2 + 1 & 0xFF]) << 8) + Y) & 0xFFFF);
+				memByte = memory[address];
+
 				tCnt = 5;
 				PC += 2;
 			} else {
@@ -216,7 +232,7 @@ bool CPU::executeNextOpcode() {
 			A = A & memByte;
 
 			PS[N] = getBit(A, 7);
-			PS[Z] = (A == 0x0) ? true : false;
+			PS[Z] = (A == 0) ? true : false;
 
 			break;
 		}
@@ -298,7 +314,7 @@ bool CPU::executeNextOpcode() {
 
 		case 0x90:			//BCC
 		if (PS[C] == 0) {
-			PC += iByte2;
+			PC += (int8_t) iByte2;
 		} else {
 			PC += 2;
 		}
@@ -307,7 +323,7 @@ bool CPU::executeNextOpcode() {
 
 		case 0xB0:			//BCS
 		if (PS[C]) {
-			PC += iByte2;
+			PC += (int8_t) iByte2;
 		} else {
 			PC += 2;
 		}
@@ -316,7 +332,7 @@ bool CPU::executeNextOpcode() {
 
 		case 0xF0:			//BEQ
 		if (PS[Z]) {
-			PC += iByte2;
+			PC += (int8_t) iByte2;
 		} else {
 			PC += 2;
 		}
@@ -353,7 +369,7 @@ bool CPU::executeNextOpcode() {
 
 		case 0x30:			//BMI
 		if (PS[N]) {
-			PC += iByte2;
+			PC += (int8_t) iByte2;
 		} else {
 			PC += 2;
 		}
@@ -362,7 +378,7 @@ bool CPU::executeNextOpcode() {
 
 		case 0xD0:			//BNE
 		if (PS[Z] == 0) {
-			PC += iByte2;
+			PC += (int8_t) iByte2;
 		} else {
 			PC += 2;
 		}
@@ -371,7 +387,7 @@ bool CPU::executeNextOpcode() {
 
 		case 0x10:			//BPL
 		if (PS[N] == 0) {
-			PC += iByte2;
+			PC += (int8_t) iByte2;
 		} else {
 			PC += 2;
 		}
@@ -383,7 +399,7 @@ bool CPU::executeNextOpcode() {
 
 		case 0x50:			//BVC
 		if (PS[V] == 0) {
-			PC += iByte2;
+			PC += (int8_t) iByte2;
 		} else {
 			PC += 2;
 		}
@@ -392,7 +408,7 @@ bool CPU::executeNextOpcode() {
 
 		case 0x70:			//BVS
 		if (PS[V]) {
-			PC += iByte2;
+			PC += (int8_t) iByte2;
 		} else {
 			PC += 2;
 		}
@@ -443,7 +459,7 @@ bool CPU::executeNextOpcode() {
 				tCnt = 3;
 				PC += 2;
 			} else if (opcode == 0xD5) {
-				memByte = memory[(iByte2 + X) & 0xFF];
+				memByte = memory[ (iByte2 + X) & 0xFF ];
 				tCnt = 4;
 				PC += 2;
 			} else if (opcode == 0xCD) {
@@ -454,26 +470,31 @@ bool CPU::executeNextOpcode() {
 				PC += 3;
 			} else if (opcode == 0xDD) {
 				uint16_t address;
-				address = (iByte2 | (iByte3 << 8));
-				memByte = memory[(address + X) & 0xFFFF];
+				address = (((iByte2 | (iByte3 << 8)) + X) & 0xFFFF);
+				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
 			} else if (opcode == 0xD9) {
 				uint16_t address;
-				address = (iByte2 | (iByte3 << 8));
-				memByte = memory[(address + Y) & 0xFFFF];
+				address = (((iByte2 | (iByte3 << 8)) + Y) & 0xFFFF);
+				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
 			} else if (opcode == 0xC1) {
 				uint16_t address;
-				address = (memory[(iByte2 + X) & 0xFF]) | ((memory[iByte3 + X] & 0xFF) << 8);
+
+				uint16_t low;
+				uint16_t high;
+				low = memory[(iByte2 + X) & 0xFF];
+				high = (memory[iByte2 + 1 + X & 0xFF]) << 8;
+				address = low | high;
 				memByte = memory[address];
 				tCnt = 6;
 				PC += 2;
 			} else if (opcode == 0xD1) {
 				uint16_t address;
-				address = (memory[iByte2]) | (memory[iByte3] << 8);
-				memByte = memory[(address + Y) & 0xFFFF];
+				address = ((((memory[iByte2]) | (memory[iByte2 + 1 & 0xFF]) << 8) + Y) & 0xFFFF);
+				memByte = memory[address];
 				tCnt = 5;
 				PC += 2;
 			} else {
@@ -564,7 +585,7 @@ bool CPU::executeNextOpcode() {
 				PC += 2;
 				tCnt = 5;
 			} else if (opcode == 0xD6) {
-				address = ((iByte2 + X) & (0xFF));
+				address = ((iByte2 + X) & 0xFF);
 				PC += 2;
 				tCnt = 6;
 			} else if (opcode == 0xCE) {
@@ -597,7 +618,7 @@ bool CPU::executeNextOpcode() {
 		case 0x88:			//DEY
 		PC++;
 		tCnt = 2;
-		Y = Y - 1;
+		Y--;
 		PS[Z] = (Y == 0) ? true : false;
 		PS[N] = getBit(Y, 7);
 		break;
@@ -623,7 +644,7 @@ bool CPU::executeNextOpcode() {
 				tCnt = 3;
 				PC += 2;
 			} else if (opcode == 0x55) {
-				memByte = memory[(iByte2 + X) & 0xFF];
+				memByte = memory[ (iByte2 + X) & 0xFF ];
 				tCnt = 4;
 				PC += 2;
 			} else if (opcode == 0x4D) {
@@ -634,26 +655,31 @@ bool CPU::executeNextOpcode() {
 				PC += 3;
 			} else if (opcode == 0x5D) {
 				uint16_t address;
-				address = ((iByte2 | (iByte3 << 8)) + X) & 0xFFFF;
+				address = (((iByte2 | (iByte3 << 8)) + X) & 0xFFFF);
 				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
 			} else if (opcode == 0x59) {
 				uint16_t address;
-				address = (iByte2 | (iByte3 << 8));
-				memByte = memory[(address + Y) & 0xFFFF];
+				address = (((iByte2 | (iByte3 << 8)) + Y) & 0xFFFF);
+				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
 			} else if (opcode == 0x41) {
 				uint16_t address;
-				address = (memory[(iByte2 + X) & 0xFF]) | ((memory[iByte3 + X] & 0xFF) << 8);
+
+				uint16_t low;
+				uint16_t high;
+				low = memory[(iByte2 + X) & 0xFF];
+				high = (memory[iByte2 + 1 + X & 0xFF]) << 8;
+				address = low | high;
 				memByte = memory[address];
 				tCnt = 6;
 				PC += 2;
 			} else if (opcode == 0x51) {
 				uint16_t address;
-				address = (memory[iByte2]) | (memory[iByte3] << 8);
-				memByte = memory[(address + Y) & 0xFFFF];
+				address = ((((memory[iByte2]) | (memory[iByte2 + 1 & 0xFF]) << 8) + Y) & 0xFFFF);
+				memByte = memory[address];
 				tCnt = 5;
 				PC += 2;
 			} else {
@@ -681,7 +707,7 @@ bool CPU::executeNextOpcode() {
 				PC += 2;
 				tCnt = 5;
 			} else if (opcode == 0xF6) {
-				address = ((iByte2 + X) & (0xFF));
+				address = ((iByte2 + X) & 0xFF);
 				PC += 3;
 				tCnt = 6;
 			} else if (opcode == 0xEE) {
@@ -689,7 +715,7 @@ bool CPU::executeNextOpcode() {
 				PC += 3;
 				tCnt = 6;
 			} else if (opcode == 0xFE) {
-				address = (((iByte2 | (iByte3 << 8)) + X) & (0xFFFF));
+				address = (((iByte2 | (iByte3 << 8)) + X) & 0xFFFF);
 				PC += 3;
 				tCnt = 7;
 			} else {
@@ -787,25 +813,30 @@ bool CPU::executeNextOpcode() {
 				PC += 3;
 			} else if (opcode == 0xBD) {
 				uint16_t address;
-				address = ((iByte2 | (iByte3 << 8)) + X) & 0xFFFF;
+				address = (((iByte2 | (iByte3 << 8)) + X) & 0xFFFF);
 				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
 			} else if (opcode == 0xB9) {
 				uint16_t address;
-				address = (iByte2 | (iByte3 << 8));
-				memByte = memory[(address + Y) & 0xFFFF];
+				address = (((iByte2 | (iByte3 << 8)) + Y) & 0xFFFF);
+				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
 			} else if (opcode == 0xA1) {
 				uint16_t address;
-				address = (memory[(iByte2 + X) & 0xFF]) | ((memory[iByte3 + X] & 0xFF) << 8);
+
+				uint16_t low;
+				uint16_t high;
+				low = memory[(iByte2 + X) & 0xFF];
+				high = (memory[iByte2 + 1 + X & 0xFF]) << 8;
+				address = low | high;
 				memByte = memory[address];
 				tCnt = 6;
 				PC += 2;
 			} else if (opcode == 0xB1) {
 				uint16_t address;
-				address = (((memory[iByte2]) | (memory[iByte3] << 8) + Y) & 0xFFFF);
+				address = ((((memory[iByte2]) | (memory[iByte2 + 1 & 0xFF]) << 8) + Y) & 0xFFFF);
 				memByte = memory[address];
 				tCnt = 5;
 				PC += 2;
@@ -985,26 +1016,31 @@ bool CPU::executeNextOpcode() {
 				PC += 3;
 			} else if (opcode == 0x1D) {
 				uint16_t address;
-				address = (iByte2 | (iByte3 << 8));
-				memByte = memory[(address + X) & 0xFFFF];
+				address = (((iByte2 | (iByte3 << 8)) + X) & 0xFFFF);
+				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
 			} else if (opcode == 0x19) {
 				uint16_t address;
-				address = (iByte2 | (iByte3 << 8));
-				memByte = memory[(address + Y) & 0xFFFF];
+				address = (((iByte2 | (iByte3 << 8)) + Y) & 0xFFFF);
+				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
 			} else if (opcode == 0x01) {
 				uint16_t address;
-				address = (memory[(iByte2 + X) & 0xFF]) | ((memory[iByte3 + X] & 0xFF) << 8);
+
+				uint16_t low;
+				uint16_t high;
+				low = memory[(iByte2 + X) & 0xFF];
+				high = (memory[iByte2 + 1 + X & 0xFF]) << 8;
+				address = low | high;
 				memByte = memory[address];
 				tCnt = 6;
 				PC += 2;
 			} else if (opcode == 0x11) {
 				uint16_t address;
-				address = (memory[iByte2]) | (memory[iByte3] << 8);
-				memByte = memory[(address + Y) & 0xFFFF];
+				address = ((((memory[iByte2]) | (memory[iByte2 + 1 & 0xFF]) << 8) + Y) & 0xFFFF);
+				memByte = memory[address];
 				tCnt = 5;
 				PC += 2;
 			} else {
@@ -1128,8 +1164,6 @@ bool CPU::executeNextOpcode() {
 
 			break;
 
-
-			break;
 		}
 
 		case 0x6A:				//ROR
@@ -1257,25 +1291,30 @@ bool CPU::executeNextOpcode() {
 				PC += 3;
 			} else if (opcode == 0xFD) {
 				uint16_t address;
-				address = ((iByte2 | (iByte3 << 8)) + X) & 0xFFFF;
+				address = (((iByte2 | (iByte3 << 8)) + X) & 0xFFFF);
 				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
 			} else if (opcode == 0xF9) {
 				uint16_t address;
-				address = (iByte2 | (iByte3 << 8));
-				memByte = memory[(address + Y) & 0xFFFF];
+				address = (((iByte2 | (iByte3 << 8)) + Y) & 0xFFFF);
+				memByte = memory[address];
 				tCnt = 4;
 				PC += 3;
 			} else if (opcode == 0xE1) {
 				uint16_t address;
-				address = (memory[(iByte2 + X) & 0xFF]) | ((memory[iByte3 + X] & 0xFF) << 8);
+
+				uint16_t low;
+				uint16_t high;
+				low = memory[(iByte2 + X) & 0xFF];
+				high = (memory[iByte2 + 1 + X & 0xFF]) << 8;
+				address = low | high;
 				memByte = memory[address];
 				tCnt = 6;
 				PC += 2;
 			} else if (opcode == 0xF1) {
 				uint16_t address;
-				address = (((memory[iByte2]) | (memory[iByte3] << 8) + Y) & 0xFFFF);
+				address = ((((memory[iByte2]) | (memory[iByte2 + 1 & 0xFF]) << 8) + Y) & 0xFFFF);
 				memByte = memory[address];
 				tCnt = 5;
 				PC += 2;
@@ -1357,11 +1396,15 @@ bool CPU::executeNextOpcode() {
 				PC += 3;
 				tCnt = 5;
 			} else if (opcode == 0x81) {
-				address = (memory[(iByte2 + X) & 0xFF]) | ((memory[iByte2 + 1 + X] & 0xFF) << 8);
+				uint16_t low;
+				uint16_t high;
+				low = memory[(iByte2 + X) & 0xFF];
+				high = (memory[iByte2 + 1 + X & 0xFF]) << 8;
+				address = low | high;
 				PC += 2;
 				tCnt = 6;
 			} else if (opcode == 0x91) {
-				address = (((memory[iByte2]) | (memory[iByte2 + 1] << 8) + Y) & 0xFFFF);
+				address = ((((memory[iByte2]) | (memory[iByte2 + 1 & 0xFF]) << 8) + Y) & 0xFFFF);
 				PC += 2;
 				tCnt = 6;
 			} else {
@@ -1385,7 +1428,7 @@ bool CPU::executeNextOpcode() {
 			} else if (opcode == 0x96) {
 				PC += 2;
 				tCnt = 4;
-				address = ((iByte2 + X) & 0xFF);
+				address = ((iByte2 + Y) & 0xFF);
 			} else if (opcode == 0x8E) {
 				PC += 3;
 				tCnt = 4;

@@ -23,12 +23,9 @@ int main(int argc, char ** argv) {
 
 	nesSystem.nesCPU.PC = 0x8000;
 
-	for (int x = 0; x < 100; x++) {
+	for (int x = 0; x < 50000; x++) {
 		nesSystem.nesCPU.executeNextOpcode();
 	}
-
-	
-
 
 	return 0;
 }
