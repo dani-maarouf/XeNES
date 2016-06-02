@@ -53,7 +53,11 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 	std::cout << std::hex << std::uppercase;
 
-	//std::cout << "Current opcode : " << (int) opcode << " PC: " << PC << " SP: " << (int) SP << std::endl;
+	if (verbose) {
+		std::cout << std::hex << std::uppercase << "PC:" << (int) PC << " SP:" << (int) SP << " X:" << (int) X;
+		std::cout << std::hex << std::uppercase <<" Y:" << (int) Y << " A:" << (int) A << " N:" << PS[N] << " V:" << PS[V] << " B:" << PS[B];
+		std::cout << std::hex << std::uppercase <<" D:" << PS[D] << " I:" << PS[I] << " Z:" << PS[Z] << " C:" << PS[C] << "\t\t\t"; 
+	}
 
 	switch (opcode) {
 
@@ -162,8 +166,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PS[C] = (total > 255) ? true : false;
 				A = total & 0xFF;
 			}
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x29:		//AND
@@ -246,8 +249,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[N] = getBit(A, 7);
 			PS[Z] = (A == 0) ? true : false;
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x0A:		//ASL
@@ -342,8 +344,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				return false;
 			}
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x90: {			//BCC
@@ -354,8 +355,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 2;
 			}
 			tCnt = 2;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xB0: {			//BCS
@@ -366,8 +366,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 2;
 			}
 			tCnt = 2;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xF0: {			//BEQ
@@ -378,8 +377,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 2;
 			}
 			tCnt = 2;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x24:			//BIT
@@ -411,8 +409,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 			PS[Z] = (num == 0) ? true : false;
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x30: {			//BMI
@@ -423,8 +420,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 2;
 			}
 			tCnt = 2;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xD0: {			//BNE
@@ -435,8 +431,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 2;
 			}
 			tCnt = 2;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x10: {			//BPL
@@ -447,8 +442,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 2;
 			}
 			tCnt = 2;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x00: {			//BRK
@@ -503,8 +497,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 2;
 			}
 			tCnt = 2;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x70: {			//BVS
@@ -515,8 +508,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 2;
 			}
 			tCnt = 2;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x18: {			//CLC
@@ -524,8 +516,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[C] = false;
 			tCnt = 2;
 			PC++;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xD8: {			//CLD
@@ -533,8 +524,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[D] = false;
 			tCnt = 2;
 			PC++;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x58: {			//CLI
@@ -542,8 +532,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[I] = false;
 			tCnt = 2;
 			PC++;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xB8: {			//CLV
@@ -551,8 +540,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[V] = false;
 			tCnt = 2;
 			PC++;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xC9:			//CMP
@@ -650,8 +638,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[C] = (A >= memByte) ? true : false;
 			PS[Z] = (num == 0) ? true : false;
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xE0:			//CPX
@@ -693,8 +680,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[C] = (X >= memByte) ? true : false;
 			PS[Z] = (total == 0) ? 1 : 0;
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xC0:			//CPY
@@ -736,8 +722,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[C] = (Y >= memByte) ? true : false;
 			PS[Z] = (total == 0) ? 1 : 0;
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xC6:			//DEC
@@ -785,8 +770,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[N] = getBit(getByte(address), 7);
 			PS[Z] = (getByte(address) == 0) ? true : false;
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xCA: {			//DEX
@@ -798,8 +782,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			X = X - 1;
 			PS[Z] = (X == 0) ? true : false;
 			PS[N] = getBit(X, 7);
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x88: {			//DEY
@@ -811,8 +794,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			Y--;
 			PS[Z] = (Y == 0) ? true : false;
 			PS[N] = getBit(Y, 7);
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x49:			//EOR
@@ -908,8 +890,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[Z] = (A == 0) ? true : false;
 
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xE6:				//INC
@@ -957,8 +938,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[N] = getBit(getByte(address), 7);
 			PS[Z] = (getByte(address) == 0) ? true : false;
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xE8: {				//INX
@@ -968,8 +948,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			X = X + 1;
 			PS[Z] = (X == 0) ? true : false;
 			PS[N] = getBit(X, 7);
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xC8: {				//INY
@@ -979,8 +958,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			Y = Y + 1;
 			PS[Z] = (Y == 0) ? true : false;
 			PS[N] = getBit(Y, 7);
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x4C:				//JMP
@@ -1003,8 +981,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			}
 
 			PC = address;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x20: {			//JSR
@@ -1024,8 +1001,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			SP--;
 
 			PC = (iByte2 | (iByte3 << 8));
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xA9:			//LDA
@@ -1121,8 +1097,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[N] = getBit(A, 7);
 			PS[Z] = (A == 0) ? true : false;
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 
@@ -1179,8 +1154,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[N] = getBit(X, 7);
 			PS[Z] = (X == 0) ? true : false;
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xA0:				//LDY
@@ -1237,8 +1211,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[N] = getBit(Y, 7);
 			PS[Z] = (Y == 0) ? true : false;
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x4A:				//LSR
@@ -1304,16 +1277,14 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PS[Z] = (getByte(address) == 0) ? true : false;
 			}
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xEA: {				//NOP
 			if (debug) std::cout << "NOP";
 			PC++;
 			tCnt = 2;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x09:				//ORA
@@ -1408,8 +1379,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[N] = getBit(A, 7);
 			PS[Z] = (A == 0) ? true : false;
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x48: {				//PHA
@@ -1420,8 +1390,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			tCnt = 3;
 			stack[SP] = A;
 			SP--;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x08: {				//PHP
@@ -1444,8 +1413,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			stack[SP] = memByte;
 			SP--;
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x68: {				//PLA
@@ -1458,8 +1426,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			A = stack[SP];
 			PS[N] = getBit(A, 7);
 			PS[Z] = (A == 0) ? true : false;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x28: {				//PLP
@@ -1478,8 +1445,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[I] = getBit(memByte, 2);
 			PS[Z] = getBit(memByte, 1);
 			PS[C] = getBit(memByte, 0);
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 
@@ -1555,8 +1521,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PS[N] = getBit(getByte(address), 7);
 			}
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 
 		}
 
@@ -1634,8 +1599,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 			}
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 
 		}
 
@@ -1661,8 +1625,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			SP--;
 			uint16_t high = stack[SP] << 8;
 			PC = high | low;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x60: {				//RTS
@@ -1675,8 +1638,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			SP++;
 			uint16_t high = stack[SP] << 8;
 			PC = (high | low) + 1;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xE9:				//SBC
@@ -1789,8 +1751,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[N] = getBit(total, 7);
 			PS[Z] = (total == 0) ? 1 : 0;
 
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x38: {				//SEC
@@ -1800,8 +1761,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PC++;
 			tCnt = 2;
 			PS[C] = true;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xF8: {				//SED
@@ -1811,8 +1771,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PC++;
 			tCnt = 2;
 			PS[D] = true;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x78: {				//SEI
@@ -1822,8 +1781,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PC++;
 			tCnt = 2;
 			PS[I] = true;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x85:				//STA
@@ -1896,8 +1854,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			}
 
 			setByte(address, A);
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x86:				//STX
@@ -1928,8 +1885,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			}
 
 			setByte(address, X);
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 
 		}
 
@@ -1961,8 +1917,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			}
 
 			setByte(address, Y);
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xAA: {				//TAX
@@ -1974,8 +1929,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			X = A;
 			PS[N] = getBit(X, 7);
 			PS[Z] = (X == 0) ? true : false;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0xA8: {				//TAY
@@ -1987,8 +1941,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			Y = A;
 			PS[N] = getBit(Y, 7);
 			PS[Z] = (Y == 0) ? true : false;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 
 		}
 		case 0xBA: {				//TSX
@@ -2000,8 +1953,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			X = SP;
 			PS[N] = getBit(X, 7);
 			PS[Z] = (X == 0) ? true : false;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x8A: {				//TXA
@@ -2013,8 +1965,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			A = X;
 			PS[N] = getBit(A, 7);
 			PS[Z] = (A == 0) ? true : false;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		case 0x9A: {				//TXS
@@ -2024,8 +1975,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PC++;
 			tCnt = 2;
 			SP = X;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 
 		}
 		case 0x98: {				//TYA
@@ -2037,8 +1987,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			A = Y;
 			PS[N] = getBit(A, 7);
 			PS[Z] = (A == 0) ? true : false;
-			if (debug) std::cout << std::endl;
-			break;
+            break;
 		}
 
 		default: {
@@ -2046,6 +1995,8 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			return false;
 		}
 	}
+
+	if (debug) std::cout << std::endl;
 
 	return true;
 
