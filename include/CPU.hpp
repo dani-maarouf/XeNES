@@ -28,12 +28,15 @@ public:
 	bool PS[8];			//processor status word
 
 	uint8_t stack[0x100];
-	uint8_t memory[0x10000];
+	uint8_t cpuMem[0x10000];
 
 	APU nesAPU;
 
+	uint8_t getByte(uint16_t);
+	bool setByte(uint16_t, uint8_t);
+
 	void init();
-	bool executeNextOpcode();
+	bool executeNextOpcode(bool, bool);
 
 };
 
