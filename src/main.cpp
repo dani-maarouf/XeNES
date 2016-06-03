@@ -25,13 +25,15 @@ int main(int argc, char ** argv) {
 
 	nesSystem.nesCPU.PC = 0xC000;
 
-	for (int x = 0; x < 5529; x++) {
+	for (int x = 0; x < 7940; x++) {
 
 
 
-		nesSystem.nesCPU.executeNextOpcode(true, true);
+		if (!nesSystem.nesCPU.executeNextOpcode(true, true)) {
+			std::cerr << "Error executing opcode" << std::endl;
+			break;
+		}
 
-		//usleep(5000);
 	}
 
 	return 0;
