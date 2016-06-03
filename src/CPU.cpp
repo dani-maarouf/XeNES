@@ -4,15 +4,16 @@
 #include "CPU.hpp"
 
 static bool getBit(uint8_t, int);
-static int binToBcd(uint8_t);
-static uint8_t bcdToBin(int);
 
 uint8_t CPU::getByte(uint16_t address) {
 	return cpuMem[address];
+	
 }
 
 bool CPU::setByte(uint16_t address, uint8_t byte) {
+
 	cpuMem[address] = byte;
+	return true;
 }
 
 void CPU::init() {
@@ -30,7 +31,6 @@ void CPU::init() {
 	X  = 0x0;
 	Y  = 0x0;
 
-	
 	PS[I] = true;
 
 	nesAPU.init();
@@ -38,7 +38,6 @@ void CPU::init() {
 	return;
 }
 
-//http://homepage.ntlworld.com/cyborgsystems/CS_Main/6502/6502.htm
 bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 	int tCnt;
@@ -503,8 +502,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 			*/
 
-			if (debug) std::cout << std::endl;
-
 			break;
 		}
 
@@ -930,7 +927,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 			} else if (opcode == 0xF6) {
 				address = ((iByte2 + X) & 0xFF);
-				PC += 3;
+				PC += 2;
 				tCnt = 6;
 
 				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << ",X";
@@ -992,9 +989,18 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				address = (iByte2 | (iByte3 << 8));
 				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 			} else if (opcode == 0x6C) {
+
+				uint16_t low, high;
+
+				low = getByte((iByte2 | (iByte3 << 8)));
+				high = getByte(((iByte2 + 1) & 0xFF) | (iByte3 << 8));
+				address = (high << 8) | low;
+
 				tCnt = 5;
-				address = getByte((iByte2 | (iByte3 << 8)));
+				//address = getByte((iByte2 | (iByte3 << 8)));
 				if (debug) std::cout << "($" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ")";
+
+
 			} else {
 				return false;
 			}
@@ -1023,6 +1029,109 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PC = (iByte2 | (iByte3 << 8));
 
             break;
+		}
+
+		case 0xA3: 			//LAX
+		case 0xA7: 
+		case 0xAF: 
+		case 0xB3: 
+		case 0xB7: 
+		case 0xBF: {			
+
+			if (debug) std::cout << "*LAX ";
+
+			uint8_t memByte;
+
+			if (opcode == 0xA9) {
+				memByte = iByte2;
+				tCnt = 2;
+				PC += 2;
+
+				if (debug) std::cout << "#$" << std::hex << std::uppercase << (unsigned int) iByte2;
+
+			} else if (opcode == 0xA7) {
+				memByte = getByte(iByte2);
+				tCnt = 3;
+				PC += 2;
+
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2;
+
+			} else if (opcode == 0xB5) {
+				memByte = getByte((iByte2 + X) & 0xFF);
+				tCnt = 4;
+				PC += 2;
+
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << ",X";
+
+			} else if (opcode == 0xB7) {
+				memByte = getByte((iByte2 + Y) & 0xFF);
+				tCnt = 4;
+				PC += 2;
+
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << ",Y";
+
+			} else if (opcode == 0xAF) {
+				uint16_t address;
+				address = (iByte2 | (iByte3 << 8));
+				memByte = getByte(address);
+				tCnt = 4;
+				PC += 3;
+
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
+
+
+			} else if (opcode == 0xBD) {
+				uint16_t address;
+				address = (((iByte2 | (iByte3 << 8)) + X) & 0xFFFF);
+				memByte = getByte(address);
+				tCnt = 4;
+				PC += 3;
+
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
+
+			} else if (opcode == 0xBF) {
+				uint16_t address;
+				address = (((iByte2 | (iByte3 << 8)) + Y) & 0xFFFF);
+				memByte = getByte(address);
+				tCnt = 4;
+				PC += 3;
+
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",Y";
+
+			} else if (opcode == 0xA3) {
+				uint16_t address;
+
+				uint16_t low;
+				uint16_t high;
+				low = getByte((iByte2 + X) & 0xFF);
+				high = (getByte(iByte2 + 1 + X & 0xFF)) << 8;
+				address = low | high;
+				memByte = getByte(address);
+				tCnt = 6;
+				PC += 2;
+
+				if (debug) std::cout << "($" << std::hex << std::uppercase << (unsigned int) iByte2 << ",X)";
+
+			} else if (opcode == 0xB3) {
+				uint16_t address;
+				address = ((((getByte(iByte2)) | (getByte(iByte2 + 1 & 0xFF)) << 8) + Y) & 0xFFFF);
+				memByte = getByte(address);
+				tCnt = 5;
+				PC += 2;
+
+				if (debug) std::cout << "($" << std::hex << std::uppercase << (unsigned int) iByte2 << "),Y";
+
+			} else {
+				return false;
+			}
+
+
+			A = memByte;
+			X = memByte;
+
+			PS[N] = getBit(A, 7);
+			PS[Z] = (A == 0) ? true : false;
+			break;
 		}
 
 		case 0xA9:			//LDA
@@ -1301,10 +1410,61 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
             break;
 		}
 
+		case 0x04:
+		case 0x44:
+		case 0x64:
+		case 0x0C:
+		case 0x14:
+		case 0x34:
+		case 0x54:
+		case 0x74:
+		case 0xD4:
+		case 0xF4:
+		case 0x1A:
+		case 0x3A:
+		case 0x5A:
+		case 0x7A:
+		case 0xDA:
+		case 0xFA:
+		case 0x80:
+		case 0x1C:
+		case 0x3C:
+		case 0x5C:
+		case 0x7C:
+		case 0xDC:
+		case 0xFC:
 		case 0xEA: {				//NOP
-			if (debug) std::cout << "NOP";
-			PC++;
-			tCnt = 2;
+
+			if (opcode == 0xEA) {
+				if (debug) std::cout << "NOP ";
+			} else {
+				if (debug) std::cout << "*NOP ";
+			}
+
+
+			if (opcode == 0xEA || opcode == 0x1A || opcode == 0x3A || opcode == 0x5A || opcode == 0x7A || opcode == 0xDA || opcode == 0xFA) {
+				PC++;
+			} else if (opcode == 0x04 || opcode == 0x44 || opcode == 0x64) {
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2;
+				PC += 2;
+			} else if (opcode == 0x0C) {
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
+				PC += 3;
+			} else if (opcode == 0x14 || opcode == 0x34 || opcode == 0x54 || opcode == 0x74 || opcode == 0xD4 || opcode == 0xF4) {
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << ",X";
+				PC += 2;
+			} else if (opcode == 0x80) {
+				if (debug) std::cout << "#$" << std::hex << std::uppercase << (unsigned int) iByte2;
+				PC += 2;
+			} else if (opcode == 0x1C || opcode == 0x3C || opcode == 0x5C || opcode == 0x7C || opcode == 0xDC || opcode == 0xFC) {
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
+				PC += 3;
+
+			} else {
+				return false;
+			}
+
+			tCnt = 2;			//todo: fix for illegal opcodes
             break;
 		}
 
@@ -1630,7 +1790,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 			tCnt = 6;
 
-			SP--;
+			SP++;
 			
 			uint8_t memByte;
 			memByte = getByte(SP + 0x100);
@@ -1642,9 +1802,9 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[Z] = getBit(memByte, 1);
 			PS[C] = getBit(memByte, 0);
 
-			SP--;
+			SP++;
 			uint16_t low = getByte(SP + 0x100);
-			SP--;
+			SP++;
 			uint16_t high = getByte(SP + 0x100) << 8;
 			PC = high | low;
             break;
@@ -2021,6 +2181,8 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 	if (debug) std::cout << std::endl;
 
+	//fix indirect?
+
 	return true;
 
 }
@@ -2047,18 +2209,4 @@ static bool getBit(uint8_t num, int bitNum) {
 		std::cerr << "Error, called getBit() with invalid number" << std::endl;
 		return false;
 	}
-}
-
-static int binToBcd(uint8_t hex) {
-	int decimal;
-	decimal = (hex & 0xF) + 10 * ((hex & 0xF0) >> 4);
-	return decimal;
-}
-
-static uint8_t bcdToBin(int num) {
-	int higher = num / 10;
-	int lower = num % 10;
-	uint8_t bin;
-	bin = (higher << 4) | lower;
-	return bin;
 }

@@ -25,7 +25,7 @@ int main(int argc, char ** argv) {
 
 	nesSystem.nesCPU.PC = 0xC000;
 
-	for (int x = 0; x < 935; x++) {
+	for (int x = 0; x < 5529; x++) {
 
 
 
