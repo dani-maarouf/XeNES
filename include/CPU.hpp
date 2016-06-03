@@ -8,7 +8,6 @@
 enum ProcessorStatusIndex {
 	N,		//is number negative
 	V,		//overflow
-	B,		//set for BRK instruction
 	D,		//BCD mode
 	I,		//disable interrupts
 	Z,		//zero flag

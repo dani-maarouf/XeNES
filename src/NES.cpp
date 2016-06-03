@@ -116,7 +116,7 @@ bool NES::openROM(const char * fileLoc) {
 
 			if (index < 16384 + 16) {
 
-				nesCPU.setByte(0x8000 + index - 16, binaryValue);
+				nesCPU.setByte(0xC000 + index - 16, binaryValue);
 
 
 			}

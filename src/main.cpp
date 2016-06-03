@@ -23,15 +23,15 @@ int main(int argc, char ** argv) {
 		return 1;
 	}
 
-	nesSystem.nesCPU.PC = 0x8000;
+	nesSystem.nesCPU.PC = 0xC000;
 
-	for (int x = 0; x < 50000; x++) {
+	for (int x = 0; x < 700; x++) {
 
 
 
 		nesSystem.nesCPU.executeNextOpcode(true, true);
 
-		usleep(5000);
+		//usleep(5000);
 	}
 
 	return 0;

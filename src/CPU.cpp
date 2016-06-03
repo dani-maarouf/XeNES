@@ -33,6 +33,9 @@ void CPU::init() {
 	X  = 0x0;
 	Y  = 0x0;
 
+	
+	PS[I] = true;
+
 	nesAPU.init();
 
 	return;
@@ -53,10 +56,22 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 	std::cout << std::hex << std::uppercase;
 
+	uint8_t P;
+	P = 0;
+
+	if (PS[C]) P |= 0x1;
+	if (PS[Z]) P |= 0x2;
+	if (PS[I]) P |= 0x4;
+	if (PS[D]) P |= 0x8;
+	if (PS[V]) P |= 0x40;
+	if (PS[N]) P |= 0x80;
+
+	P |= 0x20;
+
 	if (verbose) {
 		std::cout << std::hex << std::uppercase << "PC:" << (int) PC << " SP:" << (int) SP << " X:" << (int) X;
-		std::cout << std::hex << std::uppercase <<" Y:" << (int) Y << " A:" << (int) A << " N:" << PS[N] << " V:" << PS[V] << " B:" << PS[B];
-		std::cout << std::hex << std::uppercase <<" D:" << PS[D] << " I:" << PS[I] << " Z:" << PS[Z] << " C:" << PS[C] << "\t\t\t"; 
+		std::cout << std::hex << std::uppercase <<" Y:" << (int) Y << " A:" << (int) A << " N:" << PS[N] << " V:" << PS[V];
+		std::cout << std::hex << std::uppercase <<" D:" << PS[D] << " I:" << PS[I] << " Z:" << PS[Z] << " C:" << PS[C] << " P:" << (int) P << "\t\t\t"; 
 	}
 
 	switch (opcode) {
@@ -154,18 +169,25 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			uint16_t total;
 			total = A + memByte + PS[C];
 
-			PS[V] = (getBit(A, 7) != getBit(total, 7)) ? true : false;
-			PS[N] = getBit(A, 7);
-			PS[Z] = (total == 0) ? true : false;
 
-			if (PS[D]) {
-				total = binToBcd(A) + binToBcd(memByte) + PS[C];
-				PS[C] = (total > 99) ? true : false;
-				A = bcdToBin(total) & 0xFF;
+			int8_t num1, num2;
+			num1 = (int8_t) A;
+			num2 = (int8_t) memByte;
+
+			if (num1 + num2 + PS[C] < -128 || num1 + num2 + PS[C] > 127) {
+				PS[V] = true;
 			} else {
-				PS[C] = (total > 255) ? true : false;
-				A = total & 0xFF;
+				PS[V] = false;
 			}
+
+
+			PS[C] = (total > 255) ? true : false;
+			A = total & 0xFF;
+			PS[Z] = (A == 0) ? true : false;
+
+
+			PS[N] = getBit(A, 7);
+
             break;
 		}
 
@@ -350,7 +372,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x90: {			//BCC
 			if (debug) std::cout << "BCC $" << std::hex << std::uppercase << (unsigned int) iByte2;
 			if (PS[C] == 0) {
-				PC += (int8_t) iByte2;
+				PC += (int8_t) iByte2 + 2;
 			} else {
 				PC += 2;
 			}
@@ -361,7 +383,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0xB0: {			//BCS
 			if (debug) std::cout << "BCS $" << std::hex << std::uppercase << (unsigned int) iByte2;
 			if (PS[C]) {
-				PC += (int8_t) iByte2;
+				PC += (int8_t) iByte2 + 2;
 			} else {
 				PC += 2;
 			}
@@ -372,7 +394,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0xF0: {			//BEQ
 			if (debug) std::cout << "BEQ $" << std::hex << std::uppercase << (unsigned int) iByte2;
 			if (PS[Z]) {
-				PC += (int8_t) iByte2;
+				PC += (int8_t) iByte2 + 2;
 			} else {
 				PC += 2;
 			}
@@ -404,8 +426,8 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			uint8_t num;
 			num = A & memByte;
 
-			PS[N] = getBit(num, 7);
-			PS[V] = getBit(num, 6);
+			PS[N] = getBit(memByte, 7);
+			PS[V] = getBit(memByte, 6);
 
 			PS[Z] = (num == 0) ? true : false;
 
@@ -415,7 +437,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x30: {			//BMI
 			if (debug) std::cout << "BMI $" << std::hex << std::uppercase << (unsigned int) iByte2;
 			if (PS[N]) {
-				PC += (int8_t) iByte2;
+				PC += (int8_t) iByte2 + 2;
 			} else {
 				PC += 2;
 			}
@@ -426,7 +448,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0xD0: {			//BNE
 			if (debug) std::cout << "BNE $" << std::hex << std::uppercase << (unsigned int) iByte2;
 			if (PS[Z] == 0) {
-				PC += (int8_t) iByte2;
+				PC += (int8_t) iByte2 + 2;
 			} else {
 				PC += 2;
 			}
@@ -437,7 +459,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x10: {			//BPL
 			if (debug) std::cout << "BPL $" << std::hex << std::uppercase << (unsigned int) iByte2;
 			if (PS[N] == 0) {
-				PC += (int8_t) iByte2;
+				PC += (int8_t) iByte2 + 2;
 			} else {
 				PC += 2;
 			}
@@ -492,7 +514,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x50: {			//BVC
 			if (debug) std::cout << "BVC $" << std::hex << std::uppercase << (unsigned int) iByte2;
 			if (PS[V] == 0) {
-				PC += (int8_t) iByte2;
+				PC += (int8_t) iByte2 + 2;
 			} else {
 				PC += 2;
 			}
@@ -503,7 +525,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x70: {			//BVS
 			if (debug) std::cout << "BVS $" << std::hex << std::uppercase << (unsigned int) iByte2;
 			if (PS[V]) {
-				PC += (int8_t) iByte2;
+				PC += (int8_t) iByte2 + 2;
 			} else {
 				PC += 2;
 			}
@@ -988,6 +1010,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 			if (debug) std::cout << "JSR $" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
 			uint16_t store;
+			PC += 3;
 			store = PC - 1;
 
 			uint8_t low, high;
@@ -1001,6 +1024,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			SP--;
 
 			PC = (iByte2 | (iByte3 << 8));
+
             break;
 		}
 
@@ -1375,7 +1399,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				return false;
 			}
 
-			A = A | memByte;
+			A = (A | memByte);
 			PS[N] = getBit(A, 7);
 			PS[Z] = (A == 0) ? true : false;
 
@@ -1406,9 +1430,10 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			if (PS[Z]) memByte |= 0x2;
 			if (PS[I]) memByte |= 0x4;
 			if (PS[D]) memByte |= 0x8;
-			if (PS[B]) memByte |= 0x10;
 			if (PS[V]) memByte |= 0x40;
 			if (PS[N]) memByte |= 0x80;
+
+			memByte |= 0x20;
 
 			stack[SP] = memByte;
 			SP--;
@@ -1440,7 +1465,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 			PS[N] = getBit(memByte, 7);
 			PS[V] = getBit(memByte, 6);
-			PS[B] = getBit(memByte, 4);
 			PS[D] = getBit(memByte, 3);
 			PS[I] = getBit(memByte, 2);
 			PS[Z] = getBit(memByte, 1);
@@ -1614,7 +1638,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 			PS[N] = getBit(memByte, 7);
 			PS[V] = getBit(memByte, 6);
-			PS[B] = getBit(memByte, 4);
 			PS[D] = getBit(memByte, 3);
 			PS[I] = getBit(memByte, 2);
 			PS[Z] = getBit(memByte, 1);
@@ -1731,25 +1754,26 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 			int total;
 
-			if (PS[D]) {
+			total = A - memByte - (!PS[C]);
 
-				total = binToBcd(A) - binToBcd(memByte) - (!PS[C]);
-				PS[V] = (total > 99 || total < 0) ? true : false;
-				total %= 100;
-				A = bcdToBin(total);
-				std::cout << "Binary subtraction detected, this needs to be fixed" << std::endl;
 
+			int8_t num1, num2;
+			num1 = (int8_t) A;
+			num2 = (int8_t) memByte;
+
+			if (num1 - num2 - (!PS[C]) < -128 || num1 - num2 - (!PS[C]) > 127) {
+				PS[V] = true;
 			} else {
-
-				total = A - memByte - (!PS[C]);
-				PS[V] = (total > 127 || total < -128) ? true : false;
-				A = total & 0xFF;
-
+				PS[V] = false;
 			}
 
-			PS[C] = (total == 0) ? true : false;
+
+
+			A = total & 0xFF;
+
+			PS[C] = (total >= 0) ? true : false;
 			PS[N] = getBit(total, 7);
-			PS[Z] = (total == 0) ? 1 : 0;
+			PS[Z] = (A == 0) ? 1 : 0;
 
             break;
 		}
