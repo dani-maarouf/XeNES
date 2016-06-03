@@ -26,14 +26,10 @@ int main(int argc, char ** argv) {
 	nesSystem.nesCPU.PC = 0xC000;
 
 	for (int x = 0; x < 8991; x++) {
-
-
-
 		if (!nesSystem.nesCPU.executeNextOpcode(true, true)) {
 			std::cerr << "Error executing opcode" << std::endl;
 			break;
 		}
-
 	}
 
 	return 0;
