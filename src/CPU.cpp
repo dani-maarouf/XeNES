@@ -23,12 +23,9 @@ void CPU::init() {
 	for (int x = 0; x < 8; x++) {
 		PS[x] = false;
 	}
-	for (int x = 0; x < 0x100; x++) {
-		stack[x] = 0x0;
-	}
 
 	PC = 0x0;
-	SP = 0xFF;
+	SP = 0xFD;
 	A  = 0x0;
 	X  = 0x0;
 	Y  = 0x0;
@@ -117,7 +114,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 			} else if (opcode == 0x7D) {					//Absolute,X
 				uint16_t address;
@@ -126,7 +123,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",X";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
 
 			} else if (opcode == 0x79) {					//Absolute,Y
 				uint16_t address;
@@ -135,7 +132,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",Y";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",Y";
 
 			} else if (opcode == 0x61) {					//(Indirect,X)
 				uint16_t address;
@@ -225,21 +222,21 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				memByte = getByte(address);
 				tCnt = 4;
 				PC += 3;
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 			} else if (opcode == 0x3D) {
 				uint16_t address;
 				address = (((iByte2 | (iByte3 << 8)) + X) & 0xFFFF);
 				memByte = getByte(address);
 				tCnt = 4;
 				PC += 3;
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",X";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
 			} else if (opcode == 0x39) {
 				uint16_t address;
 				address = (((iByte2 | (iByte3 << 8)) + Y) & 0xFFFF);
 				memByte = getByte(address);
 				tCnt = 4;
 				PC += 3;
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",Y";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",Y";
 			} else if (opcode == 0x21) {
 				uint16_t address;
 
@@ -343,7 +340,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 3;
 				tCnt = 6;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 			} else if (opcode == 0x1E) {
 
@@ -360,7 +357,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 3;
 				tCnt = 7;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",X";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
 
 			} else {
 				return false;
@@ -418,7 +415,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				memByte = getByte((iByte2 | (iByte3 << 8)));
 				PC += 3;
 				tCnt = 4;
-				if (debug) std::cout << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 			} else {
 				return false;
 			}
@@ -606,7 +603,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 			} else if (opcode == 0xDD) {
 				uint16_t address;
@@ -615,7 +612,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",X";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
 
 			} else if (opcode == 0xD9) {
 				uint16_t address;
@@ -624,7 +621,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",Y";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",Y";
 
 			} else if (opcode == 0xC1) {
 				uint16_t address;
@@ -690,7 +687,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 3;
 				tCnt = 4;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 			} else {
 				return false;
@@ -732,7 +729,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 3;
 				tCnt = 4;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 			} else {
 				return false;
@@ -775,14 +772,14 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 3;
 				tCnt = 6;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 			} else if (opcode == 0xDE) {
 				address = (((iByte2 | (iByte3 << 8)) + X) & (0xFFFF));
 				PC += 3;
 				tCnt = 7;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",X";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
 
 			} else {
 				return false;
@@ -860,7 +857,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 			} else if (opcode == 0x5D) {
 				uint16_t address;
@@ -869,7 +866,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",X";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
 
 			} else if (opcode == 0x59) {
 				uint16_t address;
@@ -878,7 +875,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",Y";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",Y";
 
 			} else if (opcode == 0x41) {
 				uint16_t address;
@@ -943,14 +940,14 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 3;
 				tCnt = 6;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 			} else if (opcode == 0xFE) {
 				address = (((iByte2 | (iByte3 << 8)) + X) & 0xFFFF);
 				PC += 3;
 				tCnt = 7;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",X";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
 
 			} else {
 				return false;
@@ -993,11 +990,11 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			if (opcode == 0x4C) {
 				tCnt = 3;
 				address = (iByte2 | (iByte3 << 8));
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 			} else if (opcode == 0x6C) {
 				tCnt = 5;
 				address = getByte((iByte2 | (iByte3 << 8)));
-				if (debug) std::cout << "($" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ")";
+				if (debug) std::cout << "($" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ")";
 			} else {
 				return false;
 			}
@@ -1008,7 +1005,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 		case 0x20: {			//JSR
 
-			if (debug) std::cout << "JSR $" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+			if (debug) std::cout << "JSR $" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 			uint16_t store;
 			PC += 3;
 			store = PC - 1;
@@ -1018,9 +1015,9 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			low = store & 0xFF;
 			high = (store & 0xFF00) >> 8;
 
-			stack[SP] = high;
+			setByte(SP + 0x100, high);
 			SP--;
-			stack[SP] = low;
+			setByte(SP + 0x100, low);
 			SP--;
 
 			PC = (iByte2 | (iByte3 << 8));
@@ -1069,7 +1066,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 
 			} else if (opcode == 0xBD) {
@@ -1079,7 +1076,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",X";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
 
 			} else if (opcode == 0xB9) {
 				uint16_t address;
@@ -1088,7 +1085,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",Y";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",Y";
 
 			} else if (opcode == 0xA1) {
 				uint16_t address;
@@ -1161,14 +1158,14 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 3;
 				tCnt = 4;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 			} else if (opcode == 0xBE) {
 				memByte = getByte((((iByte2 | (iByte3 << 8)) + Y) & 0xFFFF));
 				PC += 3;
 				tCnt = 4;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",X";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
 
 			} else {
 				return false;
@@ -1218,14 +1215,14 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 3;
 				tCnt = 4;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 			} else if (opcode == 0xBC) {
 				memByte = getByte((((iByte2 | (iByte3 << 8)) + X) & 0xFFFF));
 				PC += 3;
 				tCnt = 4;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",X";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
 
 			} else {
 				return false;
@@ -1281,14 +1278,14 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 					tCnt = 6;
 					address = (iByte2 | (iByte3 << 8));
 
-					if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+					if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 				} else if (opcode == 0x5E) {
 					PC += 3;
 					tCnt = 7;
 					address = ((iByte2 | (iByte3 << 8)) + X) & 0xFFFF;
 
-					if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",X";
+					if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
 
 				} else {
 					return false;
@@ -1352,7 +1349,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 			} else if (opcode == 0x1D) {
 				uint16_t address;
@@ -1361,7 +1358,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",X";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
 
 			} else if (opcode == 0x19) {
 				uint16_t address;
@@ -1370,7 +1367,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",Y";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",Y";
 
 			} else if (opcode == 0x01) {
 				uint16_t address;
@@ -1412,7 +1409,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 			PC++;
 			tCnt = 3;
-			stack[SP] = A;
+			setByte(SP + 0x100, A);
 			SP--;
             break;
 		}
@@ -1435,7 +1432,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 			memByte |= 0x20;
 
-			stack[SP] = memByte;
+			setByte(SP + 0x100, memByte);
 			SP--;
 
             break;
@@ -1448,7 +1445,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PC++;
 			tCnt = 4;
 			SP++;
-			A = stack[SP];
+			A = getByte(SP + 0x100);
 			PS[N] = getBit(A, 7);
 			PS[Z] = (A == 0) ? true : false;
             break;
@@ -1461,7 +1458,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PC++;
 			tCnt = 4;
 			SP++;
-			uint8_t memByte = stack[SP];
+			uint8_t memByte = getByte(SP + 0x100);
 
 			PS[N] = getBit(memByte, 7);
 			PS[V] = getBit(memByte, 6);
@@ -1520,14 +1517,14 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 					tCnt = 6;
 					address = (iByte2 | (iByte3 << 8));
 
-					if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+					if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 				} else if (opcode == 0x3E) {
 					PC += 3;
 					tCnt = 7;
 					address = ((iByte2 | (iByte3 << 8)) + X) & 0xFFFF;
 
-					if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",X";
+					if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
 
 				} else {
 					return false;
@@ -1596,14 +1593,14 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 					tCnt = 6;
 					address = (iByte2 | (iByte3 << 8));
 
-					if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+					if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 				} else if (opcode == 0x7E) {
 					PC += 3;
 					tCnt = 7;
 					address = ((iByte2 | (iByte3 << 8)) + X) & 0xFFFF;
 
-					if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",X";
+					if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
 
 				} else {
 					return false;
@@ -1631,10 +1628,12 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 			if (debug) std::cout << "RTI";
 
-			SP--;
 			tCnt = 6;
+
+			SP--;
+			
 			uint8_t memByte;
-			memByte = stack[SP];
+			memByte = getByte(SP + 0x100);
 
 			PS[N] = getBit(memByte, 7);
 			PS[V] = getBit(memByte, 6);
@@ -1644,9 +1643,9 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 			PS[C] = getBit(memByte, 0);
 
 			SP--;
-			uint16_t low = stack[SP];
+			uint16_t low = getByte(SP + 0x100);
 			SP--;
-			uint16_t high = stack[SP] << 8;
+			uint16_t high = getByte(SP + 0x100) << 8;
 			PC = high | low;
             break;
 		}
@@ -1657,9 +1656,9 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 			SP++;
 			tCnt = 6;
-			uint16_t low = stack[SP];
+			uint16_t low = getByte(SP + 0x100);
 			SP++;
-			uint16_t high = stack[SP] << 8;
+			uint16_t high = getByte(SP + 0x100) << 8;
 			PC = (high | low) + 1;
             break;
 		}
@@ -1705,7 +1704,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 			} else if (opcode == 0xFD) {
 				uint16_t address;
@@ -1714,7 +1713,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",X";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
 
 			} else if (opcode == 0xF9) {
 				uint16_t address;
@@ -1723,7 +1722,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				tCnt = 4;
 				PC += 3;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",Y";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",Y";
 
 			} else if (opcode == 0xE1) {
 				uint16_t address;
@@ -1839,21 +1838,21 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 3;
 				tCnt = 4;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 
 			} else if (opcode == 0x9D) {
 				address = (((iByte2 | (iByte3 << 8)) + X) & 0xFFFF);
 				PC += 3;
 				tCnt = 5;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",X";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
 
 			} else if (opcode == 0x99) {
 				address = (((iByte2 | (iByte3 << 8)) + Y) & 0xFFFF);
 				PC += 3;
 				tCnt = 5;
 
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3 << ",Y";
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",Y";
 
 			} else if (opcode == 0x81) {
 				uint16_t low;
@@ -1903,7 +1902,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 3;
 				tCnt = 4;
 				address = (iByte2 | (iByte3 << 8));
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 			} else {
 				return false;
 			}
@@ -1935,7 +1934,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 				PC += 3;
 				tCnt = 4;
 				address = (iByte2 | (iByte3 << 8));
-				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << (unsigned int) iByte3;
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 			} else {
 				return false;
 			}
