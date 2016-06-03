@@ -2113,6 +2113,117 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 		}
 
+
+		case 0x63:				//RRA
+		case 0x67:
+		case 0x6F:
+		case 0x73:
+		case 0x77:
+		case 0x7B:
+		case 0x7F: {
+
+			if (debug) std::cout << "*RRA ";
+
+			uint16_t address;
+
+			if (opcode == 0x67) {
+				address = iByte2;
+				PC += 2;
+				tCnt = 3;
+
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2;
+
+			} else if (opcode == 0x77) {
+				address = ((iByte2 + X) & 0xFF);
+				PC += 2;
+				tCnt = 4;
+
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << ",X";
+
+			} else if (opcode == 0x6F) {
+				address = (iByte2 | (iByte3 << 8));
+				PC += 3;
+				tCnt = 4;
+
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
+
+			} else if (opcode == 0x7F) {
+				address = (((iByte2 | (iByte3 << 8)) + X) & 0xFFFF);
+				PC += 3;
+				tCnt = 5;
+
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
+
+			} else if (opcode == 0x7B) {
+				address = (((iByte2 | (iByte3 << 8)) + Y) & 0xFFFF);
+				PC += 3;
+				tCnt = 5;
+
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",Y";
+
+			} else if (opcode == 0x63) {
+				uint16_t low;
+				uint16_t high;
+				low = getByte((iByte2 + X) & 0xFF);
+				high = (getByte(iByte2 + 1 + X & 0xFF)) << 8;
+				address = low | high;
+				PC += 2;
+				tCnt = 6;
+
+				if (debug) std::cout << "($" << std::hex << std::uppercase << (unsigned int) iByte2 << ",X)";
+
+			} else if (opcode == 0x73) {
+				address = ((((getByte(iByte2)) | (getByte(iByte2 + 1 & 0xFF)) << 8) + Y) & 0xFFFF);
+				PC += 2;
+				tCnt = 6;
+
+				if (debug) std::cout << "($" << std::hex << std::uppercase << (unsigned int) iByte2 << "),Y";
+
+			} else {
+				return false;
+			}
+
+			bool store;
+			store = getBit(getByte(address), 0);
+
+			setByte(address, (getByte(address) >> 1) & 0x7F);
+			setByte(address, getByte(address) | (PS[C] ? 0x80 : 0x0));
+
+			
+			PS[C] = store;
+
+			uint8_t memByte;
+			memByte = getByte(address);
+
+			uint16_t total;
+			total = A + memByte + PS[C];
+
+
+			int8_t num1, num2;
+			num1 = (int8_t) A;
+			num2 = (int8_t) memByte;
+
+			if (num1 + num2 + PS[C] < -128 || num1 + num2 + PS[C] > 127) {
+				PS[V] = true;
+			} else {
+				PS[V] = false;
+			}
+
+
+			PS[C] = (total > 255) ? true : false;
+			A = total & 0xFF;
+			PS[Z] = (A == 0) ? true : false;
+
+
+			PS[N] = getBit(A, 7);
+
+
+
+			break;
+		}
+
+		
+
 		case 0x40: {				//RTI
 
 			if (debug) std::cout << "RTI";
@@ -2455,6 +2566,90 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 			break;
 		}
+
+		case 0x43:				//SRE
+		case 0x47:
+		case 0x4F:
+		case 0x53:
+		case 0x57:
+		case 0x5B:
+		case 0x5F: {
+
+			if (debug) std::cout << "*SRE ";
+
+			uint16_t address;
+
+			if (opcode == 0x47) {
+				address = iByte2;
+				PC += 2;
+				tCnt = 3;
+
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2;
+
+			} else if (opcode == 0x57) {
+				address = ((iByte2 + X) & 0xFF);
+				PC += 2;
+				tCnt = 4;
+
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2 << ",X";
+
+			} else if (opcode == 0x4F) {
+				address = (iByte2 | (iByte3 << 8));
+				PC += 3;
+				tCnt = 4;
+
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
+
+			} else if (opcode == 0x5F) {
+				address = (((iByte2 | (iByte3 << 8)) + X) & 0xFFFF);
+				PC += 3;
+				tCnt = 5;
+
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",X";
+
+			} else if (opcode == 0x5B) {
+				address = (((iByte2 | (iByte3 << 8)) + Y) & 0xFFFF);
+				PC += 3;
+				tCnt = 5;
+
+				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2 << ",Y";
+
+			} else if (opcode == 0x43) {
+				uint16_t low;
+				uint16_t high;
+				low = getByte((iByte2 + X) & 0xFF);
+				high = (getByte(iByte2 + 1 + X & 0xFF)) << 8;
+				address = low | high;
+				PC += 2;
+				tCnt = 6;
+
+				if (debug) std::cout << "($" << std::hex << std::uppercase << (unsigned int) iByte2 << ",X)";
+
+			} else if (opcode == 0x53) {
+				address = ((((getByte(iByte2)) | (getByte(iByte2 + 1 & 0xFF)) << 8) + Y) & 0xFFFF);
+				PC += 2;
+				tCnt = 6;
+
+				if (debug) std::cout << "($" << std::hex << std::uppercase << (unsigned int) iByte2 << "),Y";
+
+			} else {
+				return false;
+			}
+
+			PS[N] = 0;
+			PS[C] = getBit(getByte(address), 0);
+
+			setByte(address, (getByte(address) >> 1) & 0x7F);
+
+			A ^= getByte(address);
+
+			PS[N] = getBit(A, 7);
+			PS[Z] = (A == 0) ? true : false;
+
+
+			break;
+		}
+
 
 
 		case 0x85:				//STA
