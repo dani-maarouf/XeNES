@@ -14,6 +14,23 @@ enum ProcessorStatusIndex {
 	C 		//carry flag
 };
 
+enum AddressMode {
+	ABSOLUTE,
+	ABSOLUTE_X,
+	ABSOLUTE_Y,
+	ACCUMULATOR,
+	IMMEDIATE,
+	IMPLIED,
+	INDEXED_INDIRECT,
+	INDIRECT,
+	INDIRECT_INDEXED,
+	RELATIVE,
+	ZERO_PAGE,
+	ZERO_PAGE_X,
+	ZERO_PAGE_Y,
+	NONE
+};
+
 class CPU {
 
 public:
@@ -31,6 +48,7 @@ public:
 
 	APU nesAPU;
 
+	uint16_t retrieveAddress(enum AddressMode);
 	uint8_t getByte(uint16_t);
 	bool setByte(uint16_t, uint8_t);
 

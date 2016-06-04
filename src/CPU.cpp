@@ -1,26 +1,41 @@
 #include <iostream>
-#include <bitset>
 
 #include "CPU.hpp"
+                            //0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F
+const int opcodeLens[0x20] = {2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3, //0 2 4 6 8 A C E
+	                          2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3};//1 3 5 7 9 B D F
 
-//BRK ilen?
-                       //0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F
-const int iLen[0x100] = {2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3, //0
-	                     2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3, //1
-	                     3,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3, //2
-	                     2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3, //3
-	                     1,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3, //4
-	                     2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3, //5
-	                     1,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3, //6
-	                     2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3, //7
-	                     2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3, //8
-	                     2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3, //9
-	                     2,2,2,2,2,2,2,2,1,2,1,2,3,3,3,3, //A
-	                     2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3, //B
-	                     2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3, //C
-	                     2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3, //D
-	                     2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3, //E
-	                     2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3};//F
+                         //0     1      2      3      4      5      6      7      8      9
+const char * opnames[] = {"XXX", "ADC", "AND", "ASL", "BCC", "BCS", "BEQ", "BMI", "BIT", "BNE", //0
+                          "BPL", "BRK", "BVC", "BVS", "CLC", "CLD", "CLI", "CLV", "CMP", "CPX", //1
+                          "CPY","*DCP", "DEC", "DEX", "DEY", "EOR", "INC", "INX", "INY","*ISB", //2
+                          "JMP", "JSR","*LAX", "LDA", "LDX", "LDY", "LSR", "NOP","*NOP", "ORA", //3
+                          "PHA", "PHP", "PLA", "PLP","*RLA", "ROL", "ROR","*RRA", "RTI", "RTS", //4
+                         "*SBC", "SBC", "SEC", "SED", "SEI","*SAX","*SLO","*SRE", "STA", "STX", //5
+                          "STY", "TAX", "TAY", "TSX", "TXA", "TXS", "TYA"};                     //6
+
+                       //0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+const int opnameMap[] = {11,39,00,56,38,39,03,56,41,39,03,00,38,39,03,56,  //0
+                         10,39,00,56,38,39,03,56,14,39,38,56,38,39,03,56,  //1
+                         31,02,00,44, 8,02,45,44,43,02,45,00, 8,02,45,44,  //2
+                         07,02,00,44,38,02,45,44,52,02,38,44,38,02,45,44,  //3
+                         48,25,00,57,38,25,36,57,40,25,36,00,30,25,36,57,  //4
+                         12,25,00,57,38,25,36,57,16,25,38,57,38,25,36,57,  //5
+                         49,01,00,47,38,01,46,47,42,01,46,00,30,01,46,47,  //6
+                         13,01,00,47,38,01,46,47,54,01,38,47,38,01,46,36,  //7
+                         38,58,00,55,60,58,59,55,24,00,64,00,60,58,59,55,  //8
+                         04,58,00,00,60,58,59,55,66,58,65,00,00,58,00,00,  //9
+                         35,33,34,32,35,33,34,32,62,33,61,00,35,33,34,32,  //A
+                         05,33,00,32,35,33,34,32,17,33,63,00,35,33,34,32,  //B
+                         20,18,00,21,20,18,22,21,28,18,23,00,20,18,22,21,  //C
+                          9,18,00,21,38,18,22,21,15,18,38,21,38,18,22,21,  //D
+                         19,50,00,29,19,51,26,29,27,51,38,51,19,51,26,29,  //E
+                         06,51,00,29,38,51,26,29,53,51,38,29,38,51,26,29}; //F
+
+const enum AddressMode opAddressModes[] = {};
+
+
+
 
 static bool getBit(uint8_t, int);
 
@@ -30,9 +45,49 @@ uint8_t CPU::getByte(uint16_t address) {
 }
 
 bool CPU::setByte(uint16_t address, uint8_t byte) {
-
 	cpuMem[address] = byte;
 	return true;
+}
+
+uint16_t CPU::retrieveAddress(enum AddressMode mode) {
+
+	uint8_t firstByte, secondByte;
+	firstByte = getByte(PC + 1);
+	secondByte = getByte(PC + 2);
+
+	switch (mode) {
+		case ZERO_PAGE:
+		return firstByte;
+
+		case ZERO_PAGE_X:
+		return ((firstByte + X) & 0xFF);
+
+		case ZERO_PAGE_Y:
+		return ((firstByte + Y) & 0xFF);
+
+		case ABSOLUTE:
+		return (firstByte | (secondByte << 8));
+
+		case ABSOLUTE_X:
+		return (((firstByte | (secondByte << 8)) + X) & 0xFFFF);
+
+		case ABSOLUTE_Y:
+		return (((firstByte | (secondByte << 8)) + Y) & 0xFFFF);
+
+		case INDEXED_INDIRECT: {
+			uint8_t low, high;
+			low = getByte((firstByte + X) & 0xFF);
+			high = getByte(firstByte + 1 + X & 0xFF);
+			return ((high << 8) | low);
+		}
+		case INDIRECT_INDEXED: {
+			return ((((getByte(firstByte)) | (getByte(firstByte + 1 & 0xFF)) << 8) + Y) & 0xFFFF);
+		}
+
+		default:
+		return 0;
+	}
+
 }
 
 void CPU::init() {
@@ -87,7 +142,9 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		std::cout << std::hex << std::uppercase <<" D:" << PS[D] << " I:" << PS[I] << " Z:" << PS[Z] << " C:" << PS[C] << " P:" << (int) P << "\t\t\t"; 
 	}
 
-	PC += iLen[opcode];
+	PC += opcodeLens[opcode % 0x20];
+
+	if (debug) std::cout << opnames[opnameMap[opcode]] << ' ';
 
 	switch (opcode) {
 
@@ -100,15 +157,11 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x61:
 		case 0x71: {
 
-			if (debug) std::cout << "ADC ";
-
 			uint8_t memByte;
 
 			if (opcode == 0x69) {							//Immediate
 				memByte = iByte2;
-	
 				if (debug) std::cout << "#$" << std::hex << std::uppercase << (unsigned int) iByte2;
-				
 			} else if (opcode == 0x65) {					//Zero Page
 				memByte = getByte(iByte2);
 				
@@ -199,11 +252,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x21:
 		case 0x31: {
 
-			if (debug) std::cout << "AND ";
-
 			uint8_t memByte;
-
-			
 
 			if (opcode == 0x29) {
 				memByte = iByte2;
@@ -273,18 +322,12 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x0E:
 		case 0x1E: {
 
-			if (debug) std::cout << "ASL ";
-
-			
-
 			if (opcode == 0x0A) {
 
 				PS[C] = getBit(A, 7);
 				A = ((A << 1) & 0xFE);
 				PS[N] = getBit(A, 7);
 				PS[Z] = (A == 0) ? true : false;
-
-				
 
 				if (debug) std::cout << "A";
 
@@ -334,7 +377,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0x90: {			//BCC
-			if (debug) std::cout << "BCC $" << std::hex << std::uppercase << (unsigned int) iByte2;
+			if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2;
 			
 			if (PS[C] == 0) PC += (int8_t) iByte2;
 			
@@ -342,7 +385,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0xB0: {			//BCS
-			if (debug) std::cout << "BCS $" << std::hex << std::uppercase << (unsigned int) iByte2;
+			if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2;
 			
 			if (PS[C]) PC += (int8_t) iByte2;
 			
@@ -351,7 +394,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0xF0: {			//BEQ
-			if (debug) std::cout << "BEQ $" << std::hex << std::uppercase << (unsigned int) iByte2;
+			if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2;
 			
 			if (PS[Z]) PC += (int8_t) iByte2;
 			
@@ -361,9 +404,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x24:			//BIT
 		case 0x2C: {
 
-			if (debug) std::cout << "BIT $";
-
-			
+			if (debug) std::cout << "$";
 
 			uint8_t memByte;
 
@@ -391,7 +432,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0x30: {			//BMI
-			if (debug) std::cout << "BMI $" << std::hex << std::uppercase << (unsigned int) iByte2;
+			if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2;
 
 			
 
@@ -401,7 +442,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0xD0: {			//BNE
-			if (debug) std::cout << "BNE $" << std::hex << std::uppercase << (unsigned int) iByte2;
+			if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2;
 
 			
 
@@ -411,7 +452,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0x10: {			//BPL
-			if (debug) std::cout << "BPL $" << std::hex << std::uppercase << (unsigned int) iByte2;
+			if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2;
 
 			
 
@@ -421,12 +462,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0x00: {			//BRK
-
-			if (debug) std::cout << "BRK";
-
-			
-
-			
 
 			uint8_t low, high;
 			low = PC & 0xFF;
@@ -458,7 +493,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0x50: {			//BVC
-			if (debug) std::cout << "BVC $" << std::hex << std::uppercase << (unsigned int) iByte2;
+			if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2;
 
 			
 
@@ -468,7 +503,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0x70: {			//BVS
-			if (debug) std::cout << "BVS $" << std::hex << std::uppercase << (unsigned int) iByte2;
+			if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2;
 
 			
 
@@ -478,7 +513,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0x18: {			//CLC
-			if (debug) std::cout << "CLC";
 			
 			PS[C] = false;
 			
@@ -486,7 +520,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0xD8: {			//CLD
-			if (debug) std::cout << "CLD";
 			
 			PS[D] = false;
 			
@@ -494,7 +527,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0x58: {			//CLI
-			if (debug) std::cout << "CLI";
 			
 			PS[I] = false;
 			
@@ -502,7 +534,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0xB8: {			//CLV
-			if (debug) std::cout << "CLV";
 			
 			PS[V] = false;
 			
@@ -517,8 +548,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0xD9:
 		case 0xC1:
 		case 0xD1: {
-
-			if (debug) std::cout << "CMP ";
 
 			uint8_t memByte;
 
@@ -605,16 +634,10 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0xE4:
 		case 0xEC: {
 
-			if (debug) std::cout << "CPX ";
-
 			uint8_t memByte;
-
-			
-
+		
 			if (opcode == 0xE0) {
 				memByte = iByte2;
-				
-
 				if (debug) std::cout << "#$" << std::hex << std::uppercase << (unsigned int) iByte2;
 
 			} else if (opcode == 0xE4) {
@@ -645,8 +668,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0xC0:			//CPY
 		case 0xC4:
 		case 0xCC: {
-
-			if (debug) std::cout << "CPY ";
 
 			uint8_t memByte;
 
@@ -691,8 +712,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0xCF:
 		case 0xDF:
 		case 0xDB: {
-
-			if (debug) std::cout << "*DCP ";
 
 			uint8_t memByte;
 
@@ -816,8 +835,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0xCE:
 		case 0xDE: {
 
-			if (debug) std::cout << "DEC ";
-
 			uint16_t address;
 
 			
@@ -862,10 +879,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 		case 0xCA: {			//DEX
 
-			if (debug) std::cout << "DEX";
-
-			
-			
 			X = X - 1;
 			PS[Z] = (X == 0) ? true : false;
 			PS[N] = getBit(X, 7);
@@ -873,10 +886,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0x88: {			//DEY
-
-			if (debug) std::cout << "DEY";
-
-			
 			
 			Y--;
 			PS[Z] = (Y == 0) ? true : false;
@@ -893,11 +902,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x41:
 		case 0x51: {
 
-			if (debug) std::cout << "EOR ";
-
 			uint8_t memByte;
-
-			
 
 			if (opcode == 0x49) {
 				memByte = iByte2;
@@ -979,8 +984,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0xEE:
 		case 0xFE: {
 
-			if (debug) std::cout << "INC ";
-
 			uint16_t address;
 
 			
@@ -1020,9 +1023,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
             break;
 		}
 
-		case 0xE8: {				//INX
-			if (debug) std::cout << "INX";
-			
+		case 0xE8: {				//INX			
 			
 			X = X + 1;
 			PS[Z] = (X == 0) ? true : false;
@@ -1030,9 +1031,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
             break;
 		}
 
-		case 0xC8: {				//INY
-			if (debug) std::cout << "INY";
-			
+		case 0xC8: {				//INY			
 			
 			Y = Y + 1;
 			PS[Z] = (Y == 0) ? true : false;
@@ -1048,8 +1047,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0xFF:
 		case 0xF3: {
 
-			if (debug) std::cout << "*ISB ";
-			
 			uint8_t memByte;
 
 			
@@ -1174,8 +1171,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x4C:				//JMP
 		case 0x6C: {
 
-			if (debug) std::cout << "JMP ";
-
 			uint16_t address;
 
 			if (opcode == 0x4C) {
@@ -1207,9 +1202,8 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 			if (debug) std::cout << "JSR $" << std::hex << std::uppercase << (unsigned int) iByte3 << (unsigned int) iByte2;
 			uint16_t store;
-			
-
-			store = PC - 1;
+		
+			store = PC;
 
 			uint8_t low, high;
 
@@ -1232,8 +1226,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0xB3: 
 		case 0xB7: 
 		case 0xBF: {			
-
-			if (debug) std::cout << "*LAX ";
 
 			uint8_t memByte;
 
@@ -1331,8 +1323,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0xA1:
 		case 0xB1: {
 
-			if (debug) std::cout << "LDA ";
-
 			uint8_t memByte;
 
 			
@@ -1419,13 +1409,12 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0xAE:
 		case 0xBE: {
 
-			if (debug) std::cout << "LDX ";
-
 			uint8_t memByte;
 
 			
 
 			if (opcode == 0xA2) {
+				PC += 2;
 				memByte = iByte2;
 				
 
@@ -1471,8 +1460,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0xB4:
 		case 0xAC:
 		case 0xBC: {
-
-			if (debug) std::cout << "LDY ";
 
 			uint8_t memByte;
 
@@ -1525,9 +1512,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x56:
 		case 0x4E:
 		case 0x5E: {
-
-			if (debug) std::cout << "LSR ";
-
 			
 
 			if (opcode == 0x4A) {
@@ -1608,15 +1592,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0xFC:
 		case 0xEA: {				//NOP
 
-			if (opcode == 0xEA) {
-				if (debug) std::cout << "NOP ";
-			} else {
-				if (debug) std::cout << "*NOP ";
-			}
-
-			
-
-
 			if (opcode == 0xEA || opcode == 0x1A || opcode == 0x3A || opcode == 0x5A || opcode == 0x7A || opcode == 0xDA || opcode == 0xFA) {
 			} else if (opcode == 0x04 || opcode == 0x44 || opcode == 0x64) {
 				if (debug) std::cout << "$" << std::hex << std::uppercase << (unsigned int) iByte2;
@@ -1645,11 +1620,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x01:
 		case 0x11: {
 
-			if (debug) std::cout << "ORA ";
-
 			uint8_t memByte;
-
-			
 
 			if (opcode == 0x09) {
 				memByte = iByte2;
@@ -1718,11 +1689,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0x48: {				//PHA
-
-			if (debug) std::cout << "PHA";
-
-			
-			
 			setByte(SP + 0x100, A);
 			SP--;
             break;
@@ -1730,10 +1696,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 		case 0x08: {				//PHP
 
-			if (debug) std::cout << "PHP";
-
-			
-			
 			uint8_t memByte;
 			memByte = 0;
 
@@ -1753,11 +1715,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0x68: {				//PLA
-
-			if (debug) std::cout << "PLA";
-
-			
-			
 			SP++;
 			A = getByte(SP + 0x100);
 			PS[N] = getBit(A, 7);
@@ -1767,10 +1724,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 		case 0x28: {				//PLP
 
-			if (debug) std::cout << "PLP";
-
-			
-			
 			SP++;
 			uint8_t memByte = getByte(SP + 0x100);
 
@@ -1791,11 +1744,8 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x3B:
 		case 0x3F: {
 
-			if (debug) std::cout << "*RLA ";
 
 			uint16_t address;
-
-			
 
 			if (opcode == 0x27) {
 				address = iByte2;
@@ -1870,10 +1820,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x2E:
 		case 0x3E: {
 
-			if (debug) std::cout << "ROL ";
-
-			
-
 			if (opcode == 0x2A) {
 				
 
@@ -1941,10 +1887,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x76:
 		case 0x6E:
 		case 0x7E: {
-
-			if (debug) std::cout << "ROR ";
-
-			
 
 			if (opcode == 0x6A) {
 				
@@ -2018,10 +1960,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x77:
 		case 0x7B:
 		case 0x7F: {
-
-			if (debug) std::cout << "*RRA ";
-
-			
 
 			uint16_t address;
 
@@ -2118,10 +2056,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 		case 0x40: {				//RTI
 
-			if (debug) std::cout << "RTI";
-
-			
-
 			SP++;
 			
 			uint8_t memByte;
@@ -2144,8 +2078,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 		case 0x60: {				//RTS
 
-			if (debug) std::cout << "RTS";
-
 			SP++;
 			
 			uint16_t low = getByte(SP + 0x100);
@@ -2165,16 +2097,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0xF1: 
 		case 0xEB: {
 
-			if (opcode == 0xEB) {
-				if (debug) std::cout << "*SBC ";
-			} else {
-				if (debug) std::cout << "SBC ";
-			}
-			
-
 			uint8_t memByte;
-
-			
 
 			if (opcode == 0xE9 || opcode == 0xEB) {
 				memByte = iByte2;
@@ -2270,20 +2193,11 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		}
 
 		case 0x38: {				//SEC
-
-			if (debug) std::cout << "SEC";
-
-			
-			
 			PS[C] = true;
             break;
 		}
 
 		case 0xF8: {				//SED
-
-			if (debug) std::cout << "SED";
-
-			
 			
 			PS[D] = true;
             break;
@@ -2291,10 +2205,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
 		case 0x78: {				//SEI
 
-			if (debug) std::cout << "SEI";
-
-			
-			
 			PS[I] = true;
             break;
 		}
@@ -2304,11 +2214,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x97:
 		case 0x8F: {				
 
-			if (debug) std::cout << "*SAX ";
-
 			uint16_t address;
-
-			
 
 			if (opcode == 0x87) {
 				address = iByte2;
@@ -2372,10 +2278,8 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x1B:
 		case 0x1F: {
 
-			if (debug) std::cout << "*SLO ";
 
 			uint16_t address;
-
 			
 
 			if (opcode == 0x07) {
@@ -2451,10 +2355,8 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x5B:
 		case 0x5F: {
 
-			if (debug) std::cout << "*SRE ";
 
 			uint16_t address;
-
 			
 
 			if (opcode == 0x47) {
@@ -2531,11 +2433,8 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x81:
 		case 0x91: {
 
-			if (debug) std::cout << "STA ";
 
 			uint16_t address;
-
-			
 
 			if (opcode == 0x85) {
 				address = iByte2;
@@ -2595,11 +2494,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x96:
 		case 0x8E: {
 
-			if (debug) std::cout << "STX ";
-
 			uint16_t address;
-
-			
 
 			if (opcode == 0x86) {
 				
@@ -2626,11 +2521,8 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 		case 0x94:
 		case 0x8C: {
 
-			if (debug) std::cout << "STY ";
-
 			uint16_t address;
 
-			
 
 			if (opcode == 0x84) {
 				
@@ -2652,51 +2544,39 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
             break;
 		}
 
-		case 0xAA: {				//TAX
-			if (debug) std::cout << "TAX";
-			
+		case 0xAA: {				//TAX			
 			X = A;
 			PS[N] = getBit(X, 7);
 			PS[Z] = (X == 0) ? true : false;
             break;
 		}
 
-		case 0xA8: {				//TAY
-			if (debug) std::cout << "TAY";
-			
+		case 0xA8: {				//TAY			
 			Y = A;
 			PS[N] = getBit(Y, 7);
 			PS[Z] = (Y == 0) ? true : false;
             break;
 
 		}
-		case 0xBA: {				//TSX
-			if (debug) std::cout << "TSX";
-			
+		case 0xBA: {				//TSX			
 			X = SP;
 			PS[N] = getBit(X, 7);
 			PS[Z] = (X == 0) ? true : false;
             break;
 		}
 
-		case 0x8A: {				//TXA
-			if (debug) std::cout << "TXA";
-			
+		case 0x8A: {				//TXA			
 			A = X;
 			PS[N] = getBit(A, 7);
 			PS[Z] = (A == 0) ? true : false;
             break;
 		}
 
-		case 0x9A: {				//TXS
-			if (debug) std::cout << "TXS";
-			
+		case 0x9A: {				//TXS			
 			SP = X;
             break;
 		}
-		case 0x98: {				//TYA
-			if (debug) std::cout << "TYA";
-			
+		case 0x98: {				//TYA			
 			A = Y;
 			PS[N] = getBit(A, 7);
 			PS[Z] = (A == 0) ? true : false;
