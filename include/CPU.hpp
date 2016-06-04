@@ -15,19 +15,19 @@ enum ProcessorStatusIndex {
 };
 
 enum AddressMode {
-	ABSOLUTE,
-	ABSOLUTE_X,
-	ABSOLUTE_Y,
-	ACCUMULATOR,
-	IMMEDIATE,
-	IMPLIED,
-	INDEXED_INDIRECT,
-	INDIRECT,
-	INDIRECT_INDEXED,
-	RELATIVE,
-	ZERO_PAGE,
-	ZERO_PAGE_X,
-	ZERO_PAGE_Y,
+	ABS,
+	ABSX,
+	ABSY,
+	ACC,
+	IMM,
+	IMP,
+	IND,
+	INDX,
+	INDY,
+	REL,
+	ZRP,
+	ZRPX,
+	ZRPY,
 	NONE
 };
 
@@ -43,6 +43,8 @@ public:
 
 	bool PS[8];			//processor status word
 
+	CPU();
+
 	//uint8_t stack[0x100];
 	uint8_t cpuMem[0x10000];
 
@@ -51,8 +53,6 @@ public:
 	uint16_t retrieveAddress(enum AddressMode);
 	uint8_t getByte(uint16_t);
 	bool setByte(uint16_t, uint8_t);
-
-	void init();
 	bool executeNextOpcode(bool, bool);
 
 };

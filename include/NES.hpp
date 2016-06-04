@@ -12,7 +12,7 @@ public:
 	PPU nesPPU;
 
 	bool openROM(const char *);
-	void init();
+	NES();
 
 };
 

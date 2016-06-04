@@ -5,9 +5,9 @@ class APU {
 
 public:
 
+	APU() {
 
-
-	void init();
+	}
 };
 
 #endif

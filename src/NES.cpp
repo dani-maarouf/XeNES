@@ -4,9 +4,7 @@
 
 #include "NES.hpp"
 
-void NES::init() {
-	nesCPU.init();
-	nesPPU.init();
+NES::NES() {
 
 	return;
 }
