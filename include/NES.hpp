@@ -8,11 +8,11 @@ class NES {
 
 public:
 
-	CPU nesCPU;
-	PPU nesPPU;
+    CPU nesCPU;
+    PPU nesPPU;
 
-	bool openROM(const char *);
-	NES();
+    bool openROM(const char *);
+    NES();
 
 };
 

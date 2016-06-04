@@ -6,9 +6,9 @@
 class PPU {
 
 public:
-	uint8_t memory[0x4000];
+    uint8_t memory[0x4000];
 
-	PPU();
+    PPU();
 
 };
 
