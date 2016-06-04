@@ -52,6 +52,8 @@ const enum AddressMode addressModes[] = {
     IMP, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX}; //F
 
 static bool getBit(uint8_t, int);
+static uint8_t getPswByte(bool *);
+static void getPswFromByte(bool * PS, uint8_t byte);
 
 CPU::CPU() {
 
@@ -137,20 +139,10 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
     iByte2 = getByte(PC + 1);
     iByte3 = getByte(PC + 2);
 
-    uint8_t P;
-    P = 0;
-    if (PS[C]) P |= 0x1;
-    if (PS[Z]) P |= 0x2;
-    if (PS[I]) P |= 0x4;
-    if (PS[D]) P |= 0x8;
-    if (PS[V]) P |= 0x40;
-    if (PS[N]) P |= 0x80;
-    P |= 0x20;
-
     if (verbose) {
         std::cout << std::hex << std::uppercase << "PC:" << (int) PC << " SP:" << (int) SP << " X:" << (int) X;
         std::cout << std::hex << std::uppercase <<" Y:" << (int) Y << " A:" << (int) A << " N:" << PS[N] << " V:" << PS[V];
-        std::cout << std::hex << std::uppercase <<" D:" << PS[D] << " I:" << PS[I] << " Z:" << PS[Z] << " C:" << PS[C] << " P:" << (int) P << "\t\t\t"; 
+        std::cout << std::hex << std::uppercase <<" D:" << PS[D] << " I:" << PS[I] << " Z:" << PS[Z] << " C:" << PS[C] << " P:" << (int) getPswByte(PS) << "\t\t\t"; 
     }
 
     uint16_t address;
@@ -160,6 +152,14 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
     if (opcode == 0xA2) PC += 2;        //irregular opcode
 
     if (debug) std::cout << opnames[opnameMap[opcode]] << ' ';
+
+    uint8_t memoryByte;
+    if (addressModes[opcode] == IMM) {
+        memoryByte = iByte2;
+    } else {
+        memoryByte = getByte(address);
+    }
+    
 
     switch (opcode) {
 
@@ -171,19 +171,12 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
         case 0x79:
         case 0x61:
         case 0x71: {
-            uint8_t memByte;
-            if (opcode == 0x69) {
-                memByte = iByte2;
-            } else {
-                memByte = getByte(address);
-            }
-
             uint16_t total;
-            total = A + memByte + PS[C];
+            total = A + memoryByte + PS[C];
 
             int8_t num1, num2;
             num1 = (int8_t) A;
-            num2 = (int8_t) memByte;
+            num2 = (int8_t) memoryByte;
             PS[V] = (num1 + num2 + PS[C] < -128 || num1 + num2 + PS[C] > 127);  
             PS[C] = (total > 255) ? true : false;
             A = total & 0xFF;
@@ -199,92 +192,65 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
         case 0x3D:
         case 0x39:
         case 0x21:
-        case 0x31: {
-
-            uint8_t memByte;
-            if (opcode == 0x29) {
-                memByte = iByte2;
-            } else {
-                memByte = getByte(address);
-            }
-
-            A = A & memByte;
-            PS[N] = getBit(A, 7);
-            PS[Z] = (A == 0) ? true : false;
-
-            break;
-        }
+        case 0x31: 
+        A = A & memoryByte;
+        PS[N] = getBit(A, 7);
+        PS[Z] = (A == 0) ? true : false;
+        break;
 
         case 0x0A:      //ASL
         case 0x06:
         case 0x16:
         case 0x0E:
         case 0x1E: {
-
             if (opcode == 0x0A) {
-
                 PS[C] = getBit(A, 7);
                 A = ((A << 1) & 0xFE);
                 PS[N] = getBit(A, 7);
                 PS[Z] = (A == 0) ? true : false;
-
             } else {
                 PS[C] = getBit(getByte(address), 7);
                 setByte(address, ((getByte(address) << 1) & 0xFE));
                 PS[N] = getBit(getByte(address), 7);
                 PS[Z] = (getByte(address) == 0) ? true : false;
             }
-
             break;
         }
 
-        case 0x90: {            //BCC
-            if (PS[C] == 0) PC += (int8_t) iByte2;
-            break;
-        }
-
-        case 0xB0: {            //BCS
-            if (PS[C]) PC += (int8_t) iByte2;
-            break;
-        }
-
-        case 0xF0: {            //BEQ
-            if (PS[Z]) PC += (int8_t) iByte2;
-            break;
-        }
-
+        case 0x90:             //BCC
+        if (PS[C] == 0) PC += (int8_t) iByte2;
+        break;
+        
+        case 0xB0:            //BCS
+        if (PS[C]) PC += (int8_t) iByte2;
+        break;
+        
+        case 0xF0:             //BEQ
+        if (PS[Z]) PC += (int8_t) iByte2;
+        break;
+        
         case 0x24:          //BIT
         case 0x2C: {
-
-            uint8_t memByte;
-            memByte = getByte(address);
-
             uint8_t num;
-            num = A & memByte;
-
-            PS[N] = getBit(memByte, 7);
-            PS[V] = getBit(memByte, 6);
-
+            num = A & memoryByte;
+            PS[N] = getBit(memoryByte, 7);
+            PS[V] = getBit(memoryByte, 6);
             PS[Z] = (num == 0) ? true : false;
-
             break;
         }
 
-        case 0x30: {            //BMI
-            if (PS[N]) PC += (int8_t) iByte2;
-            break;
-        }
-
-        case 0xD0: {            //BNE
-            if (PS[Z] == 0) PC += (int8_t) iByte2;
-            break;
-        }
-
-        case 0x10: {            //BPL
-            if (PS[N] == 0) PC += (int8_t) iByte2;
-            break;
-        }
-
+        case 0x30:             //BMI
+        if (PS[N]) PC += (int8_t) iByte2;
+        break;
+        
+        case 0xD0:             //BNE
+        if (PS[Z] == 0) PC += (int8_t) iByte2;
+        break;
+        
+        case 0x10:             //BPL
+        if (PS[N] == 0) PC += (int8_t) iByte2;
+        break;
+        
         case 0x00: {            //BRK
 
             uint8_t low, high;
@@ -296,14 +262,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
             setByte(0x100 + SP, low);
             SP--;
 
-            uint8_t memByte = 0;
-
-            if (PS[C]) memByte |= 0x1;
-            if (PS[Z]) memByte |= 0x2;
-            if (PS[I]) memByte |= 0x4;
-            if (PS[D]) memByte |= 0x8;
-            if (PS[V]) memByte |= 0x40;
-            if (PS[N]) memByte |= 0x80;
+            uint8_t memByte = getPswByte(PS);
 
             setByte(0x100 + SP, memByte | 0x10);
             SP--;
@@ -320,27 +279,22 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
         if (PS[V] == 0) PC += (int8_t) iByte2;
         break;
         
-
         case 0x70:          //BVS
         if (PS[V]) PC += (int8_t) iByte2;
         break;
         
-
         case 0x18:          //CLC           
         PS[C] = false;
         break;
         
-
         case 0xD8:          //CLD           
         PS[D] = false;
         break;
         
-
         case 0x58:          //CLI           
         PS[I] = false;
         break;
         
-
         case 0xB8:          //CLV           
         PS[V] = false;
         break;
@@ -353,19 +307,11 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
         case 0xD9:
         case 0xC1:
         case 0xD1: {
-
-            uint8_t memByte;
-            if (opcode == 0xC9) {
-                memByte = iByte2;
-            } else {
-                memByte = getByte(address);
-            }
-
             int num;
-            num = A - memByte;
+            num = A - memoryByte;
             PS[N] = getBit(num, 7);
 
-            PS[C] = (A >= memByte) ? true : false;
+            PS[C] = (A >= memoryByte) ? true : false;
             PS[Z] = (num == 0) ? true : false;
 
             break;
@@ -374,41 +320,22 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
         case 0xE0:          //CPX
         case 0xE4:
         case 0xEC: {
-
-            uint8_t memByte;
-            if (opcode == 0xE0) {
-                memByte = iByte2;
-            } else {
-                memByte = getByte(address);
-            }
-
             int total;
-            total = X - memByte;
+            total = X - memoryByte;
             PS[N] = (total & 0x80) ? true : false;
-            PS[C] = (X >= memByte) ? true : false;
+            PS[C] = (X >= memoryByte) ? true : false;
             PS[Z] = (total == 0) ? 1 : 0;
-
             break;
         }
 
         case 0xC0:          //CPY
         case 0xC4:
         case 0xCC: {
-
-            uint8_t memByte;
-
-            if (opcode == 0xC0) {
-                memByte = iByte2;
-            } else {
-                memByte = getByte(address);
-            }
-
             int total;
-            total = Y - memByte;
+            total = Y - memoryByte;
             PS[N] = (total & 0x80) ? true : false;
-            PS[C] = (Y >= memByte) ? true : false;
+            PS[C] = (Y >= memoryByte) ? true : false;
             PS[Z] = (total == 0) ? 1 : 0;
-
             break;
         }
 
@@ -468,20 +395,12 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
         case 0x5D:
         case 0x59:
         case 0x41:
-        case 0x51: {
-
-            uint8_t memByte;
-            if (opcode == 0x49) {
-                memByte = iByte2;
-            } else {
-                memByte = getByte(address);
-            }
-            A = A ^ memByte;
-            PS[N] = getBit(A, 7);
-            PS[Z] = (A == 0) ? true : false;
-            break;
-        }
-
+        case 0x51: 
+        A = A ^ memoryByte;
+        PS[N] = getBit(A, 7);
+        PS[Z] = (A == 0) ? true : false;
+        break;
+        
         case 0xE6:              //INC
         case 0xF6:
         case 0xEE:
@@ -563,22 +482,13 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
         case 0xAF: 
         case 0xB3: 
         case 0xB7: 
-        case 0xBF: {            
-
-            uint8_t memByte;
-            if (opcode == 0xA9) {
-                memByte = iByte2;
-            } else {
-                memByte = getByte(address);
-            }
-
-            A = memByte;
-            X = memByte;
-            PS[N] = getBit(A, 7);
-            PS[Z] = (A == 0) ? true : false;
-            break;
-        }
-
+        case 0xBF:      
+        A = memoryByte;
+        X = memoryByte;
+        PS[N] = getBit(A, 7);
+        PS[Z] = (A == 0) ? true : false;
+        break;
+        
         case 0xA9:          //LDA
         case 0xA5:
         case 0xB5:
@@ -586,61 +496,31 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
         case 0xBD:
         case 0xB9:
         case 0xA1:
-        case 0xB1: {
-
-            uint8_t memByte;
-            if (opcode == 0xA9) {
-                memByte = iByte2;
-            } else {
-                memByte = getByte(address);
-            }
-
-            A = memByte;
-            PS[N] = getBit(A, 7);
-            PS[Z] = (A == 0) ? true : false;
-
-            break;
-        }
-
+        case 0xB1: 
+        A = memoryByte;
+        PS[N] = getBit(A, 7);
+        PS[Z] = (A == 0) ? true : false;
+        break;
+        
         case 0xA2:              //LDX
         case 0xA6:
         case 0xB6:
         case 0xAE:
-        case 0xBE: {
-
-            uint8_t memByte;
-            if (opcode == 0xA2) {
-                memByte = iByte2;
-            } else {
-                memByte = getByte(address);
-            }
-
-            X = memByte;
-            PS[N] = getBit(X, 7);
-            PS[Z] = (X == 0) ? true : false;
-
-            break;
-        }
-
+        case 0xBE: 
+        X = memoryByte;
+        PS[N] = getBit(X, 7);
+        PS[Z] = (X == 0) ? true : false;
+        break;
+        
         case 0xA0:              //LDY
         case 0xA4:
         case 0xB4:
         case 0xAC:
-        case 0xBC: {
-
-            uint8_t memByte;
-            if (opcode == 0xA0) {
-                memByte = iByte2;
-            } else {
-                memByte = getByte(address);
-            }
-
-            Y = memByte;
-            PS[N] = getBit(Y, 7);
-            PS[Z] = (Y == 0) ? true : false;
-
-            break;
-        }
+        case 0xBC: 
+        Y = memoryByte;
+        PS[N] = getBit(Y, 7);
+        PS[Z] = (Y == 0) ? true : false;
+        break;
 
         case 0x4A:              //LSR
         case 0x46:
@@ -665,7 +545,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
             break;
         }
 
-        case 0x04:
+        case 0x04:              //NOP
         case 0x44:
         case 0x64:
         case 0x0C:
@@ -688,11 +568,9 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
         case 0x7C:
         case 0xDC:
         case 0xFC:
-        case 0xEA: {                //NOP
-
-            break;
-        }
-
+        case 0xEA:                 
+        break;
+        
         case 0x09:              //ORA
         case 0x05:
         case 0x15:
@@ -700,46 +578,22 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
         case 0x1D:
         case 0x19:
         case 0x01:
-        case 0x11: {
-
-            uint8_t memByte;
-            if (opcode == 0x09) {
-                memByte = iByte2;
-            } else {
-                memByte = getByte(address);
-            }
-
-            A = (A | memByte);
-            PS[N] = getBit(A, 7);
-            PS[Z] = (A == 0) ? true : false;
-
-            break;
-        }
-
+        case 0x11: 
+        A = (A | memoryByte);
+        PS[N] = getBit(A, 7);
+        PS[Z] = (A == 0) ? true : false;
+        break;
+        
         case 0x48:              //PHA
         setByte(SP + 0x100, A);
         SP--;
         break;
 
-        case 0x08: {                //PHP
-            uint8_t memByte;
-            memByte = 0;
-
-            if (PS[C]) memByte |= 0x1;
-            if (PS[Z]) memByte |= 0x2;
-            if (PS[I]) memByte |= 0x4;
-            if (PS[D]) memByte |= 0x8;
-            if (PS[V]) memByte |= 0x40;
-            if (PS[N]) memByte |= 0x80;
-
-            memByte |= 0x20;
-
-            setByte(SP + 0x100, memByte);
-            SP--;
-
-            break;
-        }
-
+        case 0x08:                 //PHP
+        setByte(SP + 0x100, getPswByte(PS));
+        SP--;
+        break;
+        
         case 0x68:              //PLA
         SP++;
         A = getByte(SP + 0x100);
@@ -747,19 +601,11 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
         PS[Z] = (A == 0) ? true : false;
         break;
         
-        case 0x28: {                //PLP
-            SP++;
-            uint8_t memByte = getByte(SP + 0x100);
-
-            PS[N] = getBit(memByte, 7);
-            PS[V] = getBit(memByte, 6);
-            PS[D] = getBit(memByte, 3);
-            PS[I] = getBit(memByte, 2);
-            PS[Z] = getBit(memByte, 1);
-            PS[C] = getBit(memByte, 0);
-            break;
-        }
-
+        case 0x28:                 //PLP
+        SP++;
+        getPswFromByte(PS, getByte(SP + 0x100));
+        break;
+        
         case 0x23:              //RLA
         case 0x27:
         case 0x2F:
@@ -782,16 +628,16 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
             break;
         }
 
-
         case 0x2A:              //ROL
         case 0x26:
         case 0x36:
         case 0x2E:
         case 0x3E: {
 
+            bool store;
+
             if (opcode == 0x2A) {
 
-                bool store;
                 store = getBit(A, 7);
 
                 A = (A << 1) & 0xFE;
@@ -804,13 +650,10 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
             } else {
 
-                bool store;
                 store = getBit(getByte(address), 7);
 
                 setByte(address, (getByte(address) << 1) & 0xFE);
-
                 setByte(address, getByte(address) | PS[C]);
-
                 PS[C] = store;
                 PS[Z] = (getByte(address) == 0) ? true : false;
                 PS[N] = getBit(getByte(address), 7);
@@ -826,9 +669,10 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
         case 0x6E:
         case 0x7E: {
 
+            bool store;
+
             if (opcode == 0x6A) {
                 
-                bool store;
                 store = getBit(A, 0);
 
                 A = (A >> 1) & 0x7F;
@@ -837,12 +681,10 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
                 PS[Z] = (A == 0) ? true : false;
                 PS[N] = getBit(A, 7);
 
-                if (debug) std::cout << "A" << std::endl;
-
             } else {
 
-                bool store;
                 store = getBit(getByte(address), 0);
+
                 setByte(address, (getByte(address) >> 1) & 0x7F);
                 setByte(address, getByte(address) | (PS[C] ? 0x80 : 0x0));
                 PS[C] = store;
@@ -853,7 +695,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
             break;
 
         }
-
 
         case 0x63:              //RRA
         case 0x67:
@@ -895,7 +736,6 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
             break;
         }
 
-
         case 0x40: {                //RTI
 
             SP++;
@@ -903,12 +743,7 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
             uint8_t memByte;
             memByte = getByte(SP + 0x100);
 
-            PS[N] = getBit(memByte, 7);
-            PS[V] = getBit(memByte, 6);
-            PS[D] = getBit(memByte, 3);
-            PS[I] = getBit(memByte, 2);
-            PS[Z] = getBit(memByte, 1);
-            PS[C] = getBit(memByte, 0);
+            getPswFromByte(PS, memByte);
 
             SP++;
             uint16_t low = getByte(SP + 0x100);
@@ -937,22 +772,13 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
         case 0xF1: 
         case 0xEB: {
 
-            uint8_t memByte;
-
-            if (opcode == 0xE9 || opcode == 0xEB) {
-                memByte = iByte2;
-                if (debug) std::cout << "#$" << std::hex << std::uppercase << (unsigned int) iByte2;
-            } else {
-                memByte = getByte(address);
-            }
-
             int total;
 
-            total = A - memByte - (!PS[C]);
+            total = A - memoryByte - (!PS[C]);
 
             int8_t num1, num2;
             num1 = (int8_t) A;
-            num2 = (int8_t) memByte;
+            num2 = (int8_t) memoryByte;
 
             PS[V] = (num1 - num2 - (!PS[C]) < -128 || num1 - num2 - (!PS[C]) > 127);
 
@@ -1101,4 +927,27 @@ static bool getBit(uint8_t num, int bitNum) {
         std::cerr << "Error, called getBit() with invalid number" << std::endl;
         return false;
     }
+}
+
+static uint8_t getPswByte(bool * PS) {
+    uint8_t P;
+    P = 0;
+    if (PS[C]) P |= 0x1;
+    if (PS[Z]) P |= 0x2;
+    if (PS[I]) P |= 0x4;
+    if (PS[D]) P |= 0x8;
+    if (PS[V]) P |= 0x40;
+    if (PS[N]) P |= 0x80;
+    P |= 0x20;
+    return P;
+}
+
+static void getPswFromByte(bool * PS, uint8_t byte) {
+    PS[N] = getBit(byte, 7);
+    PS[V] = getBit(byte, 6);
+    PS[D] = getBit(byte, 3);
+    PS[I] = getBit(byte, 2);
+    PS[Z] = getBit(byte, 1);
+    PS[C] = getBit(byte, 0);
+    return;
 }
