@@ -10,9 +10,11 @@ public:
 
     CPU * nesCPU;
     PPU * nesPPU;
+    APU * nesAPU;
 
     bool openROM(const char *);
     NES();
+    ~NES();
 
 };
 

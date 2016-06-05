@@ -9,6 +9,11 @@ NES::NES() {
     return;
 }
 
+NES::~NES() {
+
+    return;
+}
+
 bool NES::openROM(const char * fileLoc) {
 
     if (fileLoc == NULL) {
@@ -67,7 +72,16 @@ bool NES::openROM(const char * fileLoc) {
                 chrRomBytes = chr_rom_size * 0x2000;
 
                 prgROM = new uint8_t[prgRomBytes];
+
+                if (prgROM == NULL) {
+                    return false;
+                }
+
                 chrROM = new uint8_t[chrRomBytes];
+                if (chrROM == NULL) {
+                    delete [] prgROM;
+                    return false;
+                }
 
                 //upper nybble of flag 6 is lower nybble of mapper number 
                 mapperNumber = (flags[6] >> 4);
@@ -130,19 +144,52 @@ bool NES::openROM(const char * fileLoc) {
         }
     }
 
-    uint8_t * ppuRegs;
+    uint8_t * ppuRegs, * apuRegs;
     ppuRegs = new uint8_t[8];
 
-    nesCPU = new CPU(prgROM, ppuRegs);
+    if (ppuRegs == NULL) {
+        delete [] prgROM;
+        delete [] chrROM;
+    }
+
+    apuRegs = new uint8_t[18];
+
+    if (apuRegs == NULL) {
+        delete [] prgROM;
+        delete [] chrROM;
+        delete [] ppuRegs;
+    }
+
+    nesCPU = new CPU(prgROM, ppuRegs, apuRegs);
 
     if (nesCPU == NULL) {
+        delete [] prgROM;
+        delete [] chrROM;
+        delete [] ppuRegs;
+        delete [] apuRegs;
         return false;
     }
 
     nesPPU = new PPU(chrROM, ppuRegs);
 
     if (nesPPU == NULL) {
+        delete [] prgROM;
+        delete [] chrROM;
+        delete [] ppuRegs;
+        delete [] apuRegs;
         delete nesCPU;
+        return false;
+    }
+
+    nesAPU = new APU(apuRegs);
+
+    if (nesAPU == NULL) {
+        delete [] prgROM;
+        delete [] chrROM;
+        delete [] ppuRegs;
+        delete [] apuRegs;
+        delete nesCPU;
+        delete nesAPU;
         return false;
     }
 

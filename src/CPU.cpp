@@ -55,7 +55,7 @@ static bool getBit(uint8_t, int);
 static uint8_t getPswByte(bool *);
 static void getPswFromByte(bool * PS, uint8_t byte);
 
-CPU::CPU(uint8_t * prgRom, uint8_t * ppuRegs) {
+CPU::CPU(uint8_t * prgRom, uint8_t * ppuRegs, uint8_t * apuRegs) {
 
     for (int x = 0; x < 0x10000; x++) cpuMem[x] = 0x0;
     for (int x = 0; x < 0x800; x++) RAM[x] = 0x0;
@@ -71,6 +71,14 @@ CPU::CPU(uint8_t * prgRom, uint8_t * ppuRegs) {
 
     ppuRegisters = ppuRegs;
     PRG_ROM = prgRom;
+    apuRegisters = apuRegs;
+
+    return;
+}
+
+CPU::~CPU() {
+
+
 
     return;
 }

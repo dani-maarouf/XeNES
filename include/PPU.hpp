@@ -25,6 +25,7 @@ public:
     uint8_t memory[0x4000];
 
     PPU(uint8_t *, uint8_t *);
+    ~PPU();
 
 };
 

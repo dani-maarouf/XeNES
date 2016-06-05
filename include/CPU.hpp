@@ -43,15 +43,15 @@ public:
 
     bool PS[8];         //processor status word
 
+    uint8_t * apuRegisters;     //owned by APU
     uint8_t * ppuRegisters;     //owned by PPU
     uint8_t * PRG_ROM;          //owned by CPU
     uint8_t RAM[0x800];         //owned by CPU
 
     uint8_t cpuMem[0x10000];    //fallback memory addresses
 
-    APU nesAPU;
-
-    CPU(uint8_t *, uint8_t *);
+    CPU(uint8_t *, uint8_t *, uint8_t *);
+    ~CPU();
 
     uint16_t retrieveAddress(enum AddressMode);
     uint8_t getByte(uint16_t);

@@ -1,6 +1,14 @@
 #include "APU.hpp"
 
-APU::APU() {
+APU::APU(uint8_t * apuRegs) {
+
+	registers = apuRegs;
+
+	return;
+}
+
+APU::~APU() {
+
 
 	return;
 }
