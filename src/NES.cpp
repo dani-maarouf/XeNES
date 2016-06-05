@@ -36,9 +36,13 @@ bool NES::openROM(const char * fileLoc) {
     bool NTSC;
     bool PAL;
 
-    int index;
+    int prgRomBytes, chrRomBytes;
 
+    int index;
     index = 0;
+
+    uint8_t * prgROM;
+    uint8_t * chrROM;
 
     while (romFile) {
         char c;
@@ -50,7 +54,6 @@ bool NES::openROM(const char * fileLoc) {
             flags[index] = binaryValue;
             index++;
         } else {
-
             if (index == 16) {
                 if (flags[0] != 0x4E || flags[1] != 0x45 || flags[2] != 0x53 || flags[3] != 0x1A) {
                     std::cerr << "iNes file format not recognized!" << std::endl;
@@ -59,6 +62,12 @@ bool NES::openROM(const char * fileLoc) {
                 }
                 prg_rom_size = flags[4];
                 chr_rom_size = flags[5];
+
+                prgRomBytes = prg_rom_size * 0x4000;
+                chrRomBytes = chr_rom_size * 0x2000;
+
+                prgROM = new uint8_t[prgRomBytes];
+                chrROM = new uint8_t[chrRomBytes];
 
                 //upper nybble of flag 6 is lower nybble of mapper number 
                 mapperNumber = (flags[6] >> 4);
@@ -97,7 +106,6 @@ bool NES::openROM(const char * fileLoc) {
 
                 prg_ram_size = flags[8];
 
-
                 if ((flags[9] & 0x1) == 0x1) {
                     PAL = true;
                     NTSC = false;
@@ -112,17 +120,30 @@ bool NES::openROM(const char * fileLoc) {
                 return false;
             }
 
-            if (index < 16384 + 16) {
-
-                nesCPU.setByte(0xC000 + index - 16, binaryValue);
-
-
+            if (index < 16 + prgRomBytes) {
+                prgROM[index - 16] = binaryValue;
+            } else if (index < 16 + prgRomBytes + chrRomBytes) {
+                chrROM[index - (16 + prgRomBytes)] = binaryValue;
             }
             
-
-
             index++;
         }
+    }
+
+    uint8_t * ppuRegs;
+    ppuRegs = new uint8_t[8];
+
+    nesCPU = new CPU(prgROM, ppuRegs);
+
+    if (nesCPU == NULL) {
+        return false;
+    }
+
+    nesPPU = new PPU(chrROM, ppuRegs);
+
+    if (nesPPU == NULL) {
+        delete nesCPU;
+        return false;
     }
 
     romFile.close();

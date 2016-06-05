@@ -55,14 +55,11 @@ static bool getBit(uint8_t, int);
 static uint8_t getPswByte(bool *);
 static void getPswFromByte(bool * PS, uint8_t byte);
 
-CPU::CPU() {
+CPU::CPU(uint8_t * prgRom, uint8_t * ppuRegs) {
 
-    for (int x = 0; x < 0x10000; x++) {
-        setByte(x, 0x0);
-    }
-    for (int x = 0; x < 8; x++) {
-        PS[x] = false;
-    }
+    for (int x = 0; x < 0x10000; x++) cpuMem[x] = 0x0;
+    for (int x = 0; x < 0x800; x++) RAM[x] = 0x0;
+    for (int x = 0; x < 8; x++) PS[x] = false;
 
     PC = 0x0;
     SP = 0xFD;
@@ -72,16 +69,39 @@ CPU::CPU() {
 
     PS[I] = true;
 
+    ppuRegisters = ppuRegs;
+    PRG_ROM = prgRom;
+
     return;
 }
 
 uint8_t CPU::getByte(uint16_t memAddress) {
-    return cpuMem[memAddress];
+
+    if (memAddress >= 0x0000 && memAddress < 0x2000) {
+        return RAM[memAddress % 0x800];
+    } else if (memAddress >= 0x8000 && memAddress < 0x10000) {
+        return PRG_ROM[ (memAddress - 0x8000) % 0x4000];
+    } else if (memAddress >= 0x2000 && memAddress < 0x4000) {
+        return ppuRegisters[ (memAddress - 0x2000) % 8 ];
+    } else {
+        return cpuMem[memAddress];
+    }
 }
 
 bool CPU::setByte(uint16_t memAddress, uint8_t byte) {
-    cpuMem[memAddress] = byte;
-    return true;
+
+    if (memAddress >= 0x0000 && memAddress < 0x2000) {
+        RAM[memAddress] = byte;
+        return true;
+    } else if (memAddress >= 0x8000 && memAddress < 0x1000) {
+        std::cerr << "Segmentation fault! Can't write to " << std::hex << memAddress << std::endl;
+        return false;
+    } else if (memAddress >= 0x2000 && memAddress < 0x4000) {
+        ppuRegisters[(memAddress - 0x2000) % 8] = byte;
+    } else {
+        cpuMem[memAddress] = byte;
+        return true;
+    }
 }
 
 uint16_t CPU::retrieveAddress(enum AddressMode mode) {
@@ -134,16 +154,11 @@ uint16_t CPU::retrieveAddress(enum AddressMode mode) {
 
 bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
+    //fetch instruction bytes
     uint8_t opcode, iByte2, iByte3;
     opcode = getByte(PC);
     iByte2 = getByte(PC + 1);
     iByte3 = getByte(PC + 2);
-
-    if (verbose) {
-        std::cout << std::hex << std::uppercase << "PC:" << (int) PC << " SP:" << (int) SP << " X:" << (int) X;
-        std::cout << std::hex << std::uppercase <<" Y:" << (int) Y << " A:" << (int) A << " N:" << PS[N] << " V:" << PS[V];
-        std::cout << std::hex << std::uppercase <<" D:" << PS[D] << " I:" << PS[I] << " Z:" << PS[Z] << " C:" << PS[C] << " P:" << (int) getPswByte(PS) << "\t\t\t"; 
-    }
 
     uint16_t address;
     address = retrieveAddress(addressModes[opcode]);
@@ -280,10 +295,8 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
             int num;
             num = A - memoryByte;
             PS[N] = getBit(num, 7);
-
             PS[C] = (A >= memoryByte) ? true : false;
             PS[Z] = (num == 0) ? true : false;
-
             break;
         }
         //CPX
@@ -430,14 +443,12 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
 
         //LSR
         case 0x4A: case 0x46: case 0x56: case 0x4E: case 0x5E: {
+            PS[N] = 0;
             if (opcode == 0x4A) {
-                PS[N] = 0;
                 PS[C] = getBit(A, 0);
                 A = (A >> 1) & 0x7F;
                 PS[Z] = (A == 0) ? true : false;
-                if (debug) std::cout << "A";
             } else {
-                PS[N] = 0;
                 PS[C] = getBit(getByte(address), 0);
                 setByte(address, (getByte(address) >> 1) & 0x7F);
                 PS[Z] = (getByte(address) == 0) ? true : false;
@@ -500,17 +511,16 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
                 store = getBit(A, 7);
                 A = (A << 1) & 0xFE;
                 A |= PS[C];
-                PS[C] = store;
                 PS[Z] = (A == 0) ? true : false;
                 PS[N] = getBit(A, 7);
             } else {
                 store = getBit(getByte(address), 7);
                 setByte(address, (getByte(address) << 1) & 0xFE);
                 setByte(address, getByte(address) | PS[C]);
-                PS[C] = store;
                 PS[Z] = (getByte(address) == 0) ? true : false;
                 PS[N] = getBit(getByte(address), 7);
             }
+            PS[C] = store;
             break;
         }
 
@@ -521,17 +531,16 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
                 store = getBit(A, 0);
                 A = (A >> 1) & 0x7F;
                 A |= (PS[C] ? 0x80 : 0x0);
-                PS[C] = store;
                 PS[Z] = (A == 0) ? true : false;
                 PS[N] = getBit(A, 7);
             } else {
                 store = getBit(getByte(address), 0);
                 setByte(address, (getByte(address) >> 1) & 0x7F);
                 setByte(address, getByte(address) | (PS[C] ? 0x80 : 0x0));
-                PS[C] = store;
                 PS[Z] = (getByte(address) == 0) ? true : false;
                 PS[N] = getBit(getByte(address), 7);
             }
+            PS[C] = store;
             break;
         }
 
