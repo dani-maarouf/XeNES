@@ -11,3 +11,9 @@ PPU::PPU(uint8_t * chrROM, uint8_t * regs) {
 
     return;
 }
+
+PPU::~PPU() {
+    delete [] registers;
+    delete [] CHR_ROM;
+
+}

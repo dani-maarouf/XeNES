@@ -9,6 +9,7 @@ APU::APU(uint8_t * apuRegs) {
 
 APU::~APU() {
 
+	delete [] registers;
 
 	return;
 }

@@ -11,6 +11,10 @@ NES::NES() {
 
 NES::~NES() {
 
+    delete nesAPU;
+    delete nesPPU;
+    delete nesCPU;
+
     return;
 }
 
@@ -152,7 +156,7 @@ bool NES::openROM(const char * fileLoc) {
         delete [] chrROM;
     }
 
-    apuRegs = new uint8_t[18];
+    apuRegs = new uint8_t[0x18];
 
     if (apuRegs == NULL) {
         delete [] prgROM;

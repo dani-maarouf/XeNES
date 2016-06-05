@@ -78,8 +78,7 @@ CPU::CPU(uint8_t * prgRom, uint8_t * ppuRegs, uint8_t * apuRegs) {
 
 CPU::~CPU() {
 
-
-
+    delete [] PRG_ROM;
     return;
 }
 
@@ -91,6 +90,8 @@ uint8_t CPU::getByte(uint16_t memAddress) {
         return PRG_ROM[ (memAddress - 0x8000) % 0x4000];
     } else if (memAddress >= 0x2000 && memAddress < 0x4000) {
         return ppuRegisters[ (memAddress - 0x2000) % 8 ];
+    } else if (memAddress >= 0x4000 && memAddress < 0x4018) {
+        return apuRegisters[ memAddress - 0x4000 ];
     } else {
         return cpuMem[memAddress];
     }
@@ -106,6 +107,10 @@ bool CPU::setByte(uint16_t memAddress, uint8_t byte) {
         return false;
     } else if (memAddress >= 0x2000 && memAddress < 0x4000) {
         ppuRegisters[(memAddress - 0x2000) % 8] = byte;
+        return true;
+    } else if (memAddress >= 0x4000 && memAddress < 0x4018) { 
+        apuRegisters[memAddress - 0x4000] = byte;
+        return true;
     } else {
         cpuMem[memAddress] = byte;
         return true;

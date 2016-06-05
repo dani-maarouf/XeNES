@@ -22,7 +22,7 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    nesSystem.nesCPU->PC = 0xC000;
+    nesSystem.nesCPU->PC = 0x8000;
 
     for (int x = 0; x < 8991; x++) {
         if (!nesSystem.nesCPU->executeNextOpcode(true, false)) {
