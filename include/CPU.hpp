@@ -45,7 +45,6 @@ public:
 
     CPU();
 
-    //uint8_t stack[0x100];
     uint8_t cpuMem[0x10000];
 
     APU nesAPU;
