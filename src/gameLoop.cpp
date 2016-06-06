@@ -17,17 +17,16 @@ static void closeSDL();
 
 void loop(NES nesSystem) {
 
-	/*
 	if (!initSDL()) {
 		std::cerr << "SDL did not initialize, quitting" << std::endl;
 		return;
 	}
-	*/
+	
 
 	for (int x = 0; x < 8991; x++) {
 
 		int executeResult;
-		executeResult = nesSystem.executeNextOpcode(true, false);
+		executeResult = nesSystem.executeNextOpcode(true);
 
         if (executeResult == 0) {
             std::cerr << "Error executing opcode" << std::endl;
@@ -35,9 +34,12 @@ void loop(NES nesSystem) {
         } else {
         	nesSystem.count = (nesSystem.count + 3 * executeResult) % 341;
         }
+
+        SDL_Delay(1);
+
     }
 
-    //closeSDL();
+    closeSDL();
 
 	return;
 }

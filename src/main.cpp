@@ -1,5 +1,4 @@
 #include <iostream>
-#include <fstream>
 
 #include "NES.hpp"
 #include "gameLoop.hpp"
@@ -21,9 +20,7 @@ int main(int argc, char ** argv) {
 
     loop(nesSystem);
 
-    delete [] nesSystem.PRG_ROM;
-    delete [] nesSystem.PRG_RAM;
-    delete [] nesSystem.CHR_ROM;
-
+    nesSystem.freePointers();
+    
     return 0;
 }
