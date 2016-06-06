@@ -42,16 +42,16 @@ bool NES::openROM(const char * fileLoc) {
     bool batteryRAM = false;        //($6000-7FFF)
     bool trainer = false;           //trainer at $7000-$71FF
 
-    bool NTSC;
-    bool PAL;
+    bool NTSC;      //false = PAL
 
-    int prgRomBytes, chrRomBytes;
+    int prgRomBytes, chrRomBytes, prgRamBytes;
 
     int index;
     index = 0;
 
     uint8_t * prgROM;
     uint8_t * chrROM;
+    uint8_t * prgRAM;
 
     while (romFile) {
         char c;
@@ -75,6 +75,12 @@ bool NES::openROM(const char * fileLoc) {
                 prgRomBytes = prg_rom_size * 0x4000;
                 chrRomBytes = chr_rom_size * 0x2000;
 
+                if (prg_ram_size == 0) {
+                    prgRamBytes = 0x2000;
+                } else {
+                    prgRamBytes = (prg_ram_size * 0x2000);
+                }
+
                 prgROM = new uint8_t[prgRomBytes];
 
                 if (prgROM == NULL) {
@@ -85,6 +91,17 @@ bool NES::openROM(const char * fileLoc) {
                 if (chrROM == NULL) {
                     delete [] prgROM;
                     return false;
+                }
+
+                prgRAM = new uint8_t[prgRamBytes];
+                if (prgRAM == NULL) {
+                    delete [] chrROM;
+                    delete [] prgROM;
+                    return false;
+                }
+
+                for (int a = 0; a < prgRamBytes; a++) {
+                    prgRAM[a] = 0x0;
                 }
 
                 //upper nybble of flag 6 is lower nybble of mapper number 
@@ -125,10 +142,8 @@ bool NES::openROM(const char * fileLoc) {
                 prg_ram_size = flags[8];
 
                 if ((flags[9] & 0x1) == 0x1) {
-                    PAL = true;
                     NTSC = false;
                 } else {
-                    PAL = false;
                     NTSC = true;
                 }
             }
@@ -148,29 +163,34 @@ bool NES::openROM(const char * fileLoc) {
         }
     }
 
-    uint8_t * ppuRegs, * apuRegs;
+    uint8_t * ppuRegs, * ioRegs;
     ppuRegs = new uint8_t[8];
 
     if (ppuRegs == NULL) {
         delete [] prgROM;
         delete [] chrROM;
+        delete [] prgRAM;
+        return false;
     }
 
-    apuRegs = new uint8_t[0x18];
+    ioRegs = new uint8_t[0x20];
 
-    if (apuRegs == NULL) {
+    if (ioRegs == NULL) {
         delete [] prgROM;
         delete [] chrROM;
         delete [] ppuRegs;
+        delete [] prgRAM;
+        return false;
     }
 
-    nesCPU = new CPU(prgROM, ppuRegs, apuRegs);
+    nesCPU = new CPU(prgROM, prgRAM, (int) prg_rom_size, (int) prg_ram_size, ppuRegs, ioRegs);
 
     if (nesCPU == NULL) {
         delete [] prgROM;
         delete [] chrROM;
         delete [] ppuRegs;
-        delete [] apuRegs;
+        delete [] ioRegs;
+        delete [] prgRAM;
         return false;
     }
 
@@ -180,18 +200,20 @@ bool NES::openROM(const char * fileLoc) {
         delete [] prgROM;
         delete [] chrROM;
         delete [] ppuRegs;
-        delete [] apuRegs;
+        delete [] ioRegs;
+        delete [] prgRAM;
         delete nesCPU;
         return false;
     }
 
-    nesAPU = new APU(apuRegs);
+    nesAPU = new APU(ioRegs);
 
     if (nesAPU == NULL) {
         delete [] prgROM;
         delete [] chrROM;
         delete [] ppuRegs;
-        delete [] apuRegs;
+        delete [] ioRegs;
+        delete [] prgRAM;
         delete nesCPU;
         delete nesAPU;
         return false;

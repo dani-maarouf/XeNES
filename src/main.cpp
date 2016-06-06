@@ -1,11 +1,8 @@
 #include <iostream>
 #include <fstream>
-#include <bitset>
 
 #include "NES.hpp"
-
-#include <unistd.h>
-
+#include "gameLoop.hpp"
 
 int main(int argc, char ** argv) {
 
@@ -15,21 +12,16 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    NES nesSystem;
+    NES * nesSystem;
+    nesSystem = new NES;
 
-    if (!nesSystem.openROM(argv[1])) {
+    if (!nesSystem->openROM(argv[1])) {
         std::cerr << "Could not read file" << std::endl;
         return 1;
     }
 
-    nesSystem.nesCPU->PC = 0x8000;
-
-    for (int x = 0; x < 8991; x++) {
-        if (!nesSystem.nesCPU->executeNextOpcode(true, false)) {
-            std::cerr << "Error executing opcode" << std::endl;
-            break;
-        }
-    }
-
+    loop(nesSystem);
+    
+    delete nesSystem;
     return 0;
 }

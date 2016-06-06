@@ -1,10 +1,7 @@
 #include <iostream>
+#include <iomanip>
 
 #include "CPU.hpp"
-                            //0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F
-const int opcodeLens[0x20] = {2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3, //0 2 4 6 8 A C E
-                              2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3};//1 3 5 7 9 B D F
-
                          //0     1      2      3      4      5      6      7      8      9
 const char * opnames[] = {"$$$", "ADC", "AND", "ASL", "BCC", "BCS", "BEQ", "BIT", "BMI", "BNE", //0
                           "BPL", "BRK", "BVC", "BVS", "CLC", "CLD", "CLI", "CLV", "CMP", "CPX", //1
@@ -32,36 +29,17 @@ const int opnameMap[] = {11,39, 0,56,38,39, 3,56,41,39, 3, 0,38,39, 3,56,  //0
                          19,52, 0,29,19,52,26,29,27,52,37,51,19,52,26,29,  //E
                           6,52, 0,29,38,52,26,29,54,52,38,29,38,52,26,29}; //F
 
-const enum AddressMode addressModes[] = {
-  //0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
-    IMP, INDX,NONE,INDX,ZRP ,ZRP ,ZRP ,ZRP ,IMP, IMM, IMP, NONE,ABS, ABS ,ABS, ABS,   //0
-    IMP, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //1
-    ABS, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, ACC, NONE,ABS, ABS, ABS, ABS,   //2
-    IMP, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //3
-    IMP, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, ACC, NONE,ABS, ABS, ABS, ABS,   //4
-    IMP, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //5
-    IMP, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, ACC, NONE,IND, ABS, ABS, ABS,   //6
-    IMP, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //7
-    IMM, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, NONE,IMP, NONE,ABS, ABS, ABS, ABS,   //8
-    IMP, INDY,NONE,INDY,ZRPX,ZRPX,ZRPY,ZRPY,IMP, ABSY,IMP, NONE,NONE,ABSX,NONE,NONE,  //9
-    IMM, INDX,IMM, INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, IMP, NONE,ABS, ABS, ABS, ABS,   //A
-    IMP, INDY,NONE,INDY,ZRPX,ZRPX,ZRPY,ZRPY,IMP, ABSY,IMP, NONE,ABSX,ABSX,ABSY,ABSY,  //B
-    IMM, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, IMP, NONE,ABS, ABS, ABS, ABS,   //C
-    IMP, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //D
-    IMM, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, IMP, IMM, ABS, ABS, ABS, ABS,   //E
-    IMP, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX}; //F
-
 static bool getBit(uint8_t, int);
 static uint8_t getPswByte(bool *);
 static void getPswFromByte(bool * PS, uint8_t byte);
 
-CPU::CPU(uint8_t * prgRom, uint8_t * ppuRegs, uint8_t * apuRegs) {
+CPU::CPU(uint8_t * prgRom, uint8_t * prgRam, int romSize, int ramSize, uint8_t * ppuRegs, uint8_t * ioRegs) {
 
     for (int x = 0; x < 0x10000; x++) cpuMem[x] = 0x0;
     for (int x = 0; x < 0x800; x++) RAM[x] = 0x0;
     for (int x = 0; x < 8; x++) PS[x] = false;
 
-    PC = 0x0;
+    PC = 0x8000;
     SP = 0xFD;
     A  = 0x0;
     X  = 0x0;
@@ -71,14 +49,21 @@ CPU::CPU(uint8_t * prgRom, uint8_t * ppuRegs, uint8_t * apuRegs) {
 
     ppuRegisters = ppuRegs;
     PRG_ROM = prgRom;
-    apuRegisters = apuRegs;
+    PRG_RAM = prgRam;
+    ioRegisters = ioRegs;
+
+    numRomBanks = romSize;
+    numRamBanks = ramSize;
 
     return;
 }
 
 CPU::~CPU() {
 
+    delete [] PRG_RAM;
     delete [] PRG_ROM;
+    delete [] ioRegisters;
+    
     return;
 }
 
@@ -87,11 +72,22 @@ uint8_t CPU::getByte(uint16_t memAddress) {
     if (memAddress >= 0x0000 && memAddress < 0x2000) {
         return RAM[memAddress % 0x800];
     } else if (memAddress >= 0x8000 && memAddress < 0x10000) {
-        return PRG_ROM[ (memAddress - 0x8000) % 0x4000];
+        
+        if (numRomBanks == 1) {
+            return PRG_ROM[ (memAddress - 0x8000) % 0x4000];
+        } else if (numRomBanks == 2) {
+            return PRG_ROM[memAddress - 0x8000];
+        } else {
+            std::cerr << "Unsupported ROM bank configuration" << std::endl;
+            return 0;
+        }
+        
     } else if (memAddress >= 0x2000 && memAddress < 0x4000) {
         return ppuRegisters[ (memAddress - 0x2000) % 8 ];
     } else if (memAddress >= 0x4000 && memAddress < 0x4018) {
-        return apuRegisters[ memAddress - 0x4000 ];
+        return ioRegisters[ memAddress - 0x4000 ];
+    } else if (memAddress >= 0x6000 && memAddress < 0x8000) {
+        return PRG_RAM[memAddress - 0x6000];
     } else {
         return cpuMem[memAddress];
     }
@@ -103,14 +99,18 @@ bool CPU::setByte(uint16_t memAddress, uint8_t byte) {
         RAM[memAddress] = byte;
         return true;
     } else if (memAddress >= 0x8000 && memAddress < 0x1000) {
-        std::cerr << "Segmentation fault! Can't write to " << std::hex << memAddress << std::endl;
+
+        std::cerr << "Segmentation fault! Can't write to 0x" << std::hex << memAddress << std::endl;
         return false;
+        
     } else if (memAddress >= 0x2000 && memAddress < 0x4000) {
         ppuRegisters[(memAddress - 0x2000) % 8] = byte;
         return true;
     } else if (memAddress >= 0x4000 && memAddress < 0x4018) { 
-        apuRegisters[memAddress - 0x4000] = byte;
+        ioRegisters[memAddress - 0x4000] = byte;
         return true;
+    } else if (memAddress >= 0x6000 && memAddress < 0x8000) {
+        PRG_RAM[memAddress - 0x6000] = byte;
     } else {
         cpuMem[memAddress] = byte;
         return true;
@@ -153,16 +153,81 @@ uint16_t CPU::retrieveAddress(enum AddressMode mode) {
         case INDX: {
             uint8_t low, high;
             low = getByte((firstByte + X) & 0xFF);
-            high = getByte(firstByte + 1 + X & 0xFF);
+            high = getByte((firstByte + 1 + X) & 0xFF);
             return ((high << 8) | low);
         }
         
         case INDY: 
-        return ((((getByte(firstByte)) | (getByte(firstByte + 1 & 0xFF)) << 8) + Y) & 0xFFFF);
+        return ((((getByte(firstByte)) | (getByte((firstByte + 1) & 0xFF)) << 8) + Y) & 0xFFFF);
         
         default:
         return 0;
     }
+}
+
+void CPU::debugPrintVal(enum AddressMode mode) {
+
+    int firstByte, secondByte;
+    firstByte = (int) getByte(PC + 1);
+    secondByte = (int) getByte(PC + 2);
+
+    switch (mode) {
+        case ABS:
+        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte;
+        return;
+
+        case ABSX:
+        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ",X";
+        return;
+
+        case ABSY:
+        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ",Y";
+        return;
+
+        case ACC:
+        std::cout << 'A';
+        return;
+
+        case IMM:
+        std::cout << "#$" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte;
+        return;
+
+        case IMP:
+        return;
+
+        case IND:
+        std::cout << "$(" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ')';
+        return;
+
+        case INDX:
+        std::cout << '$(' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",X)";
+        return;
+
+        case INDY:
+        std::cout << '$(' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << "),Y";
+        return;
+
+        case REL:
+        return;
+
+        case ZRP:
+        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte;
+        return;
+
+        case ZRPX:
+        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",X";
+        return;
+        
+        case ZRPY:
+        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",Y";
+        return;
+        
+        default:
+        std::cerr << "Unrecognized addrees mode" << std::endl;
+        return;
+    }
+
+
 }
 
 bool CPU::executeNextOpcode(bool debug, bool verbose) {
@@ -173,13 +238,15 @@ bool CPU::executeNextOpcode(bool debug, bool verbose) {
     iByte2 = getByte(PC + 1);
     iByte3 = getByte(PC + 2);
 
+    if (debug) std::cout << opnames[opnameMap[opcode]] << ' ';
+    if (debug) debugPrintVal(addressModes[opcode]);
+
+
     uint16_t address;
     address = retrieveAddress(addressModes[opcode]);
 
     PC += opcodeLens[opcode % 0x20];
     if (opcode == 0xA2) PC += 2;        //irregular opcode
-
-    if (debug) std::cout << opnames[opnameMap[opcode]] << ' ';
 
     uint8_t memoryByte;
     if (addressModes[opcode] == IMM) {

@@ -1,15 +1,13 @@
 #include "APU.hpp"
 
-APU::APU(uint8_t * apuRegs) {
+APU::APU(uint8_t * ioRegs) {
 
-	registers = apuRegs;
+	registers = ioRegs;
 
 	return;
 }
 
 APU::~APU() {
-
-	delete [] registers;
 
 	return;
 }

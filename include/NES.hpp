@@ -3,6 +3,7 @@
 
 #include "CPU.hpp"
 #include "PPU.hpp"
+#include "APU.hpp"
 
 class NES {
 

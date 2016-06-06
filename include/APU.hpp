@@ -7,7 +7,7 @@ class APU {
 
 public:
 
-    uint8_t * registers;        //owned by APU
+    uint8_t * registers;        //owned by CPU
 
     APU(uint8_t *);
     ~APU();

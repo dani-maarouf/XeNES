@@ -1,4 +1,11 @@
-all: nes
+SRC_FILES    = src/main.cpp src/CPU.cpp src/NES.cpp src/APU.cpp src/PPU.cpp src/gameLoop.cpp
+HEADER_FILES = include/CPU.hpp include/PPU.hpp include/NES.hpp include/APU.hpp include/APU.hpp
 
-nes: src/main.cpp src/CPU.cpp include/CPU.hpp src/PPU.cpp include/PPU.hpp src/NES.cpp include/NES.hpp src/APU.cpp include/APU.hpp
-	g++ src/main.cpp src/CPU.cpp src/PPU.cpp src/NES.cpp src/APU.cpp -Iinclude -o nes
+CXXFLAGS     = -Wall -Iinclude
+
+all: nesEmu
+
+nesEmu: $(SRC_FILES) $(HEADER_FILES)
+	g++ $(SRC_FILES) $(CXXFLAGS) -o nes -lSDL2
+
+
