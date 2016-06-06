@@ -1,5 +1,5 @@
-SRC_FILES    = src/main.cpp src/CPU.cpp src/NES.cpp src/APU.cpp src/PPU.cpp src/gameLoop.cpp
-HEADER_FILES = include/CPU.hpp include/PPU.hpp include/NES.hpp include/APU.hpp include/APU.hpp
+SRC_FILES    = src/main.cpp src/NES.cpp src/gameLoop.cpp
+HEADER_FILES = include/NES.hpp include/gameLoop.hpp
 
 CXXFLAGS     = -Wall -Iinclude
 

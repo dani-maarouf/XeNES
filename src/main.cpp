@@ -12,16 +12,18 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    NES * nesSystem;
-    nesSystem = new NES;
+    NES nesSystem;
 
-    if (!nesSystem->openROM(argv[1])) {
+    if (!nesSystem.openROM(argv[1])) {
         std::cerr << "Could not read file" << std::endl;
         return 1;
     }
 
     loop(nesSystem);
-    
-    delete nesSystem;
+
+    delete [] nesSystem.PRG_ROM;
+    delete [] nesSystem.PRG_RAM;
+    delete [] nesSystem.CHR_ROM;
+
     return 0;
 }

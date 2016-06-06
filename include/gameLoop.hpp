@@ -3,7 +3,7 @@
 
 #include "NES.hpp"
 
-void loop(NES *);
+void loop(NES);
 
 #endif
 /* DEFINED __NES_GAMELOOP__ */

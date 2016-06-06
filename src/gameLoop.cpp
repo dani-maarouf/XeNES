@@ -15,7 +15,7 @@ SDL_Surface * windowSurface = NULL;
 static bool initSDL();
 static void closeSDL();
 
-void loop(NES * nesSystem) {
+void loop(NES nesSystem) {
 
 	/*
 	if (!initSDL()) {
@@ -26,9 +26,14 @@ void loop(NES * nesSystem) {
 
 	for (int x = 0; x < 8991; x++) {
 
-        if (!nesSystem->nesCPU->executeNextOpcode(true, false)) {
+		int executeResult;
+		executeResult = nesSystem.executeNextOpcode(true, false);
+
+        if (executeResult == 0) {
             std::cerr << "Error executing opcode" << std::endl;
             break;
+        } else {
+        	nesSystem.count = (nesSystem.count + 3 * executeResult) % 341;
         }
     }
 
