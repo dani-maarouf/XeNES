@@ -40,124 +40,7 @@ const int opnameMap[] = {11,39, 0,56,38,39, 3,56,41,39, 3, 0,38,39, 3,56,  //0
 static bool getBit(uint8_t, int);
 static uint8_t getPswByte(bool *);
 static void getPswFromByte(bool * PS, uint8_t byte);
-
-
-static int addressCycles(enum AddressMode mode, enum InstructionType type) {
-
-	switch (type) {
-		case READ: {
-
-			switch (mode) {
-
-				case IMM:
-				return 0;
-
-				case ACC:
-				return 0;
-
-				case ABS:
-				return 2;
-
-				case ABSX:
-				return 2;
-
-				case ABSY:
-				return 2;
-
-				case INDX:
-				return 4;
-
-				case INDY:
-				return 3;
-
-				case ZRP:
-				return 1;
-
-				case ZRPX:
-				return 2;
-
-				case ZRPY:
-				return 2;
-
-				default:
-				return 0;
-			}
-
-		}
-
-		case READ_MODIFY_WRITE: {
-
-			switch (mode) {
-
-				case IMM:
-				return 0;
-
-				case ACC:
-				return 0;
-
-				case ABS:
-				return 4;
-
-				case ABSX:
-				return 5;
-
-				return 3;
-
-				case ZRP:
-				return 3;
-
-				case ZRPX:
-				return 4;
-
-				case ZRPY:
-				return 4;
-
-				default:
-				return 0;
-			}
-
-		}
-
-		case WRITE: {
-
-			switch (mode) {
-
-				case ZRP:
-				return 1;
-
-				case ZRPX:
-				return 2;
-
-				case ZRPY:
-				return 2;
-
-				case ABS:
-				return 2;
-
-				case ABSX:
-				return 3;
-
-				case ABSY:
-				return 3;
-
-				case INDX:
-				return 4;
-
-				case INDY:
-				return 4;
-
-				default:
-				return 0;
-			}
-
-		}
-		
-
-		default:
-		return 0;
-	}
-}
-
+static int addressCycles(enum AddressMode, enum InstructionType);
 
 NES::NES() {
 
@@ -227,6 +110,10 @@ bool NES::openROM(const char * fileLoc) {
                 }
                 prg_rom_size = flags[4];
                 chr_rom_size = flags[5];
+
+                if (prg_rom_size == 1) {
+                	PC = 0xC000;
+                }
 
                 prgRomBytes = prg_rom_size * 0x4000;
                 chrRomBytes = chr_rom_size * 0x2000;
@@ -515,18 +402,37 @@ int NES::executeNextOpcode(bool debug, bool verbose) {
     iByte2 = getByte(PC + 1);
     iByte3 = getByte(PC + 2);
 
-    //increment program counter
+    if (debug) {
+
+    	std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << (int) PC << "  ";
+
+    	if (opcodeLens[opcode % 0x20] == 1) {
+    		std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) opcode << "        ";
+    	} else if (opcodeLens[opcode % 0x20] == 2 || opcode == 0xA2) {
+    		std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) opcode << " ";
+    		std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) iByte2 << "     ";
+    	} else if (opcodeLens[opcode % 0x20] == 3) {
+    		std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) opcode << " ";
+    		std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) iByte2 << " ";
+    		std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) iByte3 << "  ";
+    	} else {
+    		std::cout << "          ";
+    	}
+
+        std::cout << opnames[opnameMap[opcode]] << ' ';
+        debugPrintVal(addressModes[opcode]);
+
+        std::cout << " " << std::dec << count;
+
+
+    }
+
+        //increment program counter
     PC += opcodeLens[opcode % 0x20];
     if (opcode == 0xA2) PC += 2;        //irregular opcode
 
     //always spend 2 cycles fetching opcode and next byte
     cyc += 2;
-
-    if (debug) {
-    	std::cout << std::dec << count << "\t";
-        std::cout << opnames[opnameMap[opcode]] << ' ';
-        debugPrintVal(addressModes[opcode]);
-    }
     
     switch (opcode) {
 
@@ -578,15 +484,34 @@ int NES::executeNextOpcode(bool debug, bool verbose) {
         }
 
         case 0x90:             //BCC
-        if (PS[C] == 0) PC += (int8_t) iByte2;
+        if (PS[C] == 0) {
+        	if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) {
+        		cyc++;
+        	}
+        	PC += (int8_t) iByte2;
+        	cyc++;
+
+        }
         break;
         
         case 0xB0:            //BCS
-        if (PS[C]) PC += (int8_t) iByte2;
+        if (PS[C]) {
+        	if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) {
+        		cyc++;
+        	}
+        	PC += (int8_t) iByte2;
+        	cyc++;
+        }
         break;
         
         case 0xF0:             //BEQ
-        if (PS[Z]) PC += (int8_t) iByte2;
+        if (PS[Z]) {
+        	if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) {
+        		cyc++;
+        	}
+        	PC += (int8_t) iByte2;
+        	cyc++;
+        }
         break;
         
         //BIT
@@ -602,15 +527,33 @@ int NES::executeNextOpcode(bool debug, bool verbose) {
         }
 
         case 0x30:             //BMI
-        if (PS[N]) PC += (int8_t) iByte2;
+        if (PS[N]) {
+        	if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) {
+        		cyc++;
+        	}
+        	PC += (int8_t) iByte2;
+        	cyc++;
+        }
         break;
         
         case 0xD0:             //BNE
-        if (PS[Z] == 0) PC += (int8_t) iByte2;
+        if (PS[Z] == 0) {
+        	if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) {
+        		cyc++;
+        	}
+        	PC += (int8_t) iByte2;
+        	cyc++;
+        }
         break;
         
         case 0x10:             //BPL
-        if (PS[N] == 0) PC += (int8_t) iByte2;
+        if (PS[N] == 0) {
+        	if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) {
+        		cyc++;
+        	}
+        	PC += (int8_t) iByte2;
+        	cyc++;
+        }
         break;
         
         case 0x00: {            //BRK
@@ -641,11 +584,23 @@ int NES::executeNextOpcode(bool debug, bool verbose) {
         }
 
         case 0x50:          //BVC
-        if (PS[V] == 0) PC += (int8_t) iByte2;
+        if (PS[V] == 0) {
+        	if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) {
+        		cyc++;
+        	}
+        	PC += (int8_t) iByte2;
+        	cyc++;
+        }
         break;
         
         case 0x70:          //BVS
-        if (PS[V]) PC += (int8_t) iByte2;
+        if (PS[V]) {
+        	if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) {
+        		cyc++;
+        	}
+        	PC += (int8_t) iByte2;
+        	cyc++;
+        }
         break;
         
         case 0x18:          //CLC           
@@ -1180,4 +1135,120 @@ static void getPswFromByte(bool * PS, uint8_t byte) {
     PS[Z] = getBit(byte, 1);
     PS[C] = getBit(byte, 0);
     return;
+}
+
+static int addressCycles(enum AddressMode mode, enum InstructionType type) {
+
+	switch (type) {
+		case READ: {
+
+			switch (mode) {
+
+				case IMM:
+				return 0;
+
+				case ACC:
+				return 0;
+
+				case ABS:
+				return 2;
+
+				case ABSX:
+				return 2;
+
+				case ABSY:
+				return 2;
+
+				case INDX:
+				return 4;
+
+				case INDY:
+				return 3;
+
+				case ZRP:
+				return 1;
+
+				case ZRPX:
+				return 2;
+
+				case ZRPY:
+				return 2;
+
+				default:
+				return 0;
+			}
+
+		}
+
+		case READ_MODIFY_WRITE: {
+
+			switch (mode) {
+
+				case IMM:
+				return 0;
+
+				case ACC:
+				return 0;
+
+				case ABS:
+				return 4;
+
+				case ABSX:
+				return 5;
+
+				return 3;
+
+				case ZRP:
+				return 3;
+
+				case ZRPX:
+				return 4;
+
+				case ZRPY:
+				return 4;
+
+				default:
+				return 0;
+			}
+
+		}
+
+		case WRITE: {
+
+			switch (mode) {
+
+				case ZRP:
+				return 1;
+
+				case ZRPX:
+				return 2;
+
+				case ZRPY:
+				return 2;
+
+				case ABS:
+				return 2;
+
+				case ABSX:
+				return 3;
+
+				case ABSY:
+				return 3;
+
+				case INDX:
+				return 4;
+
+				case INDY:
+				return 4;
+
+				default:
+				return 0;
+			}
+
+		}
+		
+
+		default:
+		return 0;
+	}
 }
