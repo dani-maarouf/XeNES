@@ -21,7 +21,6 @@ void loop(NES nesSystem) {
 		std::cerr << "SDL did not initialize, quitting" << std::endl;
 		return;
 	}
-	
 
 	for (int x = 0; x < 8991; x++) {
 
@@ -32,10 +31,8 @@ void loop(NES nesSystem) {
             std::cerr << "Error executing opcode" << std::endl;
             break;
         } else {
-        	nesSystem.count = (nesSystem.count + 3 * executeResult) % 341;
+        	nesSystem.setCpuCycle((nesSystem.getCpuCycle() + 3 * executeResult) % 341);
         }
-
-        SDL_Delay(1);
 
     }
 
