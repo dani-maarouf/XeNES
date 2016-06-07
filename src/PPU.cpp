@@ -1,4 +1,5 @@
 #include <iostream>
+#include <bitset>
 
 #include "NES.hpp"
 
@@ -112,8 +113,39 @@ bool NES::setPpuByte(uint16_t address, uint8_t byte) {
 	return false;
 }
 
+void NES::printSprites() {
+
+	for (int i = 0x0; i < 0x2000; i += 0x10) {
+
+		std::cout << "Sprite #" << std::dec << (i / 0x10) << " @ 0x" << std::hex << i << std::endl;
+
+        for (int x = i; x < 0x8 + i; x++) {
+
+            std::bitset<8> row;
+            row = (std::bitset<8>) (getPpuByte(x) | getPpuByte(x + 8));
+
+            for (int y = 7; y >= 0; y--) {
+                if (row[y]) {
+                    std::cout << '#';
+                } else {
+                    std::cout << ' ';
+                }
+            }
+            std::cout << std::endl;
+        }
+
+        std::cout << std::endl << std::endl;
+    }
+
+    return;
+}
+
 void NES::ppuTick() {
 
+	//printSprites();
+
+	
+	incPpuCycle();
 	return;
 }
 
@@ -121,7 +153,12 @@ int NES::getPpuCycle() {
 	return ppuCycle;
 }
 
-void NES::setPpuCycle(int num) {
-	ppuCycle = num;
+void NES::incPpuCycle() {
+	ppuCycle = (ppuCycle + 1) % 341;
+
+	if (ppuCycle == 0) {
+		scanline = (scanline + 1) % 262;
+	}
+
 	return;
 }

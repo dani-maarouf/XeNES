@@ -1,8 +1,10 @@
 #include <iostream>
+#include <cstring>
 #include <SDL2/SDL.h>
 
 #include "NES.hpp"
 
+const int FPS = 60;
 const int screenWidth = 256 * 2;
 const int screenHeight = 240 * 2;
 
@@ -12,17 +14,32 @@ SDL_Window * window = NULL;
 //Surface contained by window
 SDL_Surface * windowSurface = NULL;
 
-static bool initSDL();
+static bool initSDL(const char *);
 static void closeSDL();
 
-void loop(NES nesSystem) {
+void loop(NES nesSystem, const char * fileLoc) {
 
-	if (!initSDL()) {
+	if (!initSDL(fileLoc)) {
 		std::cerr << "SDL did not initialize, quitting" << std::endl;
 		return;
 	}
 
-	for (int x = 0; x < 8991; x++) {
+	bool running;
+	SDL_Event event;
+	running = true;
+
+	while (running) {
+
+		SDL_PollEvent(&event);
+
+		switch(event.type) {
+			case SDL_QUIT:
+				running = false;
+				break;
+
+			default:
+			break;
+		}
 
 		int executeResult;
 		executeResult = nesSystem.executeNextOpcode(true);
@@ -32,23 +49,33 @@ void loop(NES nesSystem) {
             break;
         } else {
         	nesSystem.setCpuCycle((nesSystem.getCpuCycle() + 3 * executeResult) % 341);
-        }
 
-    }
+        	int currentCpuCycle;
+        	currentCpuCycle = nesSystem.getCpuCycle();
+
+        	while (nesSystem.getPpuCycle() != currentCpuCycle) {
+        		nesSystem.ppuTick();
+        	}
+        }
+	}
 
     closeSDL();
 
 	return;
 }
 
-bool initSDL() {
+bool initSDL(const char * fileLoc) {
 
 	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
 		std::cerr << "Could not initialize SDL : " << SDL_GetError() << std::endl;
 		return false;
 	}
 
-	window = SDL_CreateWindow("NES", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+	char windowTitle[100];
+	strcpy(windowTitle, "NES: ");
+	strcat(windowTitle, fileLoc);
+
+	window = SDL_CreateWindow(windowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 		screenWidth, screenHeight, SDL_WINDOW_SHOWN);
 
 	if (window == NULL) {

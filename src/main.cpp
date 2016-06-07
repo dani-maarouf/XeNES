@@ -1,5 +1,4 @@
 #include <iostream>
-#include <bitset>
 
 #include "NES.hpp"
 #include "gameLoop.hpp"
@@ -19,20 +18,7 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    //loop(nesSystem);
-
-    //nesSystem.ppuTick();
-
-    for (int i = 0x0; i < 0x2000; i += 0x10) {
-
-        for (int x = i; x < 0x8 + i; x++) {
-            std::cout << (std::bitset<8>) (nesSystem.getPpuByte(x) | nesSystem.getPpuByte(x + 8)) << std::endl;
-        }
-
-        std::cout << std::endl << std::endl;
-    }
-
-
+    loop(nesSystem, argv[1]);
 
     nesSystem.freeCartridgePointers();
     

@@ -868,7 +868,7 @@ bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
     if (memAddress >= 0x0000 && memAddress < 0x2000) {
         cpuRAM[memAddress] = byte;
         return true;
-    } else if (memAddress >= 0x8000 && memAddress < 0x1000) {
+    } else if (memAddress >= 0x8000 && memAddress < 0x10000) {
 
         std::cerr << "Segmentation fault! Can't write to 0x" << std::hex << memAddress << std::endl;
         return false;
@@ -1134,7 +1134,7 @@ static void printDebugLine(uint16_t address, uint8_t opcode, uint8_t iByte2, uin
 		printByte(opcode);
 		std::cout << "       ";
 	} else if (opAddressMode == ZRP || opAddressMode == ZRPX || opAddressMode == ZRPY
-		|| opAddressMode == REL || opAddressMode == IMM || opAddressMode == REL || opAddressMode == INDX
+		|| opAddressMode == REL || opAddressMode == IMM
 		|| opAddressMode == INDX || opAddressMode == INDY) {
 		printByte(opcode);
 		std::cout << ' ';
@@ -1160,13 +1160,15 @@ static void printDebugLine(uint16_t address, uint8_t opcode, uint8_t iByte2, uin
 
 	std::cout << opnames[opnameMap[opcode]] << ' ';
 
-	int addressLen;
+	
 
 	if (opAddressMode == REL) {
 		std::cout << '$';
 		std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << (int) PC + (int8_t) iByte2 + 2;
 		whiteSpace -= 5;
 	} else {
+        int addressLen;
+
 		addressLen = debugPrintVal(addressModes[opcode], iByte2, iByte3);
 		whiteSpace -= addressLen;
 	}

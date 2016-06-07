@@ -58,11 +58,15 @@ private:
     uint8_t ppuOAM[0x100];		//256 byte PPU OAM
     uint8_t * CHR_ROM;			//cartridge video ROM
     enum Mirroring mirroring;	//nametable arrangement
+    int scanline;
     int ppuCycle;    			//0-341
     bool usesRAM;				//true if CHR_RAM is used rather than CHR_ROM
 
+    uint8_t getPpuByte(uint16_t);
+    bool setPpuByte(uint16_t, uint8_t);
+    void printSprites();
+    void incPpuCycle();
 
-	
 public:
 
 	/* System */
@@ -81,13 +85,8 @@ public:
 
 
     /* PPU */
-
-    uint8_t getPpuByte(uint16_t);
-    bool setPpuByte(uint16_t, uint8_t);
-
     void ppuTick();
     int getPpuCycle();
-    void setPpuCycle(int);
 };
 
 #endif

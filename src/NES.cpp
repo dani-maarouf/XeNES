@@ -17,6 +17,8 @@ NES::NES() {
     Y  = 0x0;
 
     cpuCycle = 0;
+
+    scanline = 0;
     ppuCycle = 0;
 
     PS[I] = true;
@@ -94,6 +96,7 @@ bool NES::openCartridge(const char * fileLoc) {
                 	PC = 0x8000;
                 } else {
                 	std::cerr << "Unrecognized rom size " << (int) prg_rom_size << std::endl;
+                	romFile.close();
                 	return false;
                 }
 
@@ -110,6 +113,7 @@ bool NES::openCartridge(const char * fileLoc) {
                 PRG_ROM = new uint8_t[prgRomBytes];
 
                 if (PRG_ROM == NULL) {
+                	romFile.close();
                     return false;
                 }
 
@@ -117,6 +121,7 @@ bool NES::openCartridge(const char * fileLoc) {
 
                 if (CHR_ROM == NULL) {
                     delete [] PRG_ROM;
+                    romFile.close();
                     return false;
                 }
 
@@ -125,6 +130,7 @@ bool NES::openCartridge(const char * fileLoc) {
                 if (PRG_RAM == NULL) {
                     delete [] CHR_ROM;
                     delete [] PRG_ROM;
+                    romFile.close();
                     return false;
                 }
 
@@ -145,6 +151,7 @@ bool NES::openCartridge(const char * fileLoc) {
                 } else if ((flags[6] & 0x8) == 0x8) {
                 	mirroring = FOUR_SCREEN;
                     std::cout << "four screen VRAM" << std::endl;
+                    romFile.close();
                     return false;
                 } else {
                     //std::cerr << "Could not identify mirroring for " << (std::bitset<8>) flags[6] << std::endl;
@@ -157,6 +164,7 @@ bool NES::openCartridge(const char * fileLoc) {
                 if ((flags[6] & 0x4) == 0x4) {
                     std::cout << "Trainer present" << std::endl;
                     trainer = true;
+                    romFile.close();
                     return false;
                 }
 
@@ -164,14 +172,17 @@ bool NES::openCartridge(const char * fileLoc) {
 
                 if ((flags[7] & 0xC) == 0x8) {
                     std::cout << "NES 2.0 format" << std::endl;
+                    romFile.close();
                     return false;
                 }
                 if ((flags[7] & 0x1) == 0x1) {
                     std::cout << "VS Unisystem" << std::endl;
+                    romFile.close();
                     return false;
                 }
                 if ((flags[7] & 0x2) == 0x2) {
                     std::cout << "Playchoice-10" << std::endl;
+                    romFile.close();
                     return false;
                 }
 
@@ -204,6 +215,12 @@ bool NES::openCartridge(const char * fileLoc) {
             
             index++;
         }
+    }
+
+    if (NTSC == false) {
+    	std::cerr << "PAL detected. Quitting" << std::endl;
+    	romFile.close();
+    	return false;
     }
 
     numRomBanks = prg_rom_size;
