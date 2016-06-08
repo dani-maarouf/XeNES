@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstring>
 #include <fstream>
 #include <bitset>
 
@@ -9,6 +10,7 @@ NES::NES() {
     for (int x = 0; x < 0x10000; x++) cpuMem[x] = 0x0;
     for (int x = 0; x < 0x800; x++) cpuRAM[x] = 0x0;
     for (int x = 0; x < 8; x++) PS[x] = false;
+    for (int x = 0; x < 0x20; x++) palette[x] = 0;
 
     PC = 0x8000;
     SP = 0xFD;
@@ -23,19 +25,27 @@ NES::NES() {
 
     PS[I] = true;
 
+    draw = false;
+    evenFrame = true;
+
+    pixels = new uint32_t[screenWidth * screenHeight];
+
     return;
 }
 
 void NES::freeCartridgePointers() {
-	if (PRG_ROM != NULL) {
-		delete [] PRG_ROM;
-	}
-	if (PRG_RAM != NULL) {
-		delete [] PRG_RAM;
-	}
-	if (CHR_ROM != NULL) {
-		delete [] CHR_ROM;
-	}
+    if (PRG_ROM != NULL) {
+        delete [] PRG_ROM;
+    }
+    if (PRG_RAM != NULL) {
+        delete [] PRG_RAM;
+    }
+    if (CHR_ROM != NULL) {
+        delete [] CHR_ROM;
+    }
+    if (pixels != NULL) {
+        delete [] pixels;
+    }
     
     return;
 }
@@ -65,8 +75,11 @@ bool NES::openCartridge(const char * fileLoc) {
     bool trainer = false;
 
     bool NTSC;      //false = PAL
+    NTSC = false;
 
-    int prgRomBytes, chrRomBytes, prgRamBytes;
+    int prgRomBytes = 0;
+    int chrRomBytes = 0;
+    int prgRamBytes = 0;
 
     int index;
     index = 0;
@@ -91,29 +104,29 @@ bool NES::openCartridge(const char * fileLoc) {
                 chr_rom_size = flags[5];
 
                 if (prg_rom_size == 1) {
-                	PC = 0xC000;
+                    PC = 0xC000;
                 } else if (prg_rom_size == 2) {
-                	PC = 0x8000;
+                    PC = 0x8000;
                 } else {
-                	std::cerr << "Unrecognized rom size " << (int) prg_rom_size << std::endl;
-                	romFile.close();
-                	return false;
+                    std::cerr << "Unrecognized rom size " << (int) prg_rom_size << std::endl;
+                    romFile.close();
+                    return false;
                 }
 
                 prgRomBytes = prg_rom_size * 0x4000;
 
                 if (chr_rom_size == 0) {
-                	chrRomBytes = 0x2000;
-                	usesRAM = true;
+                    chrRomBytes = 0x2000;
+                    usesRAM = true;
                 } else {
-					chrRomBytes = chr_rom_size * 0x2000;	
-					usesRAM = false;
+                    chrRomBytes = chr_rom_size * 0x2000;    
+                    usesRAM = false;
                 }
 
                 PRG_ROM = new uint8_t[prgRomBytes];
 
                 if (PRG_ROM == NULL) {
-                	romFile.close();
+                    romFile.close();
                     return false;
                 }
 
@@ -125,31 +138,18 @@ bool NES::openCartridge(const char * fileLoc) {
                     return false;
                 }
 
-                PRG_RAM = new uint8_t[prgRamBytes];
-
-                if (PRG_RAM == NULL) {
-                    delete [] CHR_ROM;
-                    delete [] PRG_ROM;
-                    romFile.close();
-                    return false;
-                }
-
-                for (int a = 0; a < prgRamBytes; a++) {
-                    PRG_RAM[a] = 0x0;
-                }
-
                 //upper nybble of flag 6 is lower nybble of mapper number 
                 mapperNumber = (flags[6] >> 4);
 
                 //flags 6
                 if ((flags[6] & 0x9) == 0x0) {
-                	mirroring = HORIZONTAL;
+                    mirroring = HORIZONTAL;
                     //std::cout << "vertical arrangement, horizontal mirroring, CIRAM A10 = PPU A11" << std::endl;
                 } else if ((flags[6] & 0x9) == 0x1) {
-                	mirroring = VERTICAL;
+                    mirroring = VERTICAL;
                     //std::cout << "horizontal arrangement, vertical mirroring, CIRAM A10 = PPU A10" << std::endl;
                 } else if ((flags[6] & 0x8) == 0x8) {
-                	mirroring = FOUR_SCREEN;
+                    mirroring = FOUR_SCREEN;
                     std::cout << "four screen VRAM" << std::endl;
                     romFile.close();
                     return false;
@@ -194,6 +194,19 @@ bool NES::openCartridge(const char * fileLoc) {
                     prgRamBytes = (prg_ram_size * 0x2000);
                 }
 
+                PRG_RAM = new uint8_t[prgRamBytes];
+
+                if (PRG_RAM == NULL) {
+                    delete [] CHR_ROM;
+                    delete [] PRG_ROM;
+                    romFile.close();
+                    return false;
+                }
+
+                for (int a = 0; a < prgRamBytes; a++) {
+                    PRG_RAM[a] = 0x0;
+                }
+
 
                 if ((flags[9] & 0x1) == 0x1) {
                     NTSC = false;
@@ -218,9 +231,9 @@ bool NES::openCartridge(const char * fileLoc) {
     }
 
     if (NTSC == false) {
-    	std::cerr << "PAL detected. Quitting" << std::endl;
-    	romFile.close();
-    	return false;
+        std::cerr << "PAL detected. Quitting" << std::endl;
+        romFile.close();
+        return false;
     }
 
     numRomBanks = prg_rom_size;

@@ -3,6 +3,9 @@
 
 #include <cstdint>
 
+const int screenWidth = 256;
+const int screenHeight = 240;
+
 enum ProcessorStatusIndex {
     C = 0,       //carry flag
     Z = 1,      //zero flag
@@ -17,7 +20,7 @@ enum AddressMode {
 };
 
 enum Mirroring {
-	VERTICAL, HORIZONTAL, FOUR_SCREEN,
+    VERTICAL, HORIZONTAL, FOUR_SCREEN,
 };
 
 //is this a "god object"? need to think of how i can refeactor in sane way
@@ -25,18 +28,18 @@ class NES {
 
 private:
 
-	/* System */
-	uint8_t ioRegisters[0x20];       
+    /* System */
+    uint8_t ioRegisters[0x20];       
 
 
-	/* CPU */ 
+    /* CPU */ 
     uint16_t PC;        //program counter
     uint8_t SP;         //stack pointer
     uint8_t A;          //accumulator
     uint8_t X;          //register X
     uint8_t Y;          //register Y
     bool PS[8];         //processor status word
-    uint8_t cpuRAM[0x800];		//2kB PPU RAM
+    uint8_t cpuRAM[0x800];      //2kB PPU RAM
     uint8_t * PRG_ROM;
     uint8_t * PRG_RAM;
     int numRomBanks;
@@ -53,14 +56,14 @@ private:
 
     uint8_t palette[0x20];
 
-    uint8_t ppuRegisters[0x8];	//PPU registers
-    uint8_t ppuRAM[0x800];		//2kB PPU RAM
-    uint8_t ppuOAM[0x100];		//256 byte PPU OAM
-    uint8_t * CHR_ROM;			//cartridge video ROM
-    enum Mirroring mirroring;	//nametable arrangement
+    uint8_t ppuRegisters[0x8];  //PPU registers
+    uint8_t ppuRAM[0x800];      //2kB PPU RAM
+    uint8_t ppuOAM[0x100];      //256 byte PPU OAM
+    uint8_t * CHR_ROM;          //cartridge video ROM
+    enum Mirroring mirroring;   //nametable arrangement
     int scanline;
-    int ppuCycle;    			//0-341
-    bool usesRAM;				//true if CHR_RAM is used rather than CHR_ROM
+    int ppuCycle;               //0-341
+    bool usesRAM;               //true if CHR_RAM is used rather than CHR_ROM
 
     uint8_t getPpuByte(uint16_t);
     bool setPpuByte(uint16_t, uint8_t);
@@ -69,24 +72,32 @@ private:
 
 public:
 
-	/* System */
-	//initialize
+    /* System */
+    //initialize
     NES();
-	bool openCartridge(const char *);
-	//deinitialize
+    bool openCartridge(const char *);
+    //deinitialize
     void freeCartridgePointers();
 
 
     /* CPU */
-	//run, returns number of CPU cycles taken
+    //run, returns number of CPU cycles taken
     int executeNextOpcode(bool);
     int getCpuCycle();
     void setCpuCycle(int);
 
 
     /* PPU */
+    bool draw;
+    bool evenFrame;
+
+    uint32_t * pixels;
+
     void ppuTick();
     int getPpuCycle();
+
+    void drawSprites();
+
 };
 
 #endif
