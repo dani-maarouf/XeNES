@@ -3,8 +3,6 @@
 
 #include "NES.hpp"
 
-#define MAX_INT 4294967295;
-
 uint8_t NES::getPpuByte(uint16_t address) {
     address %= 0x4000;
 
@@ -144,29 +142,95 @@ void NES::printSprites() {
 
 void NES::drawSprites() {
 
-    int count;
-    count = 0;
+    for (int i = 0; i < 32 * 30; i++) {
 
-    for (int i = 0x0; i < 0x2000; i += 0x10) {
+        int x;
+        int y;
 
-        for (int x = i; x < 0x8 + i; x++) {
+        x = (i % 32);
+        y = (i / 32);
 
-            std::bitset<8> row;
-            row = (std::bitset<8>) (getPpuByte(x) | getPpuByte(x + 8));
+        int pixelStart;
+        pixelStart = x * 8 + y * NES_SCREEN_WIDTH * 8;
 
-            for (int y = 7; y >= 0; y--) {
-                if (row[y]) {
-                    pixels[0 + (count % 32) * 8 + (count / 32) * 8 * NES_SCREEN_WIDTH + (7 - y) + (x - i) * NES_SCREEN_WIDTH] = MAX_INT;
-                } else {
-                    pixels[0 + (count % 32) * 8 + (count / 32) * 8 * NES_SCREEN_WIDTH + (7 - y) + (x - i) * NES_SCREEN_WIDTH] = 0;
-                }
+        for (int j = 0; j < 8; j++) {
+
+            int spriteRow2[8];
+
+            std::bitset<8> spriteLayer1 = (std::bitset<8>) getPpuByte(i * 16 + j);
+            std::bitset<8> spriteLayer2 = (std::bitset<8>) getPpuByte(i * 16 + j + 8);
+
+            for (int a = 0; a < 8; a++) {
+                spriteRow2[a] = 0;
+                spriteRow2[a] += spriteLayer1[a];
+                spriteRow2[a] += spriteLayer2[a];
             }
-        }
-        count++;
-    }
+
+            for (int k = 7; k >= 0; k--) {
+                if (spriteRow2[k] == 3) {
+                    pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0xFFFFFFFF;
+                } else if (spriteRow2[k] == 2) {
+                    pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0xFFF00000;
+                } else if (spriteRow2[k] == 1) {
+                    pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x000FFF00;
+                } else {
+                    pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x00000000;
+               }
+           }
+       }
+
+   }
+
+   return;
+
 }
 
 void NES::ppuTick() {
+
+    /* PPUCTRL */
+    int nametableOffset;
+    nametableOffset = (ppuRegisters[0] & 0x03) * 0x400;
+    int vramInc;
+    vramInc = (ppuRegisters[0] & 0x04) ? 32 : 1;
+    int spriteTableOffset;
+    spriteTableOffset = (ppuRegisters[0] & 0x8) ? 0x1000 : 0x0;
+    int backgroundTableOffset;
+    backgroundTableOffset = (ppuRegisters[0] & 0x10) ? 0x1000 : 0x0;
+    bool extendedSprites;
+    extendedSprites = (ppuRegisters[0] & 0x20) ? true : false;
+    bool ppuMaster;
+    ppuMaster = (ppuRegisters[0] & 0x40) ? true : false;
+    bool generateNMI;
+    generateNMI = (ppuRegisters[0] & 0x80) ? true : false;
+
+
+    /* PPUMASK */
+    //todo
+
+
+
+    if (ppuGetAddr) {
+        if (readLower) {
+            ppuReadAddress |= ppuRegisters[6];
+            //std::cout << "PPU VRAM addr : " << std::hex << ppuReadAddress << std::endl;
+            readLower = false;
+        } else {
+            ppuReadAddress = (ppuRegisters[6] << 8);
+            readLower = true;
+        }
+        ppuGetAddr = false;
+    }
+
+    if (ppuReadByte) {
+        setPpuByte(ppuReadAddress, ppuRegisters[7]);
+
+        ppuReadAddress += vramInc;
+
+        //std::cout << "PPU VRAM addr : " << std::hex << ppuReadAddress << std::endl;
+
+        ppuReadByte = false;
+    }
+
 
 
     if (scanline > 240 && scanline < 261) {
@@ -201,15 +265,14 @@ void NES::ppuTick() {
             pixelStart = x * 8 + y * NES_SCREEN_WIDTH * 8;
 
             int spriteStart;
-            spriteStart = (int) getPpuByte(0x2000 + i);
-
+            spriteStart = getPpuByte(0x2000 + i + nametableOffset);
 
             for (int j = 0; j < 8; j++) {
 
                 int spriteRow2[8];
 
-                std::bitset<8> spriteLayer1 = (std::bitset<8>) getPpuByte(i * 16 + j);
-                std::bitset<8> spriteLayer2 = (std::bitset<8>) getPpuByte(i * 16 + j + 8);
+                std::bitset<8> spriteLayer1 = (std::bitset<8>) getPpuByte(spriteStart * 16 + j + 0x1000);
+                std::bitset<8> spriteLayer2 = (std::bitset<8>) getPpuByte(spriteStart * 16 + j + 8 + 0x1000);
 
                 for (int a = 0; a < 8; a++) {
                     spriteRow2[a] = 0;
@@ -219,54 +282,20 @@ void NES::ppuTick() {
 
                 for (int k = 7; k >= 0; k--) {
 
-
-                    
                     if (spriteRow2[k] == 3) {
                         pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0xFFFFFFFF;
                     } else if (spriteRow2[k] == 2) {
                         pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0xFFF00000;
                     } else if (spriteRow2[k] == 1) {
                         pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x000FFF00;
-
                     } else {
-                         pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x0;
+                        pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x00000000;
                     }
                     
 
                 }
-
-
-
-                /*
-
-                std::bitset<8> spriteRow;
-                spriteRow = (std::bitset<8>) (getPpuByte(spriteStart * 16 + j + 0x1000) | (getPpuByte(spriteStart * 16 + j + 8 + 0x1000)));
-
-
-                for (int k = 7; k >= 0; k--) {
-
-
-                    
-                    if (spriteRow[k]) {
-                        pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = MAX_INT;
-                    } else {
-                        pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0;
-
-                    }
-                    
-
-                }
-
-                */
-
-
-
-
             }
-
-
         }
-
     }
 
 

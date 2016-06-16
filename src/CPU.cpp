@@ -868,9 +868,21 @@ inline bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
         return false;
         
     } else if (memAddress >= 0x2000 && memAddress < 0x4000) {
-        ppuRegisters[(memAddress - 0x2000) % 8] = byte;
+
+        uint16_t address;
+        address = (memAddress - 0x2000) % 8;
+
+        if (address == 0x6) {
+            ppuGetAddr = true;
+        } else if (address == 0x7) {
+            ppuReadByte = true;
+        }
+
+        ppuRegisters[address] = byte;
         return true;
-    } else if (memAddress >= 0x4000 && memAddress < 0x4018) { 
+    } 
+
+    else if (memAddress >= 0x4000 && memAddress < 0x4018) { 
         ioRegisters[memAddress - 0x4000] = byte;
         return true;
     } else if (memAddress >= 0x6000 && memAddress < 0x8000) {

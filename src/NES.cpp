@@ -18,6 +18,12 @@ NES::NES() {
     X  = 0x0;
     Y  = 0x0;
 
+    ppuGetAddr = false;
+    readLower = false;
+    ppuReadByte = false;
+
+    ppuReadAddress = 0x0;
+
     cpuCycle = 0;
 
     scanline = 241;

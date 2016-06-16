@@ -53,9 +53,7 @@ private:
 
 
     /* PPU */
-
     uint8_t palette[0x20];
-
     uint8_t ppuRegisters[0x8];  //PPU registers
     uint8_t ppuRAM[0x800];      //2kB PPU RAM
     uint8_t ppuOAM[0x100];      //256 byte PPU OAM
@@ -64,10 +62,20 @@ private:
     int scanline;
     int ppuCycle;               //0-341
     bool usesRAM;               //true if CHR_RAM is used rather than CHR_ROM
+    bool evenFrame;
+
+    uint16_t ppuReadAddress;
+
+    bool ppuGetAddr;
+    bool readLower;
+    bool ppuReadByte;
+
 
     uint8_t getPpuByte(uint16_t);
     bool setPpuByte(uint16_t, uint8_t);
     void printSprites();
+    int getPpuCycle();
+    void drawSprites();
 
 public:
 
@@ -88,15 +96,9 @@ public:
 
     /* PPU */
     bool draw;
-    bool evenFrame;
-
     uint32_t * pixels;
 
     void ppuTick();
-    int getPpuCycle();
-
-    void drawSprites();
-
 };
 
 #endif
