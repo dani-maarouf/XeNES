@@ -47,6 +47,8 @@ private:
     uint8_t cpuMem[0x10000];    //fallback memory addresses
     int cpuCycle;
 
+    bool NMI;
+
     uint8_t getCpuByte(uint16_t);
     bool setCpuByte(uint16_t, uint8_t);
     uint16_t retrieveCpuAddress(enum AddressMode, bool *);

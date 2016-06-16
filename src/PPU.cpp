@@ -231,9 +231,12 @@ void NES::ppuTick() {
         ppuReadByte = false;
     }
 
-
-
-    if (scanline > 240 && scanline < 261) {
+    if (scanline == 240) {
+        ppuRegisters[2] &= 0x7F;
+        if (generateNMI) {
+            NMI = true;
+        }
+    } else if (scanline > 240 && scanline < 261) {
         ppuRegisters[2] |= 0x80;
     } else {
         ppuRegisters[2] &= 0x7F;

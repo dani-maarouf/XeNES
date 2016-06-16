@@ -109,6 +109,34 @@ int NES::executeNextOpcode(bool debug) {
 
     //always spend 2 cycles fetching opcode and next byte
     cyc += 2;
+
+    if (NMI) {
+
+        cyc++;
+
+        uint16_t store;
+        store = PC;
+
+        uint8_t high = (store & 0xFF00) >> 8;
+        setCpuByte(SP + 0x100, high);
+        SP--;
+        cyc++;
+
+        uint8_t low = store & 0xFF;;
+        setCpuByte(SP + 0x100, low);
+        SP--;
+        cyc++;
+
+        setCpuByte(SP + 0x100, getPswByte(PS));
+        SP--;
+        cyc++;
+
+        PC = getCpuByte(0xFFFA) | (getCpuByte(0xFFFB) << 8);
+        cyc++;
+
+        NMI = false;
+        return cyc;
+    }
     
     switch (opcode) {
 
@@ -838,7 +866,7 @@ uint16_t NES::retrieveCpuAddress(enum AddressMode mode, bool * pagePass) {
     }
 }
 
-inline uint8_t NES::getCpuByte(uint16_t memAddress) {
+uint8_t NES::getCpuByte(uint16_t memAddress) {
 
     if (memAddress >= 0x0000 && memAddress < 0x2000) {
         return cpuRAM[memAddress % 0x800];
@@ -857,7 +885,7 @@ inline uint8_t NES::getCpuByte(uint16_t memAddress) {
     }
 }
 
-inline bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
+bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
 
     if (memAddress >= 0x0000 && memAddress < 0x2000) {
         cpuRAM[memAddress] = byte;
