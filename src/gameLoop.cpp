@@ -6,6 +6,7 @@
 
 const int FPS = 60;
 const int TICKS_PER_FRAME = 1000/FPS;
+const int scaleFactor = 4;
 
 SDL_Window * window = NULL;
 SDL_Renderer * renderer = NULL;
@@ -13,6 +14,7 @@ SDL_Texture * texture = NULL;
 
 static bool initSDL(const char *);
 static void closeSDL();
+static void draw(uint32_t *);
 
 void loop(NES nesSystem, const char * fileLoc) {
 
@@ -22,18 +24,13 @@ void loop(NES nesSystem, const char * fileLoc) {
     }
 
     bool running;
+    int frameStartTime;
     SDL_Event event;
 
     running = true;
+    frameStartTime = SDL_GetTicks();
 
-    memset(nesSystem.pixels, 0, screenWidth * screenHeight * sizeof(uint32_t));
-
-    nesSystem.drawSprites();
-
-    SDL_UpdateTexture(texture, NULL, nesSystem.pixels, screenWidth * sizeof(uint32_t));
-    SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, texture, NULL, NULL);
-    SDL_RenderPresent(renderer);
+    draw(nesSystem.pixels);
 
     while (running) {
 
@@ -50,37 +47,30 @@ void loop(NES nesSystem, const char * fileLoc) {
         }
 
         int executeResult;
-        executeResult = nesSystem.executeNextOpcode(false);
+        executeResult = nesSystem.executeNextOpcode(true);
 
         if (executeResult == 0) {
             std::cerr << "Error executing opcode" << std::endl;
             break;
         } else {
+
             nesSystem.setCpuCycle((nesSystem.getCpuCycle() + 3 * executeResult) % 341);
 
-            int currentCpuCycle;
-            currentCpuCycle = nesSystem.getCpuCycle();
-
-            while (nesSystem.getPpuCycle() != currentCpuCycle) {
+            for (int x = 0; x < 3 * executeResult; x++) {
 
                 nesSystem.ppuTick();
 
                 if (nesSystem.draw) {
+                    draw(nesSystem.pixels);
 
-                    SDL_Delay(50);
-
-                    /*
-                    nesSystem.drawSprites();
-
-                    SDL_UpdateTexture(texture, NULL, nesSystem.pixels, screenWidth * sizeof(uint32_t));
-                    SDL_RenderClear(renderer);
-                    SDL_RenderCopy(renderer, texture, NULL, NULL);
-                    SDL_RenderPresent(renderer);
-
+                    SDL_Delay(500);
                     
-                    SDL_Delay(1000);
-                    */
-
+                    int frameEndTime;
+                    frameEndTime = SDL_GetTicks();
+                    if (frameEndTime - frameStartTime < TICKS_PER_FRAME) {
+                        SDL_Delay(frameEndTime - frameStartTime);
+                    }
+                    frameStartTime = SDL_GetTicks();
                 }
             }
         }
@@ -91,7 +81,7 @@ void loop(NES nesSystem, const char * fileLoc) {
     return;
 }
 
-bool initSDL(const char * fileLoc) {
+static bool initSDL(const char * fileLoc) {
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "Could not initialize SDL : " << SDL_GetError() << std::endl;
@@ -103,7 +93,7 @@ bool initSDL(const char * fileLoc) {
     strcat(windowTitle, fileLoc);
 
     window = SDL_CreateWindow(windowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        screenWidth, screenHeight, 0);
+        NES_SCREEN_WIDTH * scaleFactor, NES_SCREEN_HEIGHT * scaleFactor, 0);
 
     if (window == NULL) {
         std::cerr << "Could not create SDL window : " << SDL_GetError() << std::endl;
@@ -120,7 +110,7 @@ bool initSDL(const char * fileLoc) {
     }
 
     texture = SDL_CreateTexture(renderer,
-        SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, screenWidth, screenHeight);
+        SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, NES_SCREEN_WIDTH, NES_SCREEN_HEIGHT);
 
     if (texture == NULL) {
         std::cerr << "Could not create SDL texture : " << SDL_GetError() << std::endl;
@@ -128,14 +118,25 @@ bool initSDL(const char * fileLoc) {
         return false;
     }
 
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, 0); 
+
     return true;
 
 }
 
-void closeSDL() {
+static void closeSDL() {
     if (window != NULL) {
         SDL_DestroyWindow(window);
         window = NULL;
     }
     SDL_Quit();
+}
+
+static void draw(uint32_t * pixels) {
+
+    SDL_UpdateTexture(texture, NULL, pixels, NES_SCREEN_WIDTH * sizeof(uint32_t));
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_RenderPresent(renderer);
+
 }

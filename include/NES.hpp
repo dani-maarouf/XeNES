@@ -3,8 +3,8 @@
 
 #include <cstdint>
 
-const int screenWidth = 256;
-const int screenHeight = 240;
+const int NES_SCREEN_WIDTH = 256;
+const int NES_SCREEN_HEIGHT = 240;
 
 enum ProcessorStatusIndex {
     C = 0,       //carry flag
@@ -68,7 +68,6 @@ private:
     uint8_t getPpuByte(uint16_t);
     bool setPpuByte(uint16_t, uint8_t);
     void printSprites();
-    void incPpuCycle();
 
 public:
 

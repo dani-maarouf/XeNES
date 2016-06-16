@@ -156,9 +156,9 @@ void NES::drawSprites() {
 
             for (int y = 7; y >= 0; y--) {
                 if (row[y]) {
-                    pixels[0 + (count % 32) * 8 + (count / 32) * 8 * screenWidth + (7 - y) + (x - i) * screenWidth] = MAX_INT;
+                    pixels[0 + (count % 32) * 8 + (count / 32) * 8 * NES_SCREEN_WIDTH + (7 - y) + (x - i) * NES_SCREEN_WIDTH] = MAX_INT;
                 } else {
-                    pixels[0 + (count % 32) * 8 + (count / 32) * 8 * screenWidth + (7 - y) + (x - i) * screenWidth] = 0;
+                    pixels[0 + (count % 32) * 8 + (count / 32) * 8 * NES_SCREEN_WIDTH + (7 - y) + (x - i) * NES_SCREEN_WIDTH] = 0;
                 }
             }
         }
@@ -168,21 +168,13 @@ void NES::drawSprites() {
 
 void NES::ppuTick() {
 
-    //printSprites();
 
-
-
+    if (scanline > 240 && scanline < 261) {
+        ppuRegisters[2] |= 0x80;
+    } else {
+        ppuRegisters[2] &= 0x7F;
+    }
     
-    incPpuCycle();
-    return;
-}
-
-int NES::getPpuCycle() {
-    return ppuCycle;
-}
-
-inline void NES::incPpuCycle() {
-
     draw = false;
     ppuCycle = (ppuCycle + 1) % 341;
 
@@ -194,5 +186,93 @@ inline void NES::incPpuCycle() {
         }
     }
 
+
+    if (draw) {
+
+        for (int i = 0; i < 32 * 30; i++) {
+
+            int x;
+            int y;
+
+            x = (i % 32);
+            y = (i / 32);
+
+            int pixelStart;
+            pixelStart = x * 8 + y * NES_SCREEN_WIDTH * 8;
+
+            int spriteStart;
+            spriteStart = (int) getPpuByte(0x2000 + i);
+
+
+            for (int j = 0; j < 8; j++) {
+
+                int spriteRow2[8];
+
+                std::bitset<8> spriteLayer1 = (std::bitset<8>) getPpuByte(i * 16 + j);
+                std::bitset<8> spriteLayer2 = (std::bitset<8>) getPpuByte(i * 16 + j + 8);
+
+                for (int a = 0; a < 8; a++) {
+                    spriteRow2[a] = 0;
+                    spriteRow2[a] += spriteLayer1[a];
+                    spriteRow2[a] += spriteLayer2[a];
+                }
+
+                for (int k = 7; k >= 0; k--) {
+
+
+                    
+                    if (spriteRow2[k] == 3) {
+                        pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0xFFFFFFFF;
+                    } else if (spriteRow2[k] == 2) {
+                        pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0xFFF00000;
+                    } else if (spriteRow2[k] == 1) {
+                        pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x000FFF00;
+
+                    } else {
+                         pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x0;
+                    }
+                    
+
+                }
+
+
+
+                /*
+
+                std::bitset<8> spriteRow;
+                spriteRow = (std::bitset<8>) (getPpuByte(spriteStart * 16 + j + 0x1000) | (getPpuByte(spriteStart * 16 + j + 8 + 0x1000)));
+
+
+                for (int k = 7; k >= 0; k--) {
+
+
+                    
+                    if (spriteRow[k]) {
+                        pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = MAX_INT;
+                    } else {
+                        pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0;
+
+                    }
+                    
+
+                }
+
+                */
+
+
+
+
+            }
+
+
+        }
+
+    }
+
+
     return;
+}
+
+int NES::getPpuCycle() {
+    return ppuCycle;
 }

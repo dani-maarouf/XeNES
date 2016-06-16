@@ -11,16 +11,16 @@ NES::NES() {
     for (int x = 0; x < 0x800; x++) cpuRAM[x] = 0x0;
     for (int x = 0; x < 8; x++) PS[x] = false;
     for (int x = 0; x < 0x20; x++) palette[x] = 0;
+    for (int x = 0; x < 0x800; x++) ppuRAM[x] = 0x0;
 
-    PC = 0x8000;
-    SP = 0xFD;
+    SP = 0xFF;
     A  = 0x0;
     X  = 0x0;
     Y  = 0x0;
 
     cpuCycle = 0;
 
-    scanline = 0;
+    scanline = 241;
     ppuCycle = 0;
 
     PS[I] = true;
@@ -28,7 +28,9 @@ NES::NES() {
     draw = false;
     evenFrame = true;
 
-    pixels = new uint32_t[screenWidth * screenHeight];
+    pixels = new uint32_t[NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT];
+    memset(pixels, 0, NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT * sizeof(uint32_t));
+
 
     return;
 }
@@ -103,11 +105,7 @@ bool NES::openCartridge(const char * fileLoc) {
                 prg_rom_size = flags[4];
                 chr_rom_size = flags[5];
 
-                if (prg_rom_size == 1) {
-                    PC = 0xC000;
-                } else if (prg_rom_size == 2) {
-                    PC = 0x8000;
-                } else {
+                if (prg_rom_size != 1 && prg_rom_size != 2) {
                     std::cerr << "Unrecognized rom size " << (int) prg_rom_size << std::endl;
                     romFile.close();
                     return false;
@@ -237,6 +235,8 @@ bool NES::openCartridge(const char * fileLoc) {
     }
 
     numRomBanks = prg_rom_size;
+
+    PC = getCpuByte(0xFFFC) | (getCpuByte(0xFFFD) << 8);
 
     romFile.close();
     return true;

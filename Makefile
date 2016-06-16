@@ -1,7 +1,7 @@
 SRC_FILES    = src/main.cpp src/NES.cpp src/gameLoop.cpp src/CPU.cpp src/PPU.cpp
 HEADER_FILES = include/NES.hpp include/gameLoop.hpp
 
-CXXFLAGS     = -Wall -Iinclude
+CXXFLAGS     = -Wall -Iinclude -pedantic -Wformat
 LINK_FLAGS   = -lSDL2
 
 all: nesEmu

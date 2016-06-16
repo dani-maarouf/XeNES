@@ -67,7 +67,7 @@ static int addressCycles(enum AddressMode, enum InstructionType);
 static void printByte(uint8_t);
 static int debugPrintVal(enum AddressMode, int, int);
 static void printDebugLine(uint16_t, uint8_t, uint8_t, uint8_t, enum AddressMode, 
-    uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, bool *, int);
+    uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, bool *, int, int);
 
 int NES::executeNextOpcode(bool debug) {
 
@@ -99,7 +99,7 @@ int NES::executeNextOpcode(bool debug) {
     iByte3 = getCpuByte(PC + 2);
 
     if (debug) {
-        printDebugLine(address, opcode, iByte2, iByte3, opAddressMode, PC, memoryByte, A, X, Y, SP, PS, cpuCycle);
+        printDebugLine(address, opcode, iByte2, iByte3, opAddressMode, PC, memoryByte, A, X, Y, SP, PS, cpuCycle, scanline);
         std::cout << std::endl;
     }
 
@@ -1120,7 +1120,7 @@ static int debugPrintVal(enum AddressMode mode, int firstByte, int secondByte) {
 
 //note: this is particularly ugly, only for use for matching nestopia nintendulator log
 static void printDebugLine(uint16_t address, uint8_t opcode, uint8_t iByte2, uint8_t iByte3, enum AddressMode opAddressMode,
-    uint16_t PC, uint8_t memByte, uint8_t A, uint8_t X, uint8_t Y, uint8_t SP, bool * PS, int count) {
+    uint16_t PC, uint8_t memByte, uint8_t A, uint8_t X, uint8_t Y, uint8_t SP, bool * PS, int count, int scanLines) {
 
     std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << (int) PC << "  ";
 
@@ -1234,8 +1234,17 @@ static void printDebugLine(uint16_t address, uint8_t opcode, uint8_t iByte2, uin
     } else if (count < 100) {
         std::cout << " ";
     }
-
     std::cout << std::dec << count;
+
+    std::cout << " SL:";
+
+    if (scanLines < 10) {
+        std::cout << "  ";
+    } else if (scanLines < 100) {
+        std::cout << " ";
+    }
+    std::cout << std::dec << scanLines;
+
     return;
 
 }
