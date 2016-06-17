@@ -5,14 +5,16 @@
 #include "NES.hpp"
 
 enum InstructionType {
-    READ,
-    WRITE,
-    READ_MODIFY_WRITE,
+    READ,               //read from mem address
+    WRITE,              //write to mem address
+    READ_MODIFY_WRITE,  //read from mem address, modify byte, write byte
+    OTHER,              //note: above 3 are not applicable to all
 };
 
                             //0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F
 const int opcodeLens[0x20] = {2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3,  //0 2 4 6 8 A C E
                               2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3}; //1 3 5 7 9 B D F
+
 
 const enum AddressMode addressModes[] = {
   //0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
@@ -33,6 +35,7 @@ const enum AddressMode addressModes[] = {
     IMM, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, IMP, IMM, ABS, ABS, ABS, ABS,   //E
     REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX}; //F
 
+//opcode mnemonics
                          //0     1      2      3      4      5      6      7      8      9
 const char * opnames[] = {"$$$", "ADC", "AND", "ASL", "BCC", "BCS", "BEQ", "BIT", "BMI", "BNE", //0
                           "BPL", "BRK", "BVC", "BVS", "CLC", "CLD", "CLI", "CLV", "CMP", "CPX", //1
@@ -42,6 +45,7 @@ const char * opnames[] = {"$$$", "ADC", "AND", "ASL", "BCC", "BCS", "BEQ", "BIT"
                          "*SAX","*SBC", "SBC", "SEC", "SED", "SEI","*SLO","*SRE", "STA", "STX", //5
                           "STY", "TAX", "TAY", "TSX", "TXA", "TXS", "TYA"};                     //6
 
+//opcode mnemonic mapping
                        //0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
 const int opnameMap[] = {11,39, 0,56,38,39, 3,56,41,39, 3, 0,38,39, 3,56,  //0
                          10,39, 0,56,38,39, 3,56,14,39,38,56,38,39, 3,56,  //1
@@ -99,26 +103,17 @@ void CPU::freePointers() {
 
 int CPU::executeNextOpcode(NES * nes, bool debug) {
 
+    //CPU cycles taken during instruction
     int cyc;
     cyc = 0;
 
+    //page boundy cross?
     bool pass;
     pass = false;
 
+    //get addressing mode for current opcode
     enum AddressMode opAddressMode;
     opAddressMode = addressModes[nes->getCpuByte(PC)];
-
-    //get address if applicable to instruction
-    uint16_t address;
-    address = nes->retrieveCpuAddress(opAddressMode, &pass);
-
-    //get byte from memory if applicable
-    uint8_t memoryByte;
-    if (addressModes[nes->getCpuByte(PC)] == IMM) {
-        memoryByte = nes->getCpuByte(PC + 1);
-    } else {
-        memoryByte = nes->getCpuByte(address);
-    }
 
     //fetch instruction bytes
     uint8_t opcode, iByte2, iByte3;
@@ -126,12 +121,24 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
     iByte2 = nes->getCpuByte(PC + 1);
     iByte3 = nes->getCpuByte(PC + 2);
 
+    //get address if applicable to instruction
+    uint16_t address;
+    address = nes->retrieveCpuAddress(opAddressMode, &pass, iByte2, iByte3);
+
+    //get byte from memory if applicable to address mode
+    uint8_t memoryByte;
+    if (addressModes[nes->getCpuByte(PC)] == IMM) {
+        memoryByte = nes->getCpuByte(PC + 1);
+    } else {
+        memoryByte = nes->getCpuByte(address);
+    }
+
     if (debug) {
         printDebugLine(address, opcode, iByte2, iByte3, opAddressMode, PC, memoryByte, A, X, Y, SP, PS, cpuCycle, nes->nesPPU.scanline);
         std::cout << std::endl;
     }
 
-        //increment program counter
+    //increment program counter
     PC += opcodeLens[opcode % 0x20];
     if (opcode == 0xA2) PC += 2;        //irregular opcode
 
@@ -885,73 +892,46 @@ static int addressCycles(enum AddressMode mode, enum InstructionType type) {
 
             switch (mode) {
 
-                case IMM:
-                return 0;
-
-                case ACC:
-                return 0;
+                case ZRP:
+                return 1;
 
                 case ABS:
-                return 2;
-
                 case ABSX:
-                return 2;
-
                 case ABSY:
+                case ZRPX:
+                case ZRPY:
                 return 2;
-
-                case INDX:
-                return 4;
 
                 case INDY:
                 return 3;
 
-                case ZRP:
-                return 1;
-
-                case ZRPX:
-                return 2;
-
-                case ZRPY:
-                return 2;
+                case INDX:
+                return 4;
 
                 default:
                 return 0;
             }
-
         }
 
         case READ_MODIFY_WRITE: {
 
             switch (mode) {
 
-                case IMM:
-                return 0;
-
-                case ACC:
-                return 0;
-
-                case ABS:
-                return 4;
-
-                case ABSX:
-                return 5;
-
-                return 3;
-
                 case ZRP:
                 return 3;
 
+                case ABS:
                 case ZRPX:
-                return 4;
-
                 case ZRPY:
                 return 4;
+
+                case ABSX:
+                case ABSY:
+                return 5;
 
                 default:
                 return 0;
             }
-
         }
 
         case WRITE: {
@@ -962,33 +942,23 @@ static int addressCycles(enum AddressMode mode, enum InstructionType type) {
                 return 1;
 
                 case ZRPX:
-                return 2;
-
                 case ZRPY:
-                return 2;
-
                 case ABS:
                 return 2;
 
                 case ABSX:
-                return 3;
-
                 case ABSY:
                 return 3;
 
                 case INDX:
-                return 4;
-
                 case INDY:
                 return 4;
 
                 default:
                 return 0;
             }
-
         }
         
-
         default:
         return 0;
     }
@@ -999,6 +969,7 @@ static void printByte(uint8_t byte) {
     return;
 }
 
+//note:ugly, for debugging
 static int debugPrintVal(enum AddressMode mode, int firstByte, int secondByte) {
 
     switch (mode) {
@@ -1058,7 +1029,7 @@ static int debugPrintVal(enum AddressMode mode, int firstByte, int secondByte) {
     }
 }
 
-//note: this is particularly ugly, only for use for matching nestopia nintendulator log
+//note:ugly, for debugging, matches nintendulator log
 static void printDebugLine(uint16_t address, uint8_t opcode, uint8_t iByte2, uint8_t iByte3, enum AddressMode opAddressMode,
     uint16_t PC, uint8_t memByte, uint8_t A, uint8_t X, uint8_t Y, uint8_t SP, bool * PS, int count, int scanLines) {
 

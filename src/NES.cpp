@@ -33,6 +33,7 @@ bool NES::drawFlag() {
     return nesPPU.draw;
 }
 
+//fix possible memory leaks
 bool NES::openCartridge(const char * fileLoc) {
 
     if (fileLoc == NULL) {
@@ -279,13 +280,9 @@ bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
     }
 }
 
-uint16_t NES::retrieveCpuAddress(enum AddressMode mode, bool * pagePass) {
+uint16_t NES::retrieveCpuAddress(enum AddressMode mode, bool * pagePass, uint8_t firstByte, uint8_t secondByte) {
 
     *pagePass = false;
-
-    uint8_t firstByte, secondByte;
-    firstByte = getCpuByte(nesCPU.PC + 1);
-    secondByte = getCpuByte(nesCPU.PC + 2);
 
     switch (mode) {
 

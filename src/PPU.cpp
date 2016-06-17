@@ -340,7 +340,3 @@ int PPU::tick(bool * NMI) {
 
     return 1;
 }
-
-int PPU::getPpuCycle() {
-    return ppuCycle;
-}

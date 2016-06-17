@@ -9,7 +9,7 @@
 class NES {
 
     /* allows child class CPU to access parent NES member functions getCpuByte(), setCpuByte()
-       and retrieveCpuAddress() */
+       and retrieveCpuAddress(), ugly but works */
     friend class CPU;
 
 private:
@@ -20,19 +20,19 @@ private:
 
     uint8_t getCpuByte(uint16_t);       //get byte from CPU address space
     bool setCpuByte(uint16_t, uint8_t); //set byte in CPU address space
-    uint16_t retrieveCpuAddress(enum AddressMode, bool *);  //get address basedon address mode
+    uint16_t retrieveCpuAddress(enum AddressMode, bool *, uint8_t, uint8_t);  //get address basedon address mode
 
 public:
 
     NES();
-    bool openCartridge(const char *);
-    void closeCartridge();
+    bool openCartridge(const char *);   //load ROM
+    void closeCartridge();              //free memory associated with cartridge
 
-    uint32_t * getDisplayPixels();
-    bool drawFlag();
-    int tickPPU();
+    uint32_t * getDisplayPixels();      //pixels in SDL_PIXELFORMAT_ARGB8888
+    bool drawFlag();                    //draw frame?
+    int tickPPU();                      //1 ppu tick
 
-    int executeOpcode(bool);
+    int executeOpcode(bool);            //CPU execute opcode interface
 };
 
 #endif

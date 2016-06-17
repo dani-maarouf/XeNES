@@ -6,11 +6,11 @@
 
 const int FPS = 60;
 const int TICKS_PER_FRAME = 1000/FPS;
-const int scaleFactor = 2;
+const int scaleFactor = 2;      //size of each NES display pixel in real pixels
 
-SDL_Window * window = NULL;
-SDL_Renderer * renderer = NULL;
-SDL_Texture * texture = NULL;
+SDL_Window * window = NULL;     //SDL window
+SDL_Renderer * renderer = NULL; //SDL renderer
+SDL_Texture * texture = NULL;   //SDL texture
 
 static bool initSDL(const char *);
 static void closeSDL();
@@ -34,10 +34,9 @@ void loop(NES nesSystem, const char * fileLoc) {
 
     while (running) {
 
+        //1. process events
         SDL_PollEvent(&event);
-
         switch(event.type) {
-
             case SDL_QUIT:
             running = false;
             break;
@@ -46,6 +45,7 @@ void loop(NES nesSystem, const char * fileLoc) {
             break;
         }
 
+        //2. logic
         int executeResult;
         executeResult = nesSystem.executeOpcode(false);
 
@@ -54,15 +54,19 @@ void loop(NES nesSystem, const char * fileLoc) {
             break;
         } else {
 
+            /* let PPU ticks catch up to CPU ticks */
             for (int x = 0; x < 3 * executeResult; x++) {
 
+                //3. logic
                 nesSystem.tickPPU();
 
                 if (nesSystem.drawFlag()) {
+                    //4. draw
                     draw(nesSystem.getDisplayPixels());
 
-                    SDL_Delay(500);
+                    SDL_Delay(500);     //for testing
                     
+                    /* sync framerate */
                     int frameEndTime;
                     frameEndTime = SDL_GetTicks();
                     if (frameEndTime - frameStartTime < TICKS_PER_FRAME) {
@@ -86,6 +90,7 @@ static bool initSDL(const char * fileLoc) {
         return false;
     }
 
+    //set window title
     char windowTitle[100];
     strcpy(windowTitle, "NES: ");
     strcat(windowTitle, fileLoc);
@@ -123,10 +128,19 @@ static bool initSDL(const char * fileLoc) {
 }
 
 static void closeSDL() {
+    if (texture != NULL) {
+        SDL_DestroyTexture(texture);
+        texture = NULL;
+    }
+    if (renderer != NULL) {
+        SDL_DestroyRenderer(renderer);
+        renderer = NULL;
+    }
     if (window != NULL) {
         SDL_DestroyWindow(window);
         window = NULL;
     }
+
     SDL_Quit();
 }
 
