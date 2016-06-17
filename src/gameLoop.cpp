@@ -6,7 +6,7 @@
 
 const int FPS = 60;
 const int TICKS_PER_FRAME = 1000/FPS;
-const int scaleFactor = 4;
+const int scaleFactor = 2;
 
 SDL_Window * window = NULL;
 SDL_Renderer * renderer = NULL;
@@ -30,7 +30,7 @@ void loop(NES nesSystem, const char * fileLoc) {
     running = true;
     frameStartTime = SDL_GetTicks();
 
-    draw(nesSystem.pixels);
+    draw(nesSystem.getDisplayPixels());
 
     while (running) {
 
@@ -47,21 +47,19 @@ void loop(NES nesSystem, const char * fileLoc) {
         }
 
         int executeResult;
-        executeResult = nesSystem.executeNextOpcode(true);
+        executeResult = nesSystem.executeOpcode(false);
 
         if (executeResult == 0) {
             std::cerr << "Error executing opcode" << std::endl;
             break;
         } else {
 
-            nesSystem.setCpuCycle((nesSystem.getCpuCycle() + 3 * executeResult) % 341);
-
             for (int x = 0; x < 3 * executeResult; x++) {
 
-                nesSystem.ppuTick();
+                nesSystem.tickPPU();
 
-                if (nesSystem.draw) {
-                    draw(nesSystem.pixels);
+                if (nesSystem.drawFlag()) {
+                    draw(nesSystem.getDisplayPixels());
 
                     SDL_Delay(500);
                     

@@ -20,7 +20,7 @@ int main(int argc, char ** argv) {
 
     loop(nesSystem, argv[1]);
 
-    nesSystem.freeCartridgePointers();
+    nesSystem.closeCartridge();
     
     return 0;
 }

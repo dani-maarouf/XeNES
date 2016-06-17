@@ -1,9 +1,45 @@
 #include <iostream>
 #include <bitset>
+#include <cstring>
 
-#include "NES.hpp"
+#include "PPU.hpp"
 
-uint8_t NES::getPpuByte(uint16_t address) {
+PPU::PPU() {
+
+    for (int x = 0; x < 0x20; x++) palette[x] = 0;
+    for (int x = 0; x < 0x8; x++) ppuRegisters[x] = 0x0;
+    for (int x = 0; x < 0x800; x++) ppuRAM[x] = 0x0;
+    for (int x = 0; x < 0x100; x++) ppuOAM[x] = 0x0;
+    
+    scanline = 241;
+    ppuCycle = 0;
+
+    evenFrame = true;
+    draw = false;
+    
+    ppuReadAddress = 0x0;
+
+    ppuGetAddr = false;
+    readLower = false;
+    ppuReadByte = false;
+
+    pixels = new uint32_t[NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT];
+    memset(pixels, 0, NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT * sizeof(uint32_t));
+}
+
+void PPU::freePointers() {
+
+    if (CHR_ROM != NULL) {
+        delete [] CHR_ROM;
+    }
+    if (pixels != NULL) {
+        delete [] pixels;
+    }
+
+    return;
+}
+
+uint8_t PPU::getPpuByte(uint16_t address) {
     address %= 0x4000;
 
     if (address >= 0x3000 && address < 0x3F00) {
@@ -51,7 +87,7 @@ uint8_t NES::getPpuByte(uint16_t address) {
     return 0;
 }
 
-bool NES::setPpuByte(uint16_t address, uint8_t byte) {
+bool PPU::setPpuByte(uint16_t address, uint8_t byte) {
     address %= 0x4000;
 
     if (address >= 0x3000 && address < 0x3F00) {
@@ -113,7 +149,7 @@ bool NES::setPpuByte(uint16_t address, uint8_t byte) {
     return false;
 }
 
-void NES::printSprites() {
+void PPU::printSprites() {
 
     for (int i = 0x0; i < 0x2000; i += 0x10) {
 
@@ -140,7 +176,7 @@ void NES::printSprites() {
     return;
 }
 
-void NES::drawSprites() {
+void PPU::drawSprites() {
 
     for (int i = 0; i < 32 * 30; i++) {
 
@@ -185,7 +221,7 @@ void NES::drawSprites() {
 
 }
 
-void NES::ppuTick() {
+int PPU::tick(bool * NMI) {
 
     /* PPUCTRL */
     int nametableOffset;
@@ -234,7 +270,7 @@ void NES::ppuTick() {
     if (scanline == 240) {
         ppuRegisters[2] &= 0x7F;
         if (generateNMI) {
-            NMI = true;
+            *NMI = true;
         }
     } else if (scanline > 240 && scanline < 261) {
         ppuRegisters[2] |= 0x80;
@@ -302,9 +338,9 @@ void NES::ppuTick() {
     }
 
 
-    return;
+    return 1;
 }
 
-int NES::getPpuCycle() {
+int PPU::getPpuCycle() {
     return ppuCycle;
 }

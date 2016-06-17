@@ -6,58 +6,31 @@
 #include "NES.hpp"
 
 NES::NES() {
-
-    for (int x = 0; x < 0x10000; x++) cpuMem[x] = 0x0;
-    for (int x = 0; x < 0x800; x++) cpuRAM[x] = 0x0;
-    for (int x = 0; x < 8; x++) PS[x] = false;
-    for (int x = 0; x < 0x20; x++) palette[x] = 0;
-    for (int x = 0; x < 0x800; x++) ppuRAM[x] = 0x0;
-
-    SP = 0xFF;
-    A  = 0x0;
-    X  = 0x0;
-    Y  = 0x0;
-
-    NMI = false;
-
-    ppuGetAddr = false;
-    readLower = false;
-    ppuReadByte = false;
-
-    ppuReadAddress = 0x0;
-
-    cpuCycle = 0;
-
-    scanline = 241;
-    ppuCycle = 0;
-
-    PS[I] = true;
-
-    draw = false;
-    evenFrame = true;
-
-    pixels = new uint32_t[NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT];
-    memset(pixels, 0, NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT * sizeof(uint32_t));
-
-
+    for (int x = 0; x < 0x20; x++) ioRegisters[x] = 0x0;
     return;
 }
 
-void NES::freeCartridgePointers() {
-    if (PRG_ROM != NULL) {
-        delete [] PRG_ROM;
-    }
-    if (PRG_RAM != NULL) {
-        delete [] PRG_RAM;
-    }
-    if (CHR_ROM != NULL) {
-        delete [] CHR_ROM;
-    }
-    if (pixels != NULL) {
-        delete [] pixels;
-    }
-    
+void NES::closeCartridge() {
+    nesCPU.freePointers();
+    nesPPU.freePointers();
     return;
+}
+
+uint32_t * NES::getDisplayPixels() {
+    return nesPPU.pixels;
+}
+
+int NES::executeOpcode(bool debug) {
+    return nesCPU.executeNextOpcode(this, false);
+}
+
+int NES::tickPPU() {
+    nesPPU.tick(&nesCPU.NMI);
+    return 1;
+}
+
+bool NES::drawFlag() {
+    return nesPPU.draw;
 }
 
 bool NES::openCartridge(const char * fileLoc) {
@@ -123,23 +96,23 @@ bool NES::openCartridge(const char * fileLoc) {
 
                 if (chr_rom_size == 0) {
                     chrRomBytes = 0x2000;
-                    usesRAM = true;
+                    nesPPU.usesRAM = true;
                 } else {
                     chrRomBytes = chr_rom_size * 0x2000;    
-                    usesRAM = false;
+                    nesPPU.usesRAM = false;
                 }
 
-                PRG_ROM = new uint8_t[prgRomBytes];
+                nesCPU.PRG_ROM = new uint8_t[prgRomBytes];
 
-                if (PRG_ROM == NULL) {
+                if (nesCPU.PRG_ROM == NULL) {
                     romFile.close();
                     return false;
                 }
 
-                CHR_ROM = new uint8_t[chrRomBytes];
+                nesPPU.CHR_ROM = new uint8_t[chrRomBytes];
 
-                if (CHR_ROM == NULL) {
-                    delete [] PRG_ROM;
+                if (nesPPU.CHR_ROM == NULL) {
+                    delete [] nesCPU.PRG_ROM;
                     romFile.close();
                     return false;
                 }
@@ -149,13 +122,13 @@ bool NES::openCartridge(const char * fileLoc) {
 
                 //flags 6
                 if ((flags[6] & 0x9) == 0x0) {
-                    mirroring = HORIZONTAL;
+                    nesPPU.mirroring = HORIZONTAL;
                     //std::cout << "vertical arrangement, horizontal mirroring, CIRAM A10 = PPU A11" << std::endl;
                 } else if ((flags[6] & 0x9) == 0x1) {
-                    mirroring = VERTICAL;
+                    nesPPU.mirroring = VERTICAL;
                     //std::cout << "horizontal arrangement, vertical mirroring, CIRAM A10 = PPU A10" << std::endl;
                 } else if ((flags[6] & 0x8) == 0x8) {
-                    mirroring = FOUR_SCREEN;
+                    nesPPU.mirroring = FOUR_SCREEN;
                     std::cout << "four screen VRAM" << std::endl;
                     romFile.close();
                     return false;
@@ -200,17 +173,17 @@ bool NES::openCartridge(const char * fileLoc) {
                     prgRamBytes = (prg_ram_size * 0x2000);
                 }
 
-                PRG_RAM = new uint8_t[prgRamBytes];
+                nesCPU.PRG_RAM = new uint8_t[prgRamBytes];
 
-                if (PRG_RAM == NULL) {
-                    delete [] CHR_ROM;
-                    delete [] PRG_ROM;
+                if (nesCPU.PRG_RAM == NULL) {
+                    delete [] nesPPU.CHR_ROM;
+                    delete [] nesCPU.PRG_ROM;
                     romFile.close();
                     return false;
                 }
 
                 for (int a = 0; a < prgRamBytes; a++) {
-                    PRG_RAM[a] = 0x0;
+                    nesCPU.PRG_RAM[a] = 0x0;
                 }
 
 
@@ -227,9 +200,9 @@ bool NES::openCartridge(const char * fileLoc) {
             }
 
             if (index < 16 + prgRomBytes) {
-                PRG_ROM[index - 16] = binaryValue;
+                nesCPU.PRG_ROM[index - 16] = binaryValue;
             } else if (index < 16 + prgRomBytes + chrRomBytes) {
-                CHR_ROM[index - (16 + prgRomBytes)] = binaryValue;
+                nesPPU.CHR_ROM[index - (16 + prgRomBytes)] = binaryValue;
             }
             
             index++;
@@ -242,10 +215,131 @@ bool NES::openCartridge(const char * fileLoc) {
         return false;
     }
 
-    numRomBanks = prg_rom_size;
+    nesCPU.numRomBanks = prg_rom_size;
 
-    PC = getCpuByte(0xFFFC) | (getCpuByte(0xFFFD) << 8);
+    nesCPU.PC = getCpuByte(0xFFFC) | (getCpuByte(0xFFFD) << 8);
 
     romFile.close();
     return true;
+}
+
+uint8_t NES::getCpuByte(uint16_t memAddress) {
+
+    if (memAddress >= 0x0000 && memAddress < 0x2000) {
+        return nesCPU.cpuRAM[memAddress % 0x800];
+    } else if (memAddress >= 0x8000 && memAddress < 0x10000 && nesCPU.numRomBanks == 1) {
+        return nesCPU.PRG_ROM[ (memAddress - 0x8000) % 0x4000];
+    } else if (memAddress >= 0x8000 && memAddress < 0x10000 && nesCPU.numRomBanks == 2) {
+        return nesCPU.PRG_ROM[memAddress - 0x8000];
+    } else if (memAddress >= 0x2000 && memAddress < 0x4000) {
+        return nesPPU.ppuRegisters[ (memAddress - 0x2000) % 8 ];
+    } else if (memAddress >= 0x4000 && memAddress < 0x4020) {
+        return ioRegisters[ memAddress - 0x4000 ];
+    } else if (memAddress >= 0x6000 && memAddress < 0x8000) {
+        return nesCPU.PRG_RAM[memAddress - 0x6000];
+    } else {
+        return nesCPU.cpuMem[memAddress];
+    }
+}
+
+bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
+
+    if (memAddress >= 0x0000 && memAddress < 0x2000) {
+        nesCPU.cpuRAM[memAddress] = byte;
+        return true;
+    } else if (memAddress >= 0x8000 && memAddress < 0x10000) {
+
+        std::cerr << "Segmentation fault! Can't write to 0x" << std::hex << memAddress << std::endl;
+        return false;
+        
+    } else if (memAddress >= 0x2000 && memAddress < 0x4000) {
+
+        uint16_t address;
+        address = (memAddress - 0x2000) % 8;
+
+        if (address == 0x6) {
+            nesPPU.ppuGetAddr = true;
+        } else if (address == 0x7) {
+            nesPPU.ppuReadByte = true;
+        }
+
+        nesPPU.ppuRegisters[address] = byte;
+        return true;
+    } 
+
+    else if (memAddress >= 0x4000 && memAddress < 0x4018) { 
+        ioRegisters[memAddress - 0x4000] = byte;
+        return true;
+    } else if (memAddress >= 0x6000 && memAddress < 0x8000) {
+        nesCPU.PRG_RAM[memAddress - 0x6000] = byte;
+        return true;
+    } else {
+        nesCPU.cpuMem[memAddress] = byte;
+        return true;
+    }
+}
+
+uint16_t NES::retrieveCpuAddress(enum AddressMode mode, bool * pagePass) {
+
+    *pagePass = false;
+
+    uint8_t firstByte, secondByte;
+    firstByte = getCpuByte(nesCPU.PC + 1);
+    secondByte = getCpuByte(nesCPU.PC + 2);
+
+    switch (mode) {
+
+        case ZRP:
+        return firstByte;
+
+        case ZRPX:
+        return ((firstByte + nesCPU.X) & 0xFF);
+
+        case ZRPY:
+        return ((firstByte + nesCPU.Y) & 0xFF);
+
+        case ABS:
+        return (firstByte | (secondByte << 8));
+
+        case ABSX:
+
+        if (((firstByte | (secondByte << 8)) / 256) != ((((firstByte | (secondByte << 8)) + nesCPU.X) & 0xFFFF)/256)) {
+            *pagePass = true;
+        }
+
+        return (((firstByte | (secondByte << 8)) + nesCPU.X) & 0xFFFF);
+
+        case ABSY:
+
+        if (((firstByte | (secondByte << 8)) / 256) != ((((firstByte | (secondByte << 8)) + nesCPU.Y) & 0xFFFF)/256)) {
+            *pagePass = true;
+        }
+
+        return (((firstByte | (secondByte << 8)) + nesCPU.Y) & 0xFFFF);
+
+        case IND: {
+            uint16_t low, high;
+            low = getCpuByte((firstByte | (secondByte << 8)));
+            high = getCpuByte(((firstByte + 1) & 0xFF) | (secondByte << 8));
+            return ((high << 8) | low);
+        }
+
+        case INDX: {
+            uint8_t low, high;
+            low = getCpuByte((firstByte + nesCPU.X) & 0xFF);
+            high = getCpuByte((firstByte + 1 + nesCPU.X) & 0xFF);
+            return ((high << 8) | low);
+        }
+        
+        case INDY: 
+
+        if ((((getCpuByte(firstByte)) | (getCpuByte((firstByte + 1) & 0xFF)) << 8) / 256) != (((((getCpuByte(firstByte)) | (getCpuByte((firstByte + 1) & 0xFF)) << 8) + nesCPU.Y) & 0xFFFF)/256)) {
+            *pagePass = true;
+        }
+
+        return ((((getCpuByte(firstByte)) | (getCpuByte((firstByte + 1) & 0xFF)) << 8) + nesCPU.Y) & 0xFFFF);
+        
+        default:
+        return 0;
+    }
 }
