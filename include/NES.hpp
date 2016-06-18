@@ -6,7 +6,7 @@
 #include "CPU.hpp"
 #include "PPU.hpp"
 
-class NES {
+struct NES {
 
     /* allows child class CPU to access parent NES member functions getCpuByte(), setCpuByte()
        and retrieveCpuAddress(), ugly but works */
@@ -14,9 +14,9 @@ class NES {
 
 private:
 
-    PPU nesPPU;
-    CPU nesCPU;
-    uint8_t ioRegisters[0x20];
+    PPU nesPPU;                         //PPU
+    CPU nesCPU;                         //CPU
+    uint8_t ioRegisters[0x20];          //joystick and apu registers
 
     uint8_t getCpuByte(uint16_t);       //get byte from CPU address space
     bool setCpuByte(uint16_t, uint8_t); //set byte in CPU address space
@@ -24,7 +24,6 @@ private:
 
 public:
 
-    NES();
     bool openCartridge(const char *);   //load ROM
     void closeCartridge();              //free memory associated with cartridge
 

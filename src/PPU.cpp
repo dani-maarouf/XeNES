@@ -8,8 +8,8 @@ PPU::PPU() {
 
     for (int x = 0; x < 0x20; x++) palette[x] = 0;
     for (int x = 0; x < 0x8; x++) ppuRegisters[x] = 0x0;
-    for (int x = 0; x < 0x800; x++) ppuRAM[x] = 0x0;
-    for (int x = 0; x < 0x100; x++) ppuOAM[x] = 0x0;
+    for (int x = 0; x < 0x800; x++) RAM[x] = 0x0;
+    for (int x = 0; x < 0x100; x++) OAM[x] = 0x0;
     
     scanline = 241;
     ppuCycle = 0;
@@ -28,14 +28,12 @@ PPU::PPU() {
 }
 
 void PPU::freePointers() {
-
     if (CHR_ROM != NULL) {
         delete [] CHR_ROM;
     }
     if (pixels != NULL) {
         delete [] pixels;
     }
-
     return;
 }
 
@@ -53,25 +51,25 @@ uint8_t PPU::getPpuByte(uint16_t address) {
         if (mirroring == HORIZONTAL) {
 
             if (address >= 0x2000 && address < 0x2400) {
-                return ppuRAM[address - 0x2000];
+                return RAM[address - 0x2000];
             } else if (address >= 0x2400 && address < 0x2800) {
-                return ppuRAM[address - 0x2400];
+                return RAM[address - 0x2400];
             } else if (address >= 0x2800 && address < 0x2C00) {
-                return ppuRAM[address - 0x2400];
+                return RAM[address - 0x2400];
             } else if (address >= 0x2C00 && address < 0x3000) {
-                return ppuRAM[address - 0x2800];
+                return RAM[address - 0x2800];
             }
 
         } else if (mirroring == VERTICAL) {
 
             if (address >= 0x2000 && address < 0x2400) {
-                return ppuRAM[address - 0x2000];
+                return RAM[address - 0x2000];
             } else if (address >= 0x2400 && address < 0x2800) {
-                return ppuRAM[address - 0x2000];
+                return RAM[address - 0x2000];
             } else if (address >= 0x2800 && address < 0x2C00) {
-                return ppuRAM[address - 0x2800];
+                return RAM[address - 0x2800];
             } else if (address >= 0x2C00 && address < 0x3000) {
-                return ppuRAM[address - 0x2800];
+                return RAM[address - 0x2800];
             }
 
         } else {
@@ -105,39 +103,38 @@ bool PPU::setPpuByte(uint16_t address, uint8_t byte) {
         if (mirroring == HORIZONTAL) {
 
             if (address >= 0x2000 && address < 0x2400) {
-                ppuRAM[address - 0x2000] = byte;
+                RAM[address - 0x2000] = byte;
                 return true;
             } else if (address >= 0x2400 && address < 0x2800) {
-                ppuRAM[address - 0x2400] = byte;
+                RAM[address - 0x2400] = byte;
                 return true;
             } else if (address >= 0x2800 && address < 0x2C00) {
-                ppuRAM[address - 0x2400] = byte;
+                RAM[address - 0x2400] = byte;
                 return true;
             } else if (address >= 0x2C00 && address < 0x3000) {
-                ppuRAM[address - 0x2800] = byte;
+                RAM[address - 0x2800] = byte;
                 return true;
             }
 
         } else if (mirroring == VERTICAL) {
 
             if (address >= 0x2000 && address < 0x2400) {
-                ppuRAM[address - 0x2000] = byte;
+                RAM[address - 0x2000] = byte;
                 return true;
             } else if (address >= 0x2400 && address < 0x2800) {
-                ppuRAM[address - 0x2000] = byte;
+                RAM[address - 0x2000] = byte;
                 return true;
             } else if (address >= 0x2800 && address < 0x2C00) {
-                ppuRAM[address - 0x2800] = byte;
+                RAM[address - 0x2800] = byte;
                 return true;
             } else if (address >= 0x2C00 && address < 0x3000) {
-                ppuRAM[address - 0x2800] = byte;
+                RAM[address - 0x2800] = byte;
                 return true;
             }
         } else {
             std::cerr << "Mirroring not recognized in getPpuByte()" << std::endl;
             return false;
         }
-
 
     }
 
@@ -269,8 +266,10 @@ int PPU::tick(bool * NMI) {
 
     if (scanline == 240) {
         ppuRegisters[2] &= 0x7F;
-        if (generateNMI) {
-            *NMI = true;
+        if (ppuCycle == 340) {
+            if (generateNMI) {
+                *NMI = true;
+            }
         }
     } else if (scanline > 240 && scanline < 261) {
         ppuRegisters[2] |= 0x80;

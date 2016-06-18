@@ -13,13 +13,13 @@ enum Mirroring {
     FOUR_SCREEN,
 };
 
-class PPU {
+struct PPU {
 
 private:
 
     uint8_t palette[0x20];      
-    uint8_t ppuRAM[0x800];          //2kB PPU internal RAM
-    uint8_t ppuOAM[0x100];          //256 byte PPU OAM
+    uint8_t RAM[0x800];          //2kB PPU internal RAM
+    uint8_t OAM[0x100];          //256 byte PPU OAM
     
     int ppuCycle;                   //0-341 per scanline
     bool evenFrame;                 //tracks even and odd frames

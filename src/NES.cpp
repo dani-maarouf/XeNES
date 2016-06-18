@@ -5,11 +5,6 @@
 
 #include "NES.hpp"
 
-NES::NES() {
-    for (int x = 0; x < 0x20; x++) ioRegisters[x] = 0x0;
-    return;
-}
-
 void NES::closeCartridge() {
     nesCPU.freePointers();
     nesPPU.freePointers();
@@ -21,7 +16,7 @@ uint32_t * NES::getDisplayPixels() {
 }
 
 int NES::executeOpcode(bool debug) {
-    return nesCPU.executeNextOpcode(this, false);
+    return nesCPU.executeNextOpcode(this, debug);
 }
 
 int NES::tickPPU() {
@@ -220,6 +215,8 @@ bool NES::openCartridge(const char * fileLoc) {
 
     nesCPU.PC = getCpuByte(0xFFFC) | (getCpuByte(0xFFFD) << 8);
 
+    for (int x = 0; x < 0x20; x++) ioRegisters[x] = 0x0;
+
     romFile.close();
     return true;
 }
@@ -227,7 +224,7 @@ bool NES::openCartridge(const char * fileLoc) {
 uint8_t NES::getCpuByte(uint16_t memAddress) {
 
     if (memAddress >= 0x0000 && memAddress < 0x2000) {
-        return nesCPU.cpuRAM[memAddress % 0x800];
+        return nesCPU.RAM[memAddress % 0x800];
     } else if (memAddress >= 0x8000 && memAddress < 0x10000 && nesCPU.numRomBanks == 1) {
         return nesCPU.PRG_ROM[ (memAddress - 0x8000) % 0x4000];
     } else if (memAddress >= 0x8000 && memAddress < 0x10000 && nesCPU.numRomBanks == 2) {
@@ -246,7 +243,7 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
 bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
 
     if (memAddress >= 0x0000 && memAddress < 0x2000) {
-        nesCPU.cpuRAM[memAddress] = byte;
+        nesCPU.RAM[memAddress] = byte;
         return true;
     } else if (memAddress >= 0x8000 && memAddress < 0x10000) {
 

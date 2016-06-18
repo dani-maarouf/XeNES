@@ -29,9 +29,9 @@ enum AddressMode {
     NONE,
 };
 
-class NES;      //forward decleration of outer NES class to allow pointer to be passed to executeNextOpcode()
+struct NES;      //forward decleration of outer NES class to allow pointer to be passed to executeNextOpcode()
 
-class CPU {
+struct CPU {
 
 private:
     
@@ -47,7 +47,7 @@ public:
     uint8_t X;          //register X
     uint8_t Y;          //register Y
     
-    uint8_t cpuRAM[0x800];      //2kB CPU RAM
+    uint8_t RAM[0x800];         //2kB CPU RAM
     uint8_t * PRG_ROM;          //cartridge program ROM
     uint8_t * PRG_RAM;          //cartridge program RAM
     int numRomBanks;            //number of rom banks

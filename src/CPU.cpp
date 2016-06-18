@@ -76,7 +76,7 @@ static void printDebugLine(uint16_t, uint8_t, uint8_t, uint8_t, enum AddressMode
 CPU::CPU() {
 
     for (int x = 0; x < 0x10000; x++) cpuMem[x] = 0x0;
-    for (int x = 0; x < 0x800; x++) cpuRAM[x] = 0x0;
+    for (int x = 0; x < 0x800; x++) RAM[x] = 0x0;
     for (int x = 0; x < 8; x++) PS[x] = false;
 
     SP = 0xFD;
@@ -90,14 +90,12 @@ CPU::CPU() {
 }
 
 void CPU::freePointers() {
-
     if (PRG_ROM != NULL) {
         delete [] PRG_ROM;
     }
     if (PRG_RAM != NULL) {
         delete [] PRG_RAM;
     }
-
     return;
 }
 
@@ -105,7 +103,36 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
     //CPU cycles taken during instruction
     int cyc;
-    cyc = 0;
+    cyc = 2;        //always spend 2 cycles fetching opcode and next byte
+
+    if (NMI) {
+
+        cyc++;
+
+        uint16_t store;
+        store = PC;
+
+        uint8_t high = (store & 0xFF00) >> 8;
+        nes->setCpuByte(SP + 0x100, high);
+        SP--;
+        cyc++;
+
+        uint8_t low = store & 0xFF;;
+        nes->setCpuByte(SP + 0x100, low);
+        SP--;
+        cyc++;
+
+        nes->setCpuByte(0x100 + SP, getPswByte(PS) | 0x10);
+        SP--;
+        cyc++;
+
+        PC = nes->getCpuByte(0xFFFA) | (nes->getCpuByte(0xFFFB) << 8);
+        cyc++;
+
+        NMI = false;
+        cpuCycle = (cpuCycle + 3 * cyc) % 341;
+        return cyc;
+    }
 
     //page boundy cross?
     bool pass;
@@ -141,38 +168,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
     //increment program counter
     PC += opcodeLens[opcode % 0x20];
     if (opcode == 0xA2) PC += 2;        //irregular opcode
-
-    //always spend 2 cycles fetching opcode and next byte
-    cyc += 2;
-
-    if (NMI) {
-
-        cyc++;
-
-        uint16_t store;
-        store = PC;
-
-        uint8_t high = (store & 0xFF00) >> 8;
-        nes->setCpuByte(SP + 0x100, high);
-        SP--;
-        cyc++;
-
-        uint8_t low = store & 0xFF;;
-        nes->setCpuByte(SP + 0x100, low);
-        SP--;
-        cyc++;
-
-        nes->setCpuByte(0x100 + SP, getPswByte(PS) | 0x10);
-        SP--;
-        cyc++;
-
-        PC = nes->getCpuByte(0xFFFA) | (nes->getCpuByte(0xFFFB) << 8);
-        cyc++;
-
-        NMI = false;
-        cpuCycle = (cpuCycle + 3) % 341;
-        return cyc;
-    }
+    
     
     switch (opcode) {
 
@@ -690,13 +686,13 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
             uint8_t memByte;
             memByte = nes->getCpuByte(SP + 0x100);
             getPswFromByte(PS, memByte);
+
             SP++;
             cyc++;
-
             uint16_t low = nes->getCpuByte(SP + 0x100);
+
             SP++;
             cyc++;
-
             uint16_t high = nes->getCpuByte(SP + 0x100) << 8;
             cyc++;
 
@@ -895,11 +891,7 @@ static int addressCycles(enum AddressMode mode, enum InstructionType type) {
                 case ZRP:
                 return 1;
 
-                case ABS:
-                case ABSX:
-                case ABSY:
-                case ZRPX:
-                case ZRPY:
+                case ABS: case ABSX: case ABSY: case ZRPX: case ZRPY:
                 return 2;
 
                 case INDY:
@@ -920,9 +912,7 @@ static int addressCycles(enum AddressMode mode, enum InstructionType type) {
                 case ZRP:
                 return 3;
 
-                case ABS:
-                case ZRPX:
-                case ZRPY:
+                case ABS: case ZRPX: case ZRPY:
                 return 4;
 
                 case ABSX:
@@ -941,17 +931,13 @@ static int addressCycles(enum AddressMode mode, enum InstructionType type) {
                 case ZRP:
                 return 1;
 
-                case ZRPX:
-                case ZRPY:
-                case ABS:
+                case ZRPX: case ZRPY: case ABS:
                 return 2;
 
-                case ABSX:
-                case ABSY:
+                case ABSX: case ABSY:
                 return 3;
 
-                case INDX:
-                case INDY:
+                case INDX: case INDY:
                 return 4;
 
                 default:
@@ -964,6 +950,7 @@ static int addressCycles(enum AddressMode mode, enum InstructionType type) {
     }
 }
 
+//debugging
 static void printByte(uint8_t byte) {
     std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) byte;
     return;
