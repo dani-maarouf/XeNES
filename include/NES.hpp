@@ -11,6 +11,7 @@ struct NES {
     /* allows child class CPU to access parent NES member functions getCpuByte(), setCpuByte()
        and retrieveCpuAddress(), ugly but works */
     friend class CPU;
+    friend class PPU;
 
 private:
 

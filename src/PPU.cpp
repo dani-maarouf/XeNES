@@ -1,16 +1,16 @@
 #include <iostream>
 #include <bitset>
-#include <cstring>
 
-#include "PPU.hpp"
+#include "NES.hpp"
 
 PPU::PPU() {
 
     for (int x = 0; x < 0x20; x++) palette[x] = 0;
     for (int x = 0; x < 0x8; x++) ppuRegisters[x] = 0x0;
-    for (int x = 0; x < 0x800; x++) RAM[x] = 0x0;
+    for (int x = 0; x < 0x800; x++) VRAM[x] = 0x0;
     for (int x = 0; x < 0x100; x++) OAM[x] = 0x0;
-    
+    for (int x = 0; x < NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT; x++) pixels[x] = 0;
+
     scanline = 241;
     ppuCycle = 0;
 
@@ -21,18 +21,14 @@ PPU::PPU() {
 
     ppuGetAddr = false;
     readLower = false;
-    ppuReadByte = false;
+    readToRAM = false;
+    readToOAM = false;
 
-    pixels = new uint32_t[NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT];
-    memset(pixels, 0, NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT * sizeof(uint32_t));
 }
 
 void PPU::freePointers() {
     if (CHR_ROM != NULL) {
         delete [] CHR_ROM;
-    }
-    if (pixels != NULL) {
-        delete [] pixels;
     }
     return;
 }
@@ -51,25 +47,25 @@ uint8_t PPU::getPpuByte(uint16_t address) {
         if (mirroring == HORIZONTAL) {
 
             if (address >= 0x2000 && address < 0x2400) {
-                return RAM[address - 0x2000];
+                return VRAM[address - 0x2000];
             } else if (address >= 0x2400 && address < 0x2800) {
-                return RAM[address - 0x2400];
+                return VRAM[address - 0x2400];
             } else if (address >= 0x2800 && address < 0x2C00) {
-                return RAM[address - 0x2400];
+                return VRAM[address - 0x2400];
             } else if (address >= 0x2C00 && address < 0x3000) {
-                return RAM[address - 0x2800];
+                return VRAM[address - 0x2800];
             }
 
         } else if (mirroring == VERTICAL) {
 
             if (address >= 0x2000 && address < 0x2400) {
-                return RAM[address - 0x2000];
+                return VRAM[address - 0x2000];
             } else if (address >= 0x2400 && address < 0x2800) {
-                return RAM[address - 0x2000];
+                return VRAM[address - 0x2000];
             } else if (address >= 0x2800 && address < 0x2C00) {
-                return RAM[address - 0x2800];
+                return VRAM[address - 0x2800];
             } else if (address >= 0x2C00 && address < 0x3000) {
-                return RAM[address - 0x2800];
+                return VRAM[address - 0x2800];
             }
 
         } else {
@@ -103,32 +99,32 @@ bool PPU::setPpuByte(uint16_t address, uint8_t byte) {
         if (mirroring == HORIZONTAL) {
 
             if (address >= 0x2000 && address < 0x2400) {
-                RAM[address - 0x2000] = byte;
+                VRAM[address - 0x2000] = byte;
                 return true;
             } else if (address >= 0x2400 && address < 0x2800) {
-                RAM[address - 0x2400] = byte;
+                VRAM[address - 0x2400] = byte;
                 return true;
             } else if (address >= 0x2800 && address < 0x2C00) {
-                RAM[address - 0x2400] = byte;
+                VRAM[address - 0x2400] = byte;
                 return true;
             } else if (address >= 0x2C00 && address < 0x3000) {
-                RAM[address - 0x2800] = byte;
+                VRAM[address - 0x2800] = byte;
                 return true;
             }
 
         } else if (mirroring == VERTICAL) {
 
             if (address >= 0x2000 && address < 0x2400) {
-                RAM[address - 0x2000] = byte;
+                VRAM[address - 0x2000] = byte;
                 return true;
             } else if (address >= 0x2400 && address < 0x2800) {
-                RAM[address - 0x2000] = byte;
+                VRAM[address - 0x2000] = byte;
                 return true;
             } else if (address >= 0x2800 && address < 0x2C00) {
-                RAM[address - 0x2800] = byte;
+                VRAM[address - 0x2800] = byte;
                 return true;
             } else if (address >= 0x2C00 && address < 0x3000) {
-                RAM[address - 0x2800] = byte;
+                VRAM[address - 0x2800] = byte;
                 return true;
             }
         } else {
@@ -218,7 +214,7 @@ void PPU::drawSprites() {
 
 }
 
-int PPU::tick(bool * NMI) {
+int PPU::tick(bool * NMI, NES * nes) {
 
     /* PPUCTRL */
     int nametableOffset;
@@ -242,6 +238,7 @@ int PPU::tick(bool * NMI) {
 
 
 
+
     if (ppuGetAddr) {
         if (readLower) {
             ppuReadAddress |= ppuRegisters[6];
@@ -254,14 +251,28 @@ int PPU::tick(bool * NMI) {
         ppuGetAddr = false;
     }
 
-    if (ppuReadByte) {
+    if (readToRAM) {
         setPpuByte(ppuReadAddress, ppuRegisters[7]);
 
         ppuReadAddress += vramInc;
 
         //std::cout << "PPU VRAM addr : " << std::hex << ppuReadAddress << std::endl;
 
-        ppuReadByte = false;
+        readToRAM = false;
+    }
+
+    if (readToOAM) {
+
+        
+        uint8_t OAMDMA;
+        OAMDMA = nes->getCpuByte(0x4014);
+
+        
+        for (int x = 0; x < 256; x++) {
+            OAM[x] = nes->getCpuByte( (OAMDMA << 8) + x );
+        }
+    
+        readToOAM = false;
     }
 
     if (scanline == 240) {
@@ -290,6 +301,8 @@ int PPU::tick(bool * NMI) {
 
 
     if (draw) {
+
+        /* print everything */
 
         for (int i = 0; i < 32 * 30; i++) {
 

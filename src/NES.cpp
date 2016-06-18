@@ -20,7 +20,7 @@ int NES::executeOpcode(bool debug) {
 }
 
 int NES::tickPPU() {
-    nesPPU.tick(&nesCPU.NMI);
+    nesPPU.tick(&nesCPU.NMI, this);
     return 1;
 }
 
@@ -258,7 +258,7 @@ bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
         if (address == 0x6) {
             nesPPU.ppuGetAddr = true;
         } else if (address == 0x7) {
-            nesPPU.ppuReadByte = true;
+            nesPPU.readToRAM = true;
         }
 
         nesPPU.ppuRegisters[address] = byte;
@@ -266,8 +266,14 @@ bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
     } 
 
     else if (memAddress >= 0x4000 && memAddress < 0x4018) { 
+
+        if (memAddress == 0x4014) {
+            nesPPU.readToOAM = true;
+        }
+
         ioRegisters[memAddress - 0x4000] = byte;
         return true;
+
     } else if (memAddress >= 0x6000 && memAddress < 0x8000) {
         nesCPU.PRG_RAM[memAddress - 0x6000] = byte;
         return true;

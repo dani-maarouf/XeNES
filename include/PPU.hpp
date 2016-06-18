@@ -13,12 +13,14 @@ enum Mirroring {
     FOUR_SCREEN,
 };
 
+struct NES;
+
 struct PPU {
 
 private:
 
     uint8_t palette[0x20];      
-    uint8_t RAM[0x800];          //2kB PPU internal RAM
+    uint8_t VRAM[0x800];          //2kB PPU internal RAM
     uint8_t OAM[0x100];          //256 byte PPU OAM
     
     int ppuCycle;                   //0-341 per scanline
@@ -37,7 +39,9 @@ public:
 
     bool ppuGetAddr;            //CPU has written half of address to 0x2006 in CPU address space
     bool readLower;             //lower part of write to 2006 is occuring
-    bool ppuReadByte;           //CPU has written byte to 0x2007 in CPU address space
+    bool readToRAM;           //CPU has written byte to 0x2007 in CPU address space
+
+    bool readToOAM;
 
     bool usesRAM;               //true if CHR_RAM is used rather than CHR_ROM
 
@@ -47,9 +51,9 @@ public:
     int scanline;               //current scanline
 
     bool draw;                  //draw frame?
-    uint32_t * pixels;          //pixel display
+    uint32_t pixels[256 * 240]; //pixel display
 
-    int tick(bool *);           //one PPU tick is executed
+    int tick(bool *, NES *);           //one PPU tick is executed
     void freePointers();        //free memory
 };
 

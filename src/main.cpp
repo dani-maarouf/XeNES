@@ -14,7 +14,7 @@ int main(int argc, char ** argv) {
     NES nesSystem;
 
     if (!nesSystem.openCartridge(argv[1])) {
-        std::cerr << "Could not load ROM" << argv[1] << std::endl;
+        std::cerr << "Could not load ROM :" << argv[1] << std::endl;
         nesSystem.closeCartridge();
         return 1;
     }
