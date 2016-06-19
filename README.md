@@ -1,5 +1,8 @@
 # nes
 
+## Install
+Run make
+
 ## Input
 | NES  | Keyboard |
 |------|----------|
@@ -11,3 +14,9 @@
 |Right | d        |
 |Start | x        |
 |Select| c        |
+
+## Playable games
+
+Donkey Kong
+Donkey Kong Jr.
+BKG graphics test
