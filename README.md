@@ -31,16 +31,19 @@ Passes nestest.log
 
 ## Sample screenshots
 
-![alt text](http://imgur.com/1Hawcgnl.png "Super Mario Bros")
+![alt text](http://i.imgur.com/l8PIM2s.png "Duck Hunt")
 
 
-![alt text](http://imgur.com/NcsaBvbl.png "Donkey Kong")
+![alt text](http://i.imgur.com/Hqn8VdK.png "Donkey Kong")
 
 
-![alt text](http://imgur.com/RWHf8oYl.png "Donkey Kong Jr.")
+![alt text](http://i.imgur.com/jaTuBZP.png "Super Mario Bros")
 
 
-![alt text](http://imgur.com/kuuw6W6l.png "Duck Hunt")
+![alt text](http://i.imgur.com/Z8NCH6w.png "Donkey Kong Jr.")
+
+
+![alt text](http://i.imgur.com/t1FyQDb.png "Pacman")
 
 ## Next steps
 

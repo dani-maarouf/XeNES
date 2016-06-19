@@ -15,9 +15,11 @@ struct NES {
 
 private:
 
+    /* controller 1 */
     bool readController;
     uint8_t storedControllerByte;
     int currentControllerBit;
+
     uint8_t ioRegisters[0x20];          //joystick and apu registers
 
     PPU nesPPU;                         //PPU

@@ -284,6 +284,8 @@ void PPU::tick(NES * nes) {
     } else {
         ppuRegisters[2] &= 0x7F;
     }
+
+    //ppuRegisters[2] |= 40;
     
     draw = false;
     ppuCycle = (ppuCycle + 1) % 341;
