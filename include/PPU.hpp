@@ -30,7 +30,6 @@ private:
 
     uint8_t getPpuByte(uint16_t);           //get byte from PPU address space
     bool setPpuByte(uint16_t, uint8_t);     //set byte in PPU address space
-    void printSprites();                    //sprint sprites to stdout
     void drawSprites();                     //draw sprites to pixel display
 
 public:
@@ -53,7 +52,7 @@ public:
     bool draw;                  //draw frame?
     uint32_t pixels[256 * 240]; //pixel display
 
-    int tick(bool *, NES *);           //one PPU tick is executed
+    int tick(NES *);            //one PPU tick is executed
     void freePointers();        //free memory
 };
 

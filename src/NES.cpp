@@ -5,6 +5,14 @@
 
 #include "NES.hpp"
 
+NES::NES() {
+
+    for (int x = 0; x < 0x20; x++) ioRegisters[x] = 0;
+
+    controllerByte = 0;
+
+}
+
 void NES::closeCartridge() {
     nesCPU.freePointers();
     nesPPU.freePointers();
@@ -19,9 +27,8 @@ int NES::executeOpcode(bool debug) {
     return nesCPU.executeNextOpcode(this, debug);
 }
 
-int NES::tickPPU() {
-    nesPPU.tick(&nesCPU.NMI, this);
-    return 1;
+void NES::tickPPU() {
+    nesPPU.tick(this);
 }
 
 bool NES::drawFlag() {
@@ -225,9 +232,9 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
 
     if (memAddress >= 0x0000 && memAddress < 0x2000) {
         return nesCPU.RAM[memAddress % 0x800];
-    } else if (memAddress >= 0x8000 && memAddress < 0x10000 && nesCPU.numRomBanks == 1) {
+    } else if (memAddress >= 0x8000 && memAddress <= 0xFFFF && nesCPU.numRomBanks == 1) {
         return nesCPU.PRG_ROM[ (memAddress - 0x8000) % 0x4000];
-    } else if (memAddress >= 0x8000 && memAddress < 0x10000 && nesCPU.numRomBanks == 2) {
+    } else if (memAddress >= 0x8000 && memAddress <= 0xFFFF && nesCPU.numRomBanks == 2) {
         return nesCPU.PRG_ROM[memAddress - 0x8000];
     } else if (memAddress >= 0x2000 && memAddress < 0x4000) {
         return nesPPU.ppuRegisters[ (memAddress - 0x2000) % 8 ];
@@ -245,7 +252,7 @@ bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
     if (memAddress >= 0x0000 && memAddress < 0x2000) {
         nesCPU.RAM[memAddress] = byte;
         return true;
-    } else if (memAddress >= 0x8000 && memAddress < 0x10000) {
+    } else if (memAddress >= 0x8000 && memAddress <= 0xFFFF) {
 
         std::cerr << "Segmentation fault! Can't write to 0x" << std::hex << memAddress << std::endl;
         return false;

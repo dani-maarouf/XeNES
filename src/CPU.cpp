@@ -4,6 +4,8 @@
 
 #include "NES.hpp"
 
+
+
 enum InstructionType {
     READ,               //read from mem address
     WRITE,              //write to mem address
@@ -64,10 +66,10 @@ const int opnameMap[] = {11,39, 0,56,38,39, 3,56,41,39, 3, 0,38,39, 3,56,  //0
                          19,52, 0,29,19,52,26,29,27,52,37,51,19,52,26,29,  //E
                           6,52, 0,29,38,52,26,29,54,52,38,29,38,52,26,29}; //F
 
-static bool getBit(uint8_t, int);
-static uint8_t getPswByte(bool *);
-static void getPswFromByte(bool * PS, uint8_t byte);
-static int addressCycles(enum AddressMode, enum InstructionType);
+static inline bool getBit(uint8_t, int);
+static inline uint8_t getPswByte(bool *);
+static inline void getPswFromByte(bool * PS, uint8_t byte);
+static inline int addressCycles(enum AddressMode, enum InstructionType);
 static void printByte(uint8_t);
 static int debugPrintVal(enum AddressMode, int, int);
 static void printDebugLine(uint16_t, uint8_t, uint8_t, uint8_t, enum AddressMode, 
@@ -155,7 +157,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
     //get byte from memory if applicable to address mode
     uint8_t memoryByte;
     if (addressModes[nes->getCpuByte(PC)] == IMM) {
-        memoryByte = nes->getCpuByte(PC + 1);
+        memoryByte = iByte2;
     } else {
         memoryByte = nes->getCpuByte(address);
     }
@@ -168,7 +170,6 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
     //increment program counter
     PC += opcodeLens[opcode % 0x20];
     if (opcode == 0xA2) PC += 2;        //irregular opcode
-    
     
     switch (opcode) {
 
@@ -222,7 +223,6 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
             }
             PC += (int8_t) iByte2;
             cyc++;
-
         }
         break;
         
@@ -361,6 +361,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
             PS[Z] = (num == 0) ? true : false;
             break;
         }
+
         //CPX
         case 0xE0: case 0xE4: case 0xEC: {
             if (opAddressMode == ZRP) {
@@ -597,7 +598,6 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         getPswFromByte(PS, nes->getCpuByte(SP + 0x100));
         cyc++;
-
         break;
         
         //RLA
@@ -834,31 +834,29 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
     return cyc;
 }
 
-static bool getBit(uint8_t num, int bitNum) {
+static inline bool getBit(uint8_t num, int bitNum) {
 
     if (bitNum == 0) {
-        return (num & 0x1) ? true : false;
+        return (num & 0x1);
     } else if (bitNum == 1) {
-        return (num & 0x2) ? true : false;
+        return (num & 0x2);
     } else if (bitNum == 2) {
-        return (num & 0x4) ? true : false;
+        return (num & 0x4);
     } else if (bitNum == 3) {
-        return (num & 0x8) ? true : false;
+        return (num & 0x8);
     } else if (bitNum == 4) {
-        return (num & 0x10) ? true : false;
+        return (num & 0x10);
     } else if (bitNum == 5) {
-        return (num & 0x20) ? true : false;
+        return (num & 0x20);
     } else if (bitNum == 6) {
-        return (num & 0x40) ? true : false;
-    } else if (bitNum == 7) {
-        return (num & 0x80) ? true : false;
+        return (num & 0x40);
     } else {
-        std::cerr << "Error, called getBit() with invalid number" << std::endl;
-        return false;
+        return (num & 0x80);
     }
 }
 
-static uint8_t getPswByte(bool * PS) {
+
+static inline uint8_t getPswByte(bool * PS) {
     uint8_t P;
     P = 0;
     if (PS[C]) P |= 0x1;
@@ -871,7 +869,7 @@ static uint8_t getPswByte(bool * PS) {
     return P;
 }
 
-static void getPswFromByte(bool * PS, uint8_t byte) {
+static inline void getPswFromByte(bool * PS, uint8_t byte) {
     PS[N] = getBit(byte, 7);
     PS[V] = getBit(byte, 6);
     PS[D] = getBit(byte, 3);
@@ -881,7 +879,7 @@ static void getPswFromByte(bool * PS, uint8_t byte) {
     return;
 }
 
-static int addressCycles(enum AddressMode mode, enum InstructionType type) {
+static inline int addressCycles(enum AddressMode mode, enum InstructionType type) {
 
     switch (type) {
         case READ: {

@@ -45,6 +45,8 @@ void loop(NES nesSystem, const char * fileLoc) {
             case SDL_KEYDOWN: {
                 switch(event.key.keysym.sym) {
 
+                    /*
+
                     case SDLK_w:    //up
                     nesSystem.ioRegisters[0x16] |= 0x8;
                     break;
@@ -77,6 +79,8 @@ void loop(NES nesSystem, const char * fileLoc) {
                     nesSystem.ioRegisters[0x16] |= 0x20;
                     break;
 
+                    */
+
                     default:
                     break;
 
@@ -86,6 +90,8 @@ void loop(NES nesSystem, const char * fileLoc) {
 
             case SDL_KEYUP: {
                 switch(event.key.keysym.sym) {
+
+                    /*
 
                     case SDLK_w:    //up
                     nesSystem.ioRegisters[0x16] &= 0xF7;
@@ -118,6 +124,8 @@ void loop(NES nesSystem, const char * fileLoc) {
                     case SDLK_c:    //select
                     nesSystem.ioRegisters[0x16] &= 0xDF;
                     break;
+
+                    */
 
                     default:
                     break;

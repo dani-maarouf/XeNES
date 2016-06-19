@@ -10,10 +10,12 @@ struct NES {
 
     /* allows child class CPU to access parent NES member functions getCpuByte(), setCpuByte()
        and retrieveCpuAddress(), ugly but works */
-    friend class CPU;
-    friend class PPU;
+    friend struct CPU;
+    friend struct PPU;
 
 private:
+
+    uint8_t ioRegisters[0x20];          //joystick and apu registers
 
     PPU nesPPU;                         //PPU
     CPU nesCPU;                         //CPU
@@ -25,14 +27,15 @@ private:
 
 public:
 
-    uint8_t ioRegisters[0x20];          //joystick and apu registers
+    uint8_t controllerByte;
 
+    NES();
     bool openCartridge(const char *);   //load ROM
     void closeCartridge();              //free memory associated with cartridge
 
     uint32_t * getDisplayPixels();      //pixels in SDL_PIXELFORMAT_ARGB8888
     bool drawFlag();                    //draw frame?
-    int tickPPU();                      //1 ppu tick
+    void tickPPU();                      //1 ppu tick
 
     int executeOpcode(bool);            //CPU execute opcode interface
 };
