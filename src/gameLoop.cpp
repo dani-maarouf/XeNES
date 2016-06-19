@@ -7,6 +7,7 @@
 
 const int FPS = 60;
 const int TICKS_PER_FRAME = 1000/FPS;
+
 const int scaleFactor = 2;      //size of each NES display pixel in real pixels
 
 SDL_Window * window = NULL;     //SDL window
@@ -45,41 +46,37 @@ void loop(NES nesSystem, const char * fileLoc) {
             case SDL_KEYDOWN: {
                 switch(event.key.keysym.sym) {
 
-                    /*
-
-                    case SDLK_w:    //up
-                    nesSystem.ioRegisters[0x16] |= 0x8;
-                    break;
-
-                    case SDLK_s:    //down
-                    nesSystem.ioRegisters[0x16] |= 0x4;
-                    break;
-
-                    case SDLK_a:    //left
-                    nesSystem.ioRegisters[0x16] |= 0x2;
-                    break;
-
-                    case SDLK_d:    //right
-                    nesSystem.ioRegisters[0x16] |= 0x1;
+                    case SDLK_e:    //A
+                    nesSystem.controllerByte |= 0x1;
                     break;
 
                     case SDLK_q:    //B
-                    nesSystem.ioRegisters[0x16] |= 0x40;
-                    break;
-
-                    case SDLK_e:    //A
-                    nesSystem.ioRegisters[0x16] |= 0x80;
-                    break;
-
-                    case SDLK_x:    //start
-                    nesSystem.ioRegisters[0x16] |= 0x10;
+                    nesSystem.controllerByte |= 0x2;
                     break;
 
                     case SDLK_c:    //select
-                    nesSystem.ioRegisters[0x16] |= 0x20;
+                    nesSystem.controllerByte |= 0x4;
                     break;
 
-                    */
+                    case SDLK_x:    //start
+                    nesSystem.controllerByte |= 0x8;
+                    break;
+
+                    case SDLK_w:    //up
+                    nesSystem.controllerByte |= 0x10;
+                    break;
+
+                    case SDLK_s:    //down
+                    nesSystem.controllerByte |= 0x20;
+                    break;
+
+                    case SDLK_a:    //left
+                    nesSystem.controllerByte |= 0x40;
+                    break;
+
+                    case SDLK_d:    //right
+                    nesSystem.controllerByte |= 0x80;
+                    break;
 
                     default:
                     break;
@@ -91,41 +88,37 @@ void loop(NES nesSystem, const char * fileLoc) {
             case SDL_KEYUP: {
                 switch(event.key.keysym.sym) {
 
-                    /*
-
-                    case SDLK_w:    //up
-                    nesSystem.ioRegisters[0x16] &= 0xF7;
-                    break;
-
-                    case SDLK_s:    //down
-                    nesSystem.ioRegisters[0x16] &= 0xFB;
-                    break;
-
-                    case SDLK_a:    //left
-                    nesSystem.ioRegisters[0x16] &= 0xFD;
-                    break;
-
-                    case SDLK_d:    //right
-                    nesSystem.ioRegisters[0x16] &= 0xFE;
+                    case SDLK_e:    //A
+                    nesSystem.controllerByte &= 0xFE;
                     break;
 
                     case SDLK_q:    //B
-                    nesSystem.ioRegisters[0x16] &= 0xBF;
-                    break;
-
-                    case SDLK_e:    //A
-                    nesSystem.ioRegisters[0x16] &= 0x7F;
-                    break;
-
-                    case SDLK_x:    //start
-                    nesSystem.ioRegisters[0x16] &= 0xEF;
+                    nesSystem.controllerByte &= 0xFD;
                     break;
 
                     case SDLK_c:    //select
-                    nesSystem.ioRegisters[0x16] &= 0xDF;
+                    nesSystem.controllerByte &= 0xFB;
                     break;
 
-                    */
+                    case SDLK_x:    //start
+                    nesSystem.controllerByte &= 0xF7;
+                    break;
+
+                    case SDLK_w:    //up
+                    nesSystem.controllerByte &= 0xEF;
+                    break;
+
+                    case SDLK_s:    //down
+                    nesSystem.controllerByte &= 0xDF;
+                    break;
+
+                    case SDLK_a:    //left
+                    nesSystem.controllerByte &= 0xBF;
+                    break;
+
+                    case SDLK_d:    //right
+                    nesSystem.controllerByte &= 0x7F;
+                    break;
 
                     default:
                     break;
@@ -138,7 +131,7 @@ void loop(NES nesSystem, const char * fileLoc) {
             break;
         }
 
-        //2. logic
+        //2.1 logic (cpu)
         int executeResult;
         executeResult = nesSystem.executeOpcode(false);
 
@@ -150,17 +143,17 @@ void loop(NES nesSystem, const char * fileLoc) {
             /* let PPU ticks catch up to CPU ticks */
             for (int x = 0; x < 3 * executeResult; x++) {
 
-                //3. logic
+                //2.2. logic (ppu)
                 nesSystem.tickPPU();
 
                 if (nesSystem.drawFlag()) {
-                    //4. draw
+                    //3.1 draw
                     draw(nesSystem.getDisplayPixels());
 
                     
                     //SDL_Delay(100);     //for testing
                     
-                    //sync framerate
+                    //3.2 sync framerate
                     int frameEndTime;
                     frameEndTime = SDL_GetTicks();
                     if (frameEndTime - frameStartTime < TICKS_PER_FRAME) {
@@ -220,7 +213,6 @@ static bool initSDL(const char * fileLoc) {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, 0); 
 
     return true;
-
 }
 
 static void closeSDL() {
@@ -238,6 +230,7 @@ static void closeSDL() {
     }
 
     SDL_Quit();
+    return;
 }
 
 static void draw(uint32_t * pixels) {
@@ -247,4 +240,5 @@ static void draw(uint32_t * pixels) {
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
 
+    return;
 }

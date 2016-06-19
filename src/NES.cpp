@@ -5,11 +5,35 @@
 
 #include "NES.hpp"
 
+static inline bool getBit(uint8_t num, int bitNum) {
+
+    if (bitNum == 0) {
+        return (num & 0x1);
+    } else if (bitNum == 1) {
+        return (num & 0x2);
+    } else if (bitNum == 2) {
+        return (num & 0x4);
+    } else if (bitNum == 3) {
+        return (num & 0x8);
+    } else if (bitNum == 4) {
+        return (num & 0x10);
+    } else if (bitNum == 5) {
+        return (num & 0x20);
+    } else if (bitNum == 6) {
+        return (num & 0x40);
+    } else {
+        return (num & 0x80);
+    }
+}
+
 NES::NES() {
 
     for (int x = 0; x < 0x20; x++) ioRegisters[x] = 0;
 
     controllerByte = 0;
+    storedControllerByte = 0;
+    currentControllerBit = 0;
+    readController = false;
 
 }
 
@@ -239,7 +263,20 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
     } else if (memAddress >= 0x2000 && memAddress < 0x4000) {
         return nesPPU.ppuRegisters[ (memAddress - 0x2000) % 8 ];
     } else if (memAddress >= 0x4000 && memAddress < 0x4020) {
+
+        if (memAddress == 0x4016) {
+            if (readController) {
+                if (currentControllerBit < 8) {
+                    currentControllerBit++;
+                    return getBit(storedControllerByte, currentControllerBit - 1);
+                } else {
+                    return 1;
+                }
+            }
+        }
+
         return ioRegisters[ memAddress - 0x4000 ];
+
     } else if (memAddress >= 0x6000 && memAddress < 0x8000) {
         return nesCPU.PRG_RAM[memAddress - 0x6000];
     } else {
@@ -276,6 +313,17 @@ bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
 
         if (memAddress == 0x4014) {
             nesPPU.readToOAM = true;
+        }
+
+        if (memAddress == 0x4016) {
+            if (byte == 0x1) {
+                storedControllerByte = controllerByte;
+                readController = false;
+            } else if (byte == 0x0) {
+                currentControllerBit = 0;
+                readController = true;
+            }
+            
         }
 
         ioRegisters[memAddress - 0x4000] = byte;

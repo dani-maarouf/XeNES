@@ -52,7 +52,7 @@ public:
     bool draw;                  //draw frame?
     uint32_t pixels[256 * 240]; //pixel display
 
-    int tick(NES *);            //one PPU tick is executed
+    void tick(NES *);            //one PPU tick is executed
     void freePointers();        //free memory
 };
 

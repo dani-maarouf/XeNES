@@ -47,6 +47,7 @@ PPU::PPU() {
     readToRAM = false;
     readToOAM = false;
 
+    return;
 }
 
 void PPU::freePointers() {
@@ -219,10 +220,9 @@ void PPU::drawSprites() {
    }
 
    return;
-
 }
 
-int PPU::tick(NES * nes) {
+void PPU::tick(NES * nes) {
 
     /* PPUCTRL */
     int nametableOffset;
@@ -247,7 +247,6 @@ int PPU::tick(NES * nes) {
     if (getVramAddress) {
         if (readLower) {
             vramAddress |= ppuRegisters[6];
-            //std::cout << "PPU VRAM addr : " << std::hex << vramAddress << std::endl;
             readLower = false;
         } else {
             vramAddress = (ppuRegisters[6] << 8);
@@ -258,21 +257,14 @@ int PPU::tick(NES * nes) {
 
     if (readToRAM) {
         setPpuByte(vramAddress, ppuRegisters[7]);
-
         vramAddress += vramInc;
-
-        //std::cout << "PPU VRAM addr : " << std::hex << vramAddress << std::endl;
-
         readToRAM = false;
     }
 
     if (readToOAM) {
-
-        
         uint8_t OAMDMA;
         OAMDMA = nes->getCpuByte(0x4014);
 
-        
         for (int x = 0; x < 256; x++) {
             OAM[x] = nes->getCpuByte( (OAMDMA << 8) + x );
         }
@@ -303,7 +295,6 @@ int PPU::tick(NES * nes) {
             evenFrame ^= true;
         }
     }
-
 
     if (draw) {
 
@@ -432,7 +423,7 @@ int PPU::tick(NES * nes) {
         
     }
 
-    return 1;
+    return;
 }
 
 static inline bool getBit(uint8_t num, int bitNum) {
