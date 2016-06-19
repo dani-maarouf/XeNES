@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstring>
+#include <bitset>
 #include <SDL2/SDL.h>
 
 #include "NES.hpp"
@@ -34,12 +35,96 @@ void loop(NES nesSystem, const char * fileLoc) {
 
     while (running) {
 
-        //1. process events
+        //1. process events and input
         SDL_PollEvent(&event);
         switch(event.type) {
             case SDL_QUIT:
             running = false;
             break;
+
+            case SDL_KEYDOWN: {
+                switch(event.key.keysym.sym) {
+
+                    case SDLK_w:    //up
+                    nesSystem.ioRegisters[0x16] |= 0x8;
+                    break;
+
+                    case SDLK_s:    //down
+                    nesSystem.ioRegisters[0x16] |= 0x4;
+                    break;
+
+                    case SDLK_a:    //left
+                    nesSystem.ioRegisters[0x16] |= 0x2;
+                    break;
+
+                    case SDLK_d:    //right
+                    nesSystem.ioRegisters[0x16] |= 0x1;
+                    break;
+
+                    case SDLK_q:    //B
+                    nesSystem.ioRegisters[0x16] |= 0x40;
+                    break;
+
+                    case SDLK_e:    //A
+                    nesSystem.ioRegisters[0x16] |= 0x80;
+                    break;
+
+                    case SDLK_x:    //start
+                    nesSystem.ioRegisters[0x16] |= 0x10;
+                    break;
+
+                    case SDLK_c:    //select
+                    nesSystem.ioRegisters[0x16] |= 0x20;
+                    break;
+
+                    default:
+                    break;
+
+                }
+                break;
+            }
+
+            case SDL_KEYUP: {
+                switch(event.key.keysym.sym) {
+
+                    case SDLK_w:    //up
+                    nesSystem.ioRegisters[0x16] &= 0xF7;
+                    break;
+
+                    case SDLK_s:    //down
+                    nesSystem.ioRegisters[0x16] &= 0xFB;
+                    break;
+
+                    case SDLK_a:    //left
+                    nesSystem.ioRegisters[0x16] &= 0xFD;
+                    break;
+
+                    case SDLK_d:    //right
+                    nesSystem.ioRegisters[0x16] &= 0xFE;
+                    break;
+
+                    case SDLK_q:    //B
+                    nesSystem.ioRegisters[0x16] &= 0xBF;
+                    break;
+
+                    case SDLK_e:    //A
+                    nesSystem.ioRegisters[0x16] &= 0x7F;
+                    break;
+
+                    case SDLK_x:    //start
+                    nesSystem.ioRegisters[0x16] &= 0xEF;
+                    break;
+
+                    case SDLK_c:    //select
+                    nesSystem.ioRegisters[0x16] &= 0xDF;
+                    break;
+
+                    default:
+                    break;
+
+                }
+                break;
+            }
 
             default:
             break;
@@ -65,7 +150,7 @@ void loop(NES nesSystem, const char * fileLoc) {
                     draw(nesSystem.getDisplayPixels());
 
                     
-                    SDL_Delay(200);     //for testing
+                    //SDL_Delay(100);     //for testing
                     
                     //sync framerate
                     int frameEndTime;

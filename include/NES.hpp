@@ -17,13 +17,15 @@ private:
 
     PPU nesPPU;                         //PPU
     CPU nesCPU;                         //CPU
-    uint8_t ioRegisters[0x20];          //joystick and apu registers
+    
 
     uint8_t getCpuByte(uint16_t);       //get byte from CPU address space
     bool setCpuByte(uint16_t, uint8_t); //set byte in CPU address space
     uint16_t retrieveCpuAddress(enum AddressMode, bool *, uint8_t, uint8_t);  //get address basedon address mode
 
 public:
+
+    uint8_t ioRegisters[0x20];          //joystick and apu registers
 
     bool openCartridge(const char *);   //load ROM
     void closeCartridge();              //free memory associated with cartridge

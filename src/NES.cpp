@@ -256,7 +256,7 @@ bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
         address = (memAddress - 0x2000) % 8;
 
         if (address == 0x6) {
-            nesPPU.ppuGetAddr = true;
+            nesPPU.getVramAddress = true;
         } else if (address == 0x7) {
             nesPPU.readToRAM = true;
         }

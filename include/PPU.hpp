@@ -20,28 +20,28 @@ struct PPU {
 private:
 
     uint8_t palette[0x20];      
-    uint8_t VRAM[0x800];          //2kB PPU internal RAM
-    uint8_t OAM[0x100];          //256 byte PPU OAM
+    uint8_t VRAM[0x800];                    //2kB PPU internal RAM
+    uint8_t OAM[0x100];                     //256 byte PPU OAM
     
-    int ppuCycle;                   //0-341 per scanline
-    bool evenFrame;                 //tracks even and odd frames
+    int ppuCycle;                           //0-341 per scanline
+    bool evenFrame;                         //tracks even and odd frames
 
-    uint16_t vramAddress;        //current VRAM address
+    uint16_t vramAddress;                   //current VRAM address
 
-    uint8_t getPpuByte(uint16_t);   //get byte from PPU address space
+    uint8_t getPpuByte(uint16_t);           //get byte from PPU address space
     bool setPpuByte(uint16_t, uint8_t);     //set byte in PPU address space
-    void printSprites();            //sprint sprites to stdout
-    void drawSprites();             //draw sprites to pixel display
+    void printSprites();                    //sprint sprites to stdout
+    void drawSprites();                     //draw sprites to pixel display
 
 public:
 
     PPU();
 
-    bool ppuGetAddr;            //CPU has written half of address to 0x2006 in CPU address space
+    bool getVramAddress;        //CPU has written half of address to 0x2006 in CPU address space
     bool readLower;             //lower part of write to 2006 is occuring
-    bool readToRAM;           //CPU has written byte to 0x2007 in CPU address space
 
-    bool readToOAM;
+    bool readToRAM;             //CPU has written byte to 0x2007 in CPU address space
+    bool readToOAM;             //CPU has written byte to 0x4014 in CPU address space
 
     bool usesRAM;               //true if CHR_RAM is used rather than CHR_ROM
 
