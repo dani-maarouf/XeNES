@@ -26,7 +26,7 @@ private:
     int ppuCycle;                   //0-341 per scanline
     bool evenFrame;                 //tracks even and odd frames
 
-    uint16_t ppuReadAddress;        //current VRAM address
+    uint16_t vramAddress;        //current VRAM address
 
     uint8_t getPpuByte(uint16_t);   //get byte from PPU address space
     bool setPpuByte(uint16_t, uint8_t);     //set byte in PPU address space

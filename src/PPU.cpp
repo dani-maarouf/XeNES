@@ -3,6 +3,26 @@
 
 #include "NES.hpp"
 
+
+//obtained from blargg's Full Palette demo
+//
+const uint8_t paletteTable [] =
+ {   84,  84,  84,    0,  30, 116,    8,  16, 144,   48,   0, 136,   68,   0, 100,   92,   0,  48,   84,   4,   0,   60,  24,   0,   32,  42,   0,    8,  58,   0,    0,  64,   0,    0,  60,   0,    0,  50,  60,    0,   0,   0,    0,   0,   0,    0,   0,   0,
+    152, 150, 152,    8,  76, 196,   48,  50, 236,   92,  30, 228,  136,  20, 176,  160,  20, 100,  152,  34,  32,  120,  60,   0,   84,  90,   0,   40, 114,   0,    8, 124,   0,    0, 118,  40,    0, 102, 120,    0,   0,   0,    0,   0,   0,    0,   0,   0,
+    236, 238, 236,   76, 154, 236,  120, 124, 236,  176,  98, 236,  228,  84, 236,  236,  88, 180,  236, 106, 100,  212, 136,  32,  160, 170,   0,  116, 196,   0,   76, 208,  32,   56, 204, 108,   56, 180, 204,   60,  60,  60,    0,   0,   0,    0,   0,   0,
+    236, 238, 236,  168, 204, 236,  188, 188, 236,  212, 178, 236,  236, 174, 236,  236, 174, 212,  236, 180, 176,  228, 196, 144,  204, 210, 120,  180, 222, 120,  168, 226, 144,  152, 226, 180,  160, 214, 228,  160, 162, 160,    0,   0,   0,    0,   0,   0
+};
+
+static uint32_t paletteTableToARGB(uint8_t index) {
+
+    uint8_t byte1 = paletteTable[index * 3];
+    uint8_t byte2 = paletteTable[index * 3 + 1];
+    uint8_t byte3 = paletteTable[index * 3 + 2];
+
+    return (byte1 << 16) | (byte2 << 8) | byte3;
+}
+
+
 PPU::PPU() {
 
     for (int x = 0; x < 0x20; x++) palette[x] = 0;
@@ -17,7 +37,7 @@ PPU::PPU() {
     evenFrame = true;
     draw = false;
     
-    ppuReadAddress = 0x0;
+    vramAddress = 0x0;
 
     ppuGetAddr = false;
     readLower = false;
@@ -197,11 +217,11 @@ void PPU::drawSprites() {
 
             for (int k = 7; k >= 0; k--) {
                 if (spriteRow2[k] == 3) {
-                    pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0xFFFFFFFF;
+                    pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x00FFFFFF;
                 } else if (spriteRow2[k] == 2) {
-                    pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0xFFF00000;
+                    pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x00FFF000;
                 } else if (spriteRow2[k] == 1) {
-                    pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x000FFF00;
+                    pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x00000FFF;
                 } else {
                     pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x00000000;
                }
@@ -241,22 +261,22 @@ int PPU::tick(bool * NMI, NES * nes) {
 
     if (ppuGetAddr) {
         if (readLower) {
-            ppuReadAddress |= ppuRegisters[6];
-            //std::cout << "PPU VRAM addr : " << std::hex << ppuReadAddress << std::endl;
+            vramAddress |= ppuRegisters[6];
+            //std::cout << "PPU VRAM addr : " << std::hex << vramAddress << std::endl;
             readLower = false;
         } else {
-            ppuReadAddress = (ppuRegisters[6] << 8);
+            vramAddress = (ppuRegisters[6] << 8);
             readLower = true;
         }
         ppuGetAddr = false;
     }
 
     if (readToRAM) {
-        setPpuByte(ppuReadAddress, ppuRegisters[7]);
+        setPpuByte(vramAddress, ppuRegisters[7]);
 
-        ppuReadAddress += vramInc;
+        vramAddress += vramInc;
 
-        //std::cout << "PPU VRAM addr : " << std::hex << ppuReadAddress << std::endl;
+        //std::cout << "PPU VRAM addr : " << std::hex << vramAddress << std::endl;
 
         readToRAM = false;
     }
@@ -306,33 +326,118 @@ int PPU::tick(bool * NMI, NES * nes) {
 
         for (int i = 0; i < 32 * 30; i++) {
 
-            int x;
-            int y;
+            int tileX;
+            int tileY;
 
-            x = (i % 32);
-            y = (i / 32);
+            tileX = (i % 32);
+            tileY = (i / 32);
+
+            int attributeX;
+            int attributeY;
+
+            attributeX = (tileX / 4);
+            attributeY = (tileY / 4);
+
+            int internalAttributeIndex;
+            internalAttributeIndex = ((tileX % 4) / 2) + ((tileY % 4) / 2) * 2;
+
+
+
+            int attributeTableIndex;
+            attributeTableIndex = attributeX + attributeY * 8;
+            uint8_t attributeByte;
+            attributeByte = getPpuByte(0x2000 + nametableOffset + 0x3C0 + attributeTableIndex);
+
+            int paletteIndex;
+
+            if (internalAttributeIndex == 0) {
+                paletteIndex = (attributeByte & 0x3);
+            } else if (internalAttributeIndex == 1) {
+                paletteIndex = (attributeByte & 0xC) >> 2;
+            } else if (internalAttributeIndex == 2) {
+                paletteIndex = (attributeByte & 0x30) >> 4;
+            } else if (internalAttributeIndex == 3) {
+                paletteIndex = (attributeByte & 0xC0) >> 6;
+            } else {
+                paletteIndex = 0;
+                std::cout << "Error!" << std::endl;
+            }
 
             int pixelStart;
-            pixelStart = x * 8 + y * NES_SCREEN_WIDTH * 8;
+            pixelStart = tileX * 8 + tileY * NES_SCREEN_WIDTH * 8;
 
             int spriteStart;
             spriteStart = getPpuByte(0x2000 + i + nametableOffset);
 
             for (int j = 0; j < 8; j++) {
 
-                int spriteRow2[8];
+                uint32_t spriteRow2[8];
 
                 std::bitset<8> spriteLayer1 = (std::bitset<8>) getPpuByte(spriteStart * 16 + j + 0x1000);
                 std::bitset<8> spriteLayer2 = (std::bitset<8>) getPpuByte(spriteStart * 16 + j + 8 + 0x1000);
 
                 for (int a = 0; a < 8; a++) {
+
+                    int num;
+                    num = spriteLayer1[a] + spriteLayer2[a];
+
+                    if (num == 0) {
+                        spriteRow2[a] = paletteTableToARGB(getPpuByte(0x3F00));
+                    } else if (num == 1) {
+
+                        if (paletteIndex == 0) {
+                            spriteRow2[a] = paletteTableToARGB(getPpuByte(0x3F01));
+                        } else if (paletteIndex == 1) {
+                            spriteRow2[a] = paletteTableToARGB(getPpuByte(0x3F05));
+                        } else if (paletteIndex == 2) {
+                            spriteRow2[a] = paletteTableToARGB(getPpuByte(0x3F09));
+                        } else if (paletteIndex == 3) {
+                            spriteRow2[a] = paletteTableToARGB(getPpuByte(0x3F0D));
+                        }
+
+                    } else if (num == 2) {
+
+                        if (paletteIndex == 0) {
+                            spriteRow2[a] = paletteTableToARGB(getPpuByte(0x3F02));
+                        } else if (paletteIndex == 1) {
+                            spriteRow2[a] = paletteTableToARGB(getPpuByte(0x3F06));
+                        } else if (paletteIndex == 2) {
+                            spriteRow2[a] = paletteTableToARGB(getPpuByte(0x3F0A));
+                        } else if (paletteIndex == 3) {
+                            spriteRow2[a] = paletteTableToARGB(getPpuByte(0x3F0E));
+                        }
+
+                    } else if (num == 3) {
+
+                        if (paletteIndex == 0) {
+                            spriteRow2[a] = paletteTableToARGB(getPpuByte(0x3F03));
+                        } else if (paletteIndex == 1) {
+                            spriteRow2[a] = paletteTableToARGB(getPpuByte(0x3F07));
+                        } else if (paletteIndex == 2) {
+                            spriteRow2[a] = paletteTableToARGB(getPpuByte(0x3F0B));
+                        } else if (paletteIndex == 3) {
+                            spriteRow2[a] = paletteTableToARGB(getPpuByte(0x3F00));
+                        }
+
+                    } else {
+                        std::cout << "Error!" << std::endl;
+                    }
+
+                    /*
+
                     spriteRow2[a] = 0;
                     spriteRow2[a] += spriteLayer1[a];
                     spriteRow2[a] += spriteLayer2[a];
+
+                    */
+
                 }
 
                 for (int k = 7; k >= 0; k--) {
 
+                    pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = spriteRow2[k];
+
+                    /*
                     if (spriteRow2[k] == 3) {
                         pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0xFFFFFFFF;
                     } else if (spriteRow2[k] == 2) {
@@ -342,6 +447,7 @@ int PPU::tick(bool * NMI, NES * nes) {
                     } else {
                         pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x00000000;
                     }
+                    */
                     
 
                 }
