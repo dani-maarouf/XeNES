@@ -316,10 +316,10 @@ bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
         }
 
         if (memAddress == 0x4016) {
-            if (byte == 0x1) {
+            if ((byte & 0x1) == 0x1) {
                 storedControllerByte = controllerByte;
                 readController = false;
-            } else if (byte == 0x0) {
+            } else if ((byte & 0x0) == 0x0) {
                 currentControllerBit = 0;
                 readController = true;
             }

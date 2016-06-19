@@ -21,9 +21,13 @@ Donkey Kong
 
 Donkey Kong Jr.
 
+Donkey Kong 3
+
 BKG graphics test
 
 Duck Hunt
+
+Passes nestest.log
 
 ## Sample screenshots
 
@@ -38,3 +42,14 @@ Duck Hunt
 
 ![alt text](http://imgur.com/kuuw6W6l.png "Duck Hunt")
 
+## Next steps
+
+Continue adding hardware features necessary to play more games (eg. scrolling)
+
+Add audio
+
+Improve performance
+
+Add support for more mappers
+
+Easier multiplatform build
