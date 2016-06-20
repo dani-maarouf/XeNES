@@ -33,6 +33,10 @@ PPU::PPU() {
     for (int x = 0; x < 0x100; x++) OAM[x] = 0x0;
     for (int x = 0; x < (NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT); x++) pixels[x] = 0;
 
+    for (int x = 0; x < 32; x++) {
+        secondaryOAM[x] = 0x0;
+    }
+
     scanline = 241;
     ppuCycle = 0;
 
@@ -278,15 +282,44 @@ void PPU::tick(NES * nes) {
 
 
 
-    if (scanline == 240) {
-        if (ppuCycle == 340) {
-            if (generateNMI) {
-                nes->nesCPU.NMI = true;
-            }
-        }
-    } else if (scanline > 240 && scanline < 261) {
+    if (scanline > 240 && scanline <= 261) {
         ppuRegisters[2] |= 0x80;
-    } else {
+
+
+        if (scanline == 261) {
+
+            if (ppuCycle == 340) {
+
+                //prepare secondary OAM for next scanline
+
+                for (int x = 0; x < 32; x++) {
+                    secondaryOAM[x] = 0;
+                }
+
+
+                int sOamIndex;
+                sOamIndex = 0;
+
+                for (int x = 0; x < 64; x++) {
+                    int yPos;
+                    yPos = OAM[x * 4];
+                    if ((scanline + 1) - yPos < 8 ) {
+                        secondaryOAM[sOamIndex] = yPos;
+                        secondaryOAM[sOamIndex + 1] = OAM[x * 4 + 1];
+                        secondaryOAM[sOamIndex + 2] = OAM[x * 4 + 2];
+                        secondaryOAM[sOamIndex + 3] = OAM[x * 4 + 3];
+                        sOamIndex += 4;
+                        if (sOamIndex > 31) {
+                            break;
+                        }
+                    }
+                }
+            }
+
+        }
+
+
+    } else if (scanline >= 0 && scanline < 240) {
         ppuRegisters[2] &= 0x7F;
 
         //crude pixel by pixel render of background
@@ -353,9 +386,52 @@ void PPU::tick(NES * nes) {
 
             pixels[pixelStart] = colour;
 
+            for (int i = 0; i < 8; i++) {
+
+                
+                
+            }
+
+
+        } else if (ppuCycle == 340) {
+
+
+            for (int x = 0; x < 32; x++) {
+                secondaryOAM[x] = 0;
+            }
+
+
+            int sOamIndex;
+            sOamIndex = 0;
+
+            for (int x = 0; x < 64; x++) {
+                int yPos;
+                yPos = OAM[x * 4];
+                if ((scanline + 1) - yPos < 8 ) {
+                    secondaryOAM[sOamIndex] = yPos;
+                    secondaryOAM[sOamIndex + 1] = OAM[x * 4 + 1];
+                    secondaryOAM[sOamIndex + 2] = OAM[x * 4 + 2];
+                    secondaryOAM[sOamIndex + 3] = OAM[x * 4 + 3];
+                    sOamIndex += 4;
+                    if (sOamIndex > 31) {
+                        break;
+                    }
+                }
+            }
+
+
         }
 
+    } else if (scanline == 240) {
 
+        if (ppuCycle == 340) {
+            if (generateNMI) {
+                nes->nesCPU.NMI = true;
+            }
+        }
+
+    } else {
+        std::cout << "Error, invalid scanline " << scanline << std::endl;
     }
 
     draw = false;
@@ -369,7 +445,7 @@ void PPU::tick(NES * nes) {
         }
     }
 
-    //dumps everything onto the screen
+    //dumps sprites onto screen
     if (draw) {
 
         for (int x = 0; x < 64; x++) {
@@ -396,10 +472,10 @@ void PPU::tick(NES * nes) {
 
                     uint8_t num = 0; 
 
-                    if (getBit(spriteLayer1, a)) {
+                    if (getBit(spriteLayer1, 7 - a)) {
                         num |= 0x1;
                     }
-                    if (getBit(spriteLayer2, a)) {
+                    if (getBit(spriteLayer2, 7 - a)) {
                         num |= 0x2;
                     }
 
@@ -410,9 +486,9 @@ void PPU::tick(NES * nes) {
                     int spritePixelPosX, spritePixelPosY;
 
                     if (flipHorizontal) {
-                        spritePixelPosX = a;
-                    } else {
                         spritePixelPosX = 7 - a;
+                    } else {
+                        spritePixelPosX = a;
                     }
 
                     if (flipVertical) {

@@ -22,7 +22,7 @@ private:
     uint8_t palette[0x20];      
     uint8_t VRAM[0x800];                    //2kB PPU internal RAM
     uint8_t OAM[0x100];                     //256 byte PPU OAM
-    uint8_t secondaryOAM[64];
+    uint8_t secondaryOAM[32];
     
     int ppuCycle;                           //0-341 per scanline
     bool evenFrame;                         //tracks even and odd frames
