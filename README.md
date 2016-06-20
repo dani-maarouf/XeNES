@@ -3,8 +3,8 @@
 ## Input
 | NES  | Keyboard |
 |------|----------|
-|A     | e        |
-|B     | q        |
+|A     | SPACE    |
+|B     | RCTRL    |
 |Up    | w        |
 |Down  | s        |
 |Left  | a        |
@@ -12,7 +12,7 @@
 |Start | x        |
 |Select| c        |
 
-## Playable games
+## Semi-playable games
 
 Donkey Kong
 
@@ -23,6 +23,8 @@ Donkey Kong 3
 BKG graphics test
 
 Duck Hunt
+
+Super Mario Bros (with severe graphical glitches)
 
 Passes nestest.log
 
