@@ -263,9 +263,13 @@ void PPU::tick(NES * nes) {
     }
 
     if (readToRAM) {
+
+        
         setPpuByte(vramAddress, ppuRegisters[7]);
         vramAddress += vramInc;
+        
         readToRAM = false;
+
     }
 
     if (readToOAM) {
@@ -279,10 +283,6 @@ void PPU::tick(NES * nes) {
     
         readToOAM = false;
     }
-
-
-
-
 
     ppuRegisters[2] &= 0xBF;
 
@@ -365,12 +365,11 @@ void PPU::tick(NES * nes) {
                     continue;
                 }
 
-                uint8_t byte0, byte1, byte2, byte3;
+                uint8_t byte0, byte1, byte2;
 
                 byte0 = secondaryOAM[i * 4];
                 byte1 = secondaryOAM[(i * 4) + 1];
                 byte2 = secondaryOAM[(i * 4) + 2];
-                byte3 = secondaryOAM[xPos];
 
                 int paletteIndex2 = byte2 & 0x3;
 
@@ -409,26 +408,17 @@ void PPU::tick(NES * nes) {
                 }
 
                 if (number == 0) {
-
                     if (num == 0) {
                         //sprite zero hit
-
                         ppuRegisters[2] |= 0x40;
-
                     }
-
                     continue;
                 }
 
                 uint32_t newColour;
                 newColour = paletteTable[getPpuByte(0x3F10 + number + paletteIndex2 * 4)];
                 pixels[pixelStart] = newColour;
-
-
-
             }
-
-
         }
 
     } else if (scanline == 240) {

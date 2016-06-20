@@ -48,7 +48,7 @@ public:
 
     uint8_t oamAddress;                     //current OAM address
 
-    PPU();
+    
 
     bool getVramAddress;        //CPU has written half of address to 0x2006 in CPU address space
     bool readLower;             //lower part of write to 2006 is occuring
@@ -69,6 +69,8 @@ public:
 
     bool draw;                  //draw frame?
     uint32_t pixels[256 * 240]; //pixel display
+
+    PPU();
 
     void tick(NES *);            //one PPU tick is executed
     void freePointers();        //free memory
