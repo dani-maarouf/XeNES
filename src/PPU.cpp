@@ -61,6 +61,12 @@ PPU::PPU() {
     ppuMaster = false;
     generateNMI = false;
 
+    readScroll = false;
+    scrollY = false;
+
+    xScrolling = 0;
+    yScrolling = 0;
+
     return;
 }
 
@@ -284,6 +290,17 @@ void PPU::tick(NES * nes) {
         readToOAM = false;
     }
 
+    if (readScroll) {
+        if (scrollY) {
+            yScrolling = ppuRegisters[0x5];
+            scrollY = false;
+        } else {
+            xScrolling = ppuRegisters[0x5];
+            scrollY = true;
+        }
+        readScroll = false;
+    }
+
     ppuRegisters[2] &= 0xBF;
 
     if (scanline > 240 && scanline <= 261) {
@@ -300,8 +317,17 @@ void PPU::tick(NES * nes) {
 
             int nametableIndex;
 
+            int tableOverflow;
+            tableOverflow = 0;
 
-            tileX = ( (ppuCycle - 1) / 8);
+
+            tileX = ( (ppuCycle - 1 + xScrolling) / 8);
+
+            if (tileX > 31) {
+                tableOverflow = 0x400;
+                tileX -= 32;
+            }
+
             tileY = ( scanline / 8);
 
             nametableIndex = (tileY * 32 + tileX);
@@ -311,8 +337,9 @@ void PPU::tick(NES * nes) {
 
             int attributeTableIndex;
             attributeTableIndex = (tileX / 4) + (tileY / 4) * 8;
+
             uint8_t attributeByte;
-            attributeByte = getPpuByte(0x23C0 + nametableOffset + attributeTableIndex);
+            attributeByte = getPpuByte(0x23C0 + nametableOffset + attributeTableIndex + tableOverflow);
 
             int paletteIndex;
 
@@ -333,7 +360,7 @@ void PPU::tick(NES * nes) {
             pixelStart = (ppuCycle - 1) + NES_SCREEN_WIDTH * scanline;
 
             int spriteStart;
-            spriteStart = getPpuByte(0x2000 + nametableIndex + nametableOffset);
+            spriteStart = getPpuByte(0x2000 + nametableIndex + nametableOffset + tableOverflow);
 
             uint8_t spriteLayer1 = getPpuByte(spriteStart * 16 + (scanline % 8) + backgroundTableOffset);
             uint8_t spriteLayer2 = getPpuByte(spriteStart * 16 + (scanline % 8) + 8 + backgroundTableOffset);
@@ -341,10 +368,10 @@ void PPU::tick(NES * nes) {
             uint32_t colour;
             uint8_t num = 0;
 
-            if (getBit(spriteLayer1, 7 - ((ppuCycle - 1) % 8))) {
+            if (getBit(spriteLayer1, 7 - ((ppuCycle - 1 + xScrolling) % 8 ))) {
                 num |= 0x1;
             }
-            if (getBit(spriteLayer2, 7 - ((ppuCycle - 1) % 8))) {
+            if (getBit(spriteLayer2, 7 - ((ppuCycle - 1 + xScrolling) % 8 ))) {
                 num |= 0x2;
             }
 
@@ -460,8 +487,6 @@ void PPU::tick(NES * nes) {
             }
         }
     }
-
-
 
     draw = false;
     ppuCycle = (ppuCycle + 1) % 341;

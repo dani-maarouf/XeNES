@@ -318,6 +318,7 @@ bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
 
         } else if (address == 0x5) {
 
+            nesPPU.readScroll = true;
             nesPPU.ppuRegisters[0x2] |= (byte & 0x1F);
 
         } else if (address == 0x6) {

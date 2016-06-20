@@ -46,11 +46,11 @@ void loop(NES nesSystem, const char * fileLoc) {
             case SDL_KEYDOWN: {
                 switch(event.key.keysym.sym) {
 
-                    case SDLK_e:    //A
+                    case SDLK_SPACE:    //A
                     nesSystem.controllerByte |= 0x1;
                     break;
 
-                    case SDLK_q:    //B
+                    case SDLK_RCTRL:    //B
                     nesSystem.controllerByte |= 0x2;
                     break;
 
@@ -88,11 +88,11 @@ void loop(NES nesSystem, const char * fileLoc) {
             case SDL_KEYUP: {
                 switch(event.key.keysym.sym) {
 
-                    case SDLK_e:    //A
+                    case SDLK_SPACE:    //A
                     nesSystem.controllerByte &= 0xFE;
                     break;
 
-                    case SDLK_q:    //B
+                    case SDLK_RCTRL:    //B
                     nesSystem.controllerByte &= 0xFD;
                     break;
 

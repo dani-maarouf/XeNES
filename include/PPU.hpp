@@ -19,6 +19,12 @@ class PPU {
 
 private:
 
+    uint8_t xScrolling;
+    uint8_t yScrolling;
+
+
+    bool scrollY;
+
     int nametableOffset;
     int vramInc;
     int spriteTableOffset;
@@ -45,6 +51,8 @@ private:
     void drawSprites();                     //draw sprites to pixel display
 
 public:
+
+    bool readScroll;
 
     uint8_t oamAddress;                     //current OAM address
 
