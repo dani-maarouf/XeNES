@@ -45,6 +45,7 @@ PPU::PPU() {
     
     vramAddress = 0x0;
     oamAddress = 0x0;
+    secondaryOamAddress = 0x0;
 
     getVramAddress = false;
     readLower = false;
@@ -296,22 +297,25 @@ void PPU::tick(NES * nes) {
                     secondaryOAM[x] = 0;
                 }
 
-
-                int sOamIndex;
-                sOamIndex = 0;
+                secondaryOamAddress = 0;
 
                 for (int x = 0; x < 64; x++) {
                     int yPos;
                     yPos = OAM[x * 4];
-                    if ((scanline + 1) - yPos < 8 ) {
-                        secondaryOAM[sOamIndex] = yPos;
-                        secondaryOAM[sOamIndex + 1] = OAM[x * 4 + 1];
-                        secondaryOAM[sOamIndex + 2] = OAM[x * 4 + 2];
-                        secondaryOAM[sOamIndex + 3] = OAM[x * 4 + 3];
-                        sOamIndex += 4;
-                        if (sOamIndex > 31) {
+                    if (((scanline + 1) % 262) - yPos < 8 && ((scanline + 1) % 262) - yPos >= 0) {
+                        secondaryOAM[secondaryOamAddress * 4] = yPos;
+                        secondaryOAM[secondaryOamAddress * 4 + 1] = OAM[x * 4 + 1];
+                        secondaryOAM[secondaryOamAddress * 4 + 2] = OAM[x * 4 + 2];
+                        secondaryOAM[secondaryOamAddress * 4 + 3] = OAM[x * 4 + 3];
+
+                        secondaryOamAddress++;
+
+
+
+                        if (secondaryOamAddress > 7) {
                             break;
                         }
+
                     }
                 }
             }
@@ -386,36 +390,98 @@ void PPU::tick(NES * nes) {
 
             pixels[pixelStart] = colour;
 
-            for (int i = 0; i < 8; i++) {
+            for (int i = 0; i < secondaryOamAddress; i++) {
 
-                
-                
+                int xPos;
+                xPos = secondaryOAM[i * 4 + 3];
+
+                if (!( (ppuCycle - 1) - xPos < 8 && (ppuCycle - 1) - xPos >= 0 )) {
+                    continue;
+                }
+
+                uint8_t byte0, byte1, byte2, byte3;
+
+                byte0 = secondaryOAM[i * 4];
+                byte1 = secondaryOAM[(i * 4) + 1];
+                byte2 = secondaryOAM[(i * 4) + 2];
+                byte3 = secondaryOAM[xPos];
+
+                int paletteIndex2 = byte2 & 0x3;
+
+                bool flipHorizontal;
+                bool flipVertical;
+                flipHorizontal = (byte2 & 0x40) ? true : false;
+                flipVertical = (byte2 & 0x80) ? true : false;
+
+                int spriteRowNumber;
+
+                if (flipVertical) {
+                    spriteRowNumber = 7 -(scanline - byte0);
+                } else {
+                    spriteRowNumber = (scanline - byte0);
+                }
+
+                int spriteColumnNumber;
+
+                if (flipHorizontal) {
+                    spriteColumnNumber = ((ppuCycle - 1) - xPos);
+                } else {
+                    spriteColumnNumber = 7 - ((ppuCycle - 1) - xPos);
+                }
+
+
+                uint8_t spriteLayer3 = getPpuByte(byte1 * 16 + spriteRowNumber + spriteTableOffset);
+                uint8_t spriteLayer4 = getPpuByte(byte1 * 16 + spriteRowNumber + 8 + spriteTableOffset);
+
+                uint8_t number = 0; 
+
+                if (getBit(spriteLayer3, spriteColumnNumber)) {
+                    number |= 0x1;
+                }
+                if (getBit(spriteLayer4, spriteColumnNumber)) {
+                    number |= 0x2;
+                }
+
+                if (number == 0) {
+                    continue;
+                }
+
+                uint32_t newColour;
+                newColour = paletteTable[getPpuByte(0x3F10 + number + paletteIndex2 * 4)];
+                pixels[pixelStart] = newColour;
+
+
+
             }
 
 
         } else if (ppuCycle == 340) {
 
+            //prepare secondary OAM for next scanline
 
             for (int x = 0; x < 32; x++) {
                 secondaryOAM[x] = 0;
             }
 
-
-            int sOamIndex;
-            sOamIndex = 0;
+            secondaryOamAddress = 0;
 
             for (int x = 0; x < 64; x++) {
                 int yPos;
                 yPos = OAM[x * 4];
-                if ((scanline + 1) - yPos < 8 ) {
-                    secondaryOAM[sOamIndex] = yPos;
-                    secondaryOAM[sOamIndex + 1] = OAM[x * 4 + 1];
-                    secondaryOAM[sOamIndex + 2] = OAM[x * 4 + 2];
-                    secondaryOAM[sOamIndex + 3] = OAM[x * 4 + 3];
-                    sOamIndex += 4;
-                    if (sOamIndex > 31) {
+                if ((scanline + 1) - yPos < 8 && (scanline + 1) - yPos >= 0) {
+                    secondaryOAM[secondaryOamAddress * 4] = yPos;
+                    secondaryOAM[secondaryOamAddress * 4 + 1] = OAM[x * 4 + 1];
+                    secondaryOAM[secondaryOamAddress * 4 + 2] = OAM[x * 4 + 2];
+                    secondaryOAM[secondaryOamAddress * 4 + 3] = OAM[x * 4 + 3];
+
+                    secondaryOamAddress++;
+
+
+
+                    if (secondaryOamAddress > 7) {
                         break;
                     }
+
                 }
             }
 
@@ -443,68 +509,6 @@ void PPU::tick(NES * nes) {
             draw = true;
             evenFrame ^= true;
         }
-    }
-
-    //dumps sprites onto screen
-    if (draw) {
-
-        for (int x = 0; x < 64; x++) {
-
-            uint8_t byte0, byte1, byte2, byte3;
-            byte0 = OAM[x * 4];
-            byte1 = OAM[(x * 4) + 1];
-            byte2 = OAM[(x * 4) + 2];
-            byte3 = OAM[(x * 4) + 3];
-
-            bool flipHorizontal;
-            bool flipVertical;
-            flipHorizontal = (byte2 & 0x40) ? true : false;
-            flipVertical = (byte2 & 0x80) ? true : false;
-
-            int paletteIndex = byte2 & 0x3;
-
-            for (int j = 0; j < 8; j++) {
-
-                uint8_t spriteLayer1 = getPpuByte(byte1 * 16 + j + spriteTableOffset);
-                uint8_t spriteLayer2 = getPpuByte(byte1 * 16 + j + 8 + spriteTableOffset);
-
-                for (int a = 0; a < 8; a++) {
-
-                    uint8_t num = 0; 
-
-                    if (getBit(spriteLayer1, 7 - a)) {
-                        num |= 0x1;
-                    }
-                    if (getBit(spriteLayer2, 7 - a)) {
-                        num |= 0x2;
-                    }
-
-                    if (num == 0) {
-                        continue;
-                    }
-
-                    int spritePixelPosX, spritePixelPosY;
-
-                    if (flipHorizontal) {
-                        spritePixelPosX = 7 - a;
-                    } else {
-                        spritePixelPosX = a;
-                    }
-
-                    if (flipVertical) {
-                        spritePixelPosY = (7 - j);
-                    } else {
-                        spritePixelPosY = j;
-                    }
-
-                    uint32_t colour;
-                    colour = paletteTable[getPpuByte(0x3F10 + num + paletteIndex * 4)];
-                    pixels[byte0 * NES_SCREEN_WIDTH + byte3 + spritePixelPosX + (spritePixelPosY * NES_SCREEN_WIDTH)] = colour;
-
-                }
-            }
-        }
-        
     }
 
     return;
