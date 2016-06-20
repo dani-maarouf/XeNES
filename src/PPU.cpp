@@ -40,6 +40,7 @@ PPU::PPU() {
     draw = false;
     
     vramAddress = 0x0;
+    oamAddress = 0x0;
 
     getVramAddress = false;
     readLower = false;
@@ -224,7 +225,7 @@ void PPU::drawSprites() {
 
 void PPU::tick(NES * nes) {
 
-    /* PPUCTRL */
+    /* PPUCTRL */   //this can be set in setCpuByte
     int nametableOffset;
     nametableOffset = (ppuRegisters[0] & 0x03) * 0x400;
     int vramInc;
@@ -239,6 +240,8 @@ void PPU::tick(NES * nes) {
     ppuMaster = (ppuRegisters[0] & 0x40) ? true : false;
     bool generateNMI;
     generateNMI = (ppuRegisters[0] & 0x80) ? true : false;
+
+
 
     if (getVramAddress) {
         if (readLower) {
@@ -261,8 +264,9 @@ void PPU::tick(NES * nes) {
         uint8_t OAMDMA;
         OAMDMA = nes->getCpuByte(0x4014);
 
-        for (int x = 0; x < 256; x++) {
-            OAM[x] = nes->getCpuByte( (OAMDMA << 8) + x );
+        for (unsigned int x = 0; x < 256; x++) {
+            OAM[oamAddress] = nes->getCpuByte( (OAMDMA << 8) + x );
+            oamAddress++;
         }
     
         readToOAM = false;
@@ -275,7 +279,6 @@ void PPU::tick(NES * nes) {
 
 
     if (scanline == 240) {
-        ppuRegisters[2] &= 0x7F;
         if (ppuCycle == 340) {
             if (generateNMI) {
                 nes->nesCPU.NMI = true;
@@ -285,30 +288,20 @@ void PPU::tick(NES * nes) {
         ppuRegisters[2] |= 0x80;
     } else {
         ppuRegisters[2] &= 0x7F;
-    }
 
-
-    
-    draw = false;
-    ppuCycle = (ppuCycle + 1) % 341;
-
-    if (ppuCycle == 0) {
-        scanline = (scanline + 1) % 262;
-        if (scanline == 0) {
-            draw = true;
-            evenFrame ^= true;
-        }
-    }
-
-    if (draw) {
-
-        for (int i = 0; i < 32 * 30; i++) {
+        //crude pixel by pixel render of background
+        if (ppuCycle > 0 && ppuCycle < 257) {
 
             int tileX;
             int tileY;
 
-            tileX = (i % 32);
-            tileY = (i / 32);
+            int nametableIndex;
+
+
+            tileX = ( (ppuCycle - 1) / 8);
+            tileY = ( scanline / 8);
+
+            nametableIndex = (tileY * 32 + tileX);
 
             int internalAttributeIndex;
             internalAttributeIndex = ((tileX % 4) / 2) + ((tileY % 4) / 2) * 2;
@@ -334,39 +327,50 @@ void PPU::tick(NES * nes) {
             }
 
             int pixelStart;
-            pixelStart = tileX * 8 + tileY * NES_SCREEN_WIDTH * 8;
+            pixelStart = (ppuCycle - 1) + NES_SCREEN_WIDTH * scanline;
 
             int spriteStart;
-            spriteStart = getPpuByte(0x2000 + i + nametableOffset);
+            spriteStart = getPpuByte(0x2000 + nametableIndex + nametableOffset);
 
-            for (int j = 0; j < 8; j++) {
+            uint8_t spriteLayer1 = getPpuByte(spriteStart * 16 + (scanline % 8) + backgroundTableOffset);
+            uint8_t spriteLayer2 = getPpuByte(spriteStart * 16 + (scanline % 8) + 8 + backgroundTableOffset);
 
-                uint8_t spriteLayer1 = getPpuByte(spriteStart * 16 + j + backgroundTableOffset);
-                uint8_t spriteLayer2 = getPpuByte(spriteStart * 16 + j + 8 + backgroundTableOffset);
+            uint32_t colour;
+            uint8_t num = 0;
 
-                for (int a = 0; a < 8; a++) {
-
-                    uint32_t colour;
-                    uint8_t num = 0;
-
-                    if (getBit(spriteLayer1, a)) {
-                        num |= 0x1;
-                    }
-                    if (getBit(spriteLayer2, a)) {
-                        num |= 0x2;
-                    }
-
-                    if (num == 0) {
-                        colour = paletteTable[getPpuByte(0x3F00)];
-                    } else { 
-                        colour = paletteTable[getPpuByte(0x3F00 + num + paletteIndex * 4)];
-                    }
-
-                    pixels[pixelStart + (7 - a) + (j * NES_SCREEN_WIDTH)] = colour;
-
-                }
+            if (getBit(spriteLayer1, 7 - ((ppuCycle - 1) % 8))) {
+                num |= 0x1;
             }
+            if (getBit(spriteLayer2, 7 - ((ppuCycle - 1) % 8))) {
+                num |= 0x2;
+            }
+
+            if (num == 0) {
+                colour = paletteTable[getPpuByte(0x3F00)];
+            } else { 
+                colour = paletteTable[getPpuByte(0x3F00 + num + paletteIndex * 4)];
+            }
+
+            pixels[pixelStart] = colour;
+
         }
+
+
+    }
+
+    draw = false;
+    ppuCycle = (ppuCycle + 1) % 341;
+
+    if (ppuCycle == 0) {
+        scanline = (scanline + 1) % 262;
+        if (scanline == 0) {
+            draw = true;
+            evenFrame ^= true;
+        }
+    }
+
+    //dumps everything onto the screen
+    if (draw) {
 
         for (int x = 0; x < 64; x++) {
 

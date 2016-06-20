@@ -299,10 +299,39 @@ bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
         uint16_t address;
         address = (memAddress - 0x2000) % 8;
 
-        if (address == 0x6) {
+        if (address == 0x0) {
+
+            nesPPU.ppuRegisters[0x2] |= (byte & 0x1F);
+
+        } else if (address == 0x1) {
+
+            nesPPU.ppuRegisters[0x2] |= (byte & 0x1F);
+
+        } else if (address == 0x3) {
+
+            nesPPU.oamAddress = byte;
+            nesPPU.ppuRegisters[0x2] |= (byte & 0x1F);
+
+        } else if (address == 0x4) {
+
+            nesPPU.ppuRegisters[0x2] |= (byte & 0x1F);
+
+        } else if (address == 0x5) {
+
+            nesPPU.ppuRegisters[0x2] |= (byte & 0x1F);
+
+        } else if (address == 0x6) {
+
             nesPPU.getVramAddress = true;
+
+            nesPPU.ppuRegisters[0x2] |= (byte & 0x1F);
+
         } else if (address == 0x7) {
+
             nesPPU.readToRAM = true;
+
+            nesPPU.ppuRegisters[0x2] |= (byte & 0x1F);
+
         }
 
         nesPPU.ppuRegisters[address] = byte;
