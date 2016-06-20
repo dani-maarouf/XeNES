@@ -13,9 +13,9 @@ enum Mirroring {
     FOUR_SCREEN,
 };
 
-struct NES;
+class NES;
 
-struct PPU {
+class PPU {
 
 private:
 

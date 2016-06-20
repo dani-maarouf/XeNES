@@ -240,10 +240,6 @@ void PPU::tick(NES * nes) {
     bool generateNMI;
     generateNMI = (ppuRegisters[0] & 0x80) ? true : false;
 
-
-    /* PPUMASK */
-    //todo
-
     if (getVramAddress) {
         if (readLower) {
             vramAddress |= ppuRegisters[6];
@@ -272,6 +268,12 @@ void PPU::tick(NES * nes) {
         readToOAM = false;
     }
 
+
+
+
+
+
+
     if (scanline == 240) {
         ppuRegisters[2] &= 0x7F;
         if (ppuCycle == 340) {
@@ -285,7 +287,7 @@ void PPU::tick(NES * nes) {
         ppuRegisters[2] &= 0x7F;
     }
 
-    //ppuRegisters[2] |= 40;
+
     
     draw = false;
     ppuCycle = (ppuCycle + 1) % 341;

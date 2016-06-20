@@ -1,8 +1,5 @@
 # nes
 
-## Installation
-Run make
-
 ## Input
 | NES  | Keyboard |
 |------|----------|

@@ -6,12 +6,12 @@
 #include "CPU.hpp"
 #include "PPU.hpp"
 
-struct NES {
+class NES {
 
     /* allows child class CPU to access parent NES member functions getCpuByte(), setCpuByte()
        and retrieveCpuAddress(), ugly but works */
-    friend struct CPU;
-    friend struct PPU;
+    friend class CPU;
+    friend class PPU;
 
 private:
 

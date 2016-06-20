@@ -5,20 +5,19 @@
 #include "NES.hpp"
 
 
-
 enum InstructionType {
-    READ,               //read from mem address
-    WRITE,              //write to mem address
-    READ_MODIFY_WRITE,  //read from mem address, modify byte, write byte
-    OTHER,              //note: above 3 are not applicable to all
+    READ = 0,               //read from mem address
+    WRITE = 1,              //write to mem address
+    READ_MODIFY_WRITE = 2,  //read from mem address, modify byte, write byte
+    OTHER,                  //note: above 3 are not applicable to all
 };
 
-                            //0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F
-const int opcodeLens[0x20] = {2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3,  //0 2 4 6 8 A C E
-                              2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3}; //1 3 5 7 9 B D F
+                                   //0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F
+static const int opcodeLens[0x20] = {2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3,  //0 2 4 6 8 A C E
+                                     2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3,};//1 3 5 7 9 B D F
 
 
-const enum AddressMode addressModes[] = {
+static const enum AddressMode addressModes[] = {
   //0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
     IMP, INDX,NONE,INDX,ZRP ,ZRP ,ZRP ,ZRP ,IMP, IMM, ACC, NONE,ABS, ABS ,ABS, ABS,   //0
     REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //1
@@ -35,41 +34,51 @@ const enum AddressMode addressModes[] = {
     IMM, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, IMP, NONE,ABS, ABS, ABS, ABS,   //C
     REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //D
     IMM, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, IMP, IMM, ABS, ABS, ABS, ABS,   //E
-    REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX}; //F
+    REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //F
+}; 
 
 //opcode mnemonics
-                         //0     1      2      3      4      5      6      7      8      9
-const char * opnames[] = {"$$$", "ADC", "AND", "ASL", "BCC", "BCS", "BEQ", "BIT", "BMI", "BNE", //0
-                          "BPL", "BRK", "BVC", "BVS", "CLC", "CLD", "CLI", "CLV", "CMP", "CPX", //1
-                          "CPY","*DCP", "DEC", "DEX", "DEY", "EOR", "INC", "INX", "INY","*ISB", //2
-                          "JMP", "JSR","*LAX", "LDA", "LDX", "LDY", "LSR", "NOP","*NOP", "ORA", //3
-                          "PHA", "PHP", "PLA", "PLP","*RLA", "ROL", "ROR","*RRA", "RTI", "RTS", //4
-                         "*SAX","*SBC", "SBC", "SEC", "SED", "SEI","*SLO","*SRE", "STA", "STX", //5
-                          "STY", "TAX", "TAY", "TSX", "TXA", "TXS", "TYA"};                     //6
+static const char * opnames[] = {
+    //0     1      2      3      4      5      6      7      8      9
+    "$$$", "ADC", "AND", "ASL", "BCC", "BCS", "BEQ", "BIT", "BMI", "BNE", //0
+    "BPL", "BRK", "BVC", "BVS", "CLC", "CLD", "CLI", "CLV", "CMP", "CPX", //1
+    "CPY","*DCP", "DEC", "DEX", "DEY", "EOR", "INC", "INX", "INY","*ISB", //2
+    "JMP", "JSR","*LAX", "LDA", "LDX", "LDY", "LSR", "NOP","*NOP", "ORA", //3
+    "PHA", "PHP", "PLA", "PLP","*RLA", "ROL", "ROR","*RRA", "RTI", "RTS", //4
+   "*SAX","*SBC", "SBC", "SEC", "SED", "SEI","*SLO","*SRE", "STA", "STX", //5
+    "STY", "TAX", "TAY", "TSX", "TXA", "TXS", "TYA"                       //6
+};                     
 
 //opcode mnemonic mapping
-                       //0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
-const int opnameMap[] = {11,39, 0,56,38,39, 3,56,41,39, 3, 0,38,39, 3,56,  //0
-                         10,39, 0,56,38,39, 3,56,14,39,38,56,38,39, 3,56,  //1
-                         31, 2, 0,44, 7, 2,45,44,43, 2,45, 0, 7, 2,45,44,  //2
-                          8, 2, 0,44,38, 2,45,44,53, 2,38,44,38, 2,45,44,  //3
-                         48,25, 0,57,38,25,36,57,40,25,36, 0,30,25,36,57,  //4
-                         12,25, 0,57,38,25,36,57,16,25,38,57,38,25,36,57,  //5
-                         49, 1, 0,47,38, 1,46,47,42, 1,46, 0,30, 1,46,47,  //6
-                         13, 1, 0,47,38, 1,46,47,55, 1,38,47,38, 1,46,47,  //7
-                         38,58, 0,50,60,58,59,50,24, 0,64, 0,60,58,59,50,  //8
-                          4,58, 0, 0,60,58,59,50,66,58,65, 0, 0,58, 0, 0,  //9
-                         35,33,34,32,35,33,34,32,62,33,61, 0,35,33,34,32,  //A
-                          5,33, 0,32,35,33,34,32,17,33,63, 0,35,33,34,32,  //B
-                         20,18, 0,21,20,18,22,21,28,18,23, 0,20,18,22,21,  //C
-                          9,18, 0,21,38,18,22,21,15,18,38,21,38,18,22,21,  //D
-                         19,52, 0,29,19,52,26,29,27,52,37,51,19,52,26,29,  //E
-                          6,52, 0,29,38,52,26,29,54,52,38,29,38,52,26,29}; //F
+static const int opnameMap[] = {
+   //0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+    11,39, 0,56,38,39, 3,56,41,39, 3, 0,38,39, 3,56,  //0
+    10,39, 0,56,38,39, 3,56,14,39,38,56,38,39, 3,56,  //1
+    31, 2, 0,44, 7, 2,45,44,43, 2,45, 0, 7, 2,45,44,  //2
+     8, 2, 0,44,38, 2,45,44,53, 2,38,44,38, 2,45,44,  //3
+    48,25, 0,57,38,25,36,57,40,25,36, 0,30,25,36,57,  //4
+    12,25, 0,57,38,25,36,57,16,25,38,57,38,25,36,57,  //5
+    49, 1, 0,47,38, 1,46,47,42, 1,46, 0,30, 1,46,47,  //6
+    13, 1, 0,47,38, 1,46,47,55, 1,38,47,38, 1,46,47,  //7
+    38,58, 0,50,60,58,59,50,24, 0,64, 0,60,58,59,50,  //8
+     4,58, 0, 0,60,58,59,50,66,58,65, 0, 0,58, 0, 0,  //9
+    35,33,34,32,35,33,34,32,62,33,61, 0,35,33,34,32,  //A
+     5,33, 0,32,35,33,34,32,17,33,63, 0,35,33,34,32,  //B
+    20,18, 0,21,20,18,22,21,28,18,23, 0,20,18,22,21,  //C
+     9,18, 0,21,38,18,22,21,15,18,38,21,38,18,22,21,  //D
+    19,52, 0,29,19,52,26,29,27,52,37,51,19,52,26,29,  //E
+     6,52, 0,29,38,52,26,29,54,52,38,29,38,52,26,29,  //F
+};
+
+static const int cycles[] {
+    2,2,2,0,0,0,0,4,3,0,1,2,2,  //read
+    2,3,3,0,0,0,0,4,4,0,1,2,2,  //write
+    4,5,5,0,0,0,0,0,0,0,3,4,4,  //read modify write
+};
 
 static inline bool getBit(uint8_t, int);
 static inline uint8_t getPswByte(bool *);
 static inline void getPswFromByte(bool * PS, uint8_t byte);
-static inline int addressCycles(enum AddressMode, enum InstructionType);
 static void printByte(uint8_t);
 static int debugPrintVal(enum AddressMode, int, int);
 static void printDebugLine(uint16_t, uint8_t, uint8_t, uint8_t, enum AddressMode, 
@@ -86,7 +95,9 @@ CPU::CPU() {
     X  = 0x0;
     Y  = 0x0;
 
-    NMI = false;
+    NMI = false;    
+
+    PS[I] = true;
 
     return;
 }
@@ -136,10 +147,6 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         return cyc;
     }
 
-    //page boundy cross?
-    bool pass;
-    pass = false;
-
     //get addressing mode for current opcode
     enum AddressMode opAddressMode;
     opAddressMode = addressModes[nes->getCpuByte(PC)];
@@ -150,13 +157,19 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
     iByte2 = nes->getCpuByte(PC + 1);
     iByte3 = nes->getCpuByte(PC + 2);
 
+    //page boundy cross?
+    bool pass;
+    pass = false;
+
     //get address if applicable to instruction
-    uint16_t address;
-    address = nes->retrieveCpuAddress(opAddressMode, &pass, iByte2, iByte3);
+    uint16_t address = 0;
+    if (opAddressMode != ACC && opAddressMode != IMM && opAddressMode != REL && opAddressMode != IMP) {
+        address = nes->retrieveCpuAddress(opAddressMode, &pass, iByte2, iByte3);
+    }
 
     //get byte from memory if applicable to address mode
     uint8_t memoryByte;
-    if (addressModes[nes->getCpuByte(PC)] == IMM) {
+    if (opAddressMode == IMM) {
         memoryByte = iByte2;
     } else {
         memoryByte = nes->getCpuByte(address);
@@ -175,14 +188,13 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         //ADC
         case 0x69: case 0x65: case 0x75: case 0x6D: case 0x7D: case 0x79: case 0x61: case 0x71: {
-            cyc += addressCycles(opAddressMode, READ);
+            cyc += cycles[READ * 13 + opAddressMode];
+
             if (pass) cyc++;
             uint16_t total;
             total = A + memoryByte + PS[C];
-            int8_t num1, num2;
-            num1 = (int8_t) A;
-            num2 = (int8_t) memoryByte;
-            PS[V] = (num1 + num2 + PS[C] < -128 || num1 + num2 + PS[C] > 127);  
+            PS[V] = (((int8_t) A) + ((int8_t) memoryByte) + PS[C] < -128
+                || ((int8_t) A) + ((int8_t) memoryByte) + PS[C] > 127);  
             PS[C] = (total > 255) ? true : false;
             A = total & 0xFF;
             PS[Z] = (A == 0) ? true : false;
@@ -192,7 +204,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         //AND
         case 0x29: case 0x25: case 0x35: case 0x2D: case 0x3D: case 0x39: case 0x21: case 0x31: 
-        cyc += addressCycles(opAddressMode, READ);
+        cyc += cycles[READ * 13 + opAddressMode];
         if (pass) cyc++;
         A = A & memoryByte;
         PS[N] = getBit(A, 7);
@@ -201,7 +213,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         //ASL
         case 0x0A: case 0x06: case 0x16: case 0x0E: case 0x1E: {
-            cyc += addressCycles(opAddressMode, READ_MODIFY_WRITE);
+            cyc += cycles[READ_MODIFY_WRITE * 13 + opAddressMode];
             if (opcode == 0x0A) {
                 PS[C] = getBit(A, 7);
                 A = ((A << 1) & 0xFE);
@@ -248,7 +260,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         
         //BIT
         case 0x24: case 0x2C: {
-            cyc += addressCycles(opAddressMode, READ);
+            cyc += cycles[READ * 13 + opAddressMode];
             if (pass) cyc++;
             uint8_t num;
             num = A & memoryByte;
@@ -352,7 +364,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         //CMP
         case 0xC9: case 0xC5: case 0xD5: case 0xCD: case 0xDD: case 0xD9: case 0xC1: case 0xD1: {
-            cyc += addressCycles(opAddressMode, READ);
+            cyc += cycles[READ * 13 + opAddressMode];
             if (pass) cyc++;
             int num;
             num = A - memoryByte;
@@ -394,7 +406,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         //DCP
         case 0xC3: case 0xD3: case 0xC7: case 0xD7: case 0xCF: case 0xDF: case 0xDB: {
-            cyc += addressCycles(opAddressMode, WRITE) + 2;
+            cyc += cycles[WRITE * 13 + opAddressMode] + 2;;
             nes->setCpuByte(address, (nes->getCpuByte(address) - 1) & 0xFF);
             memoryByte = nes->getCpuByte(address);
             int num;
@@ -407,7 +419,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         //DEC
         case 0xC6: case 0xD6: case 0xCE: case 0xDE: 
-        cyc += addressCycles(opAddressMode, READ_MODIFY_WRITE);
+        cyc += cycles[READ_MODIFY_WRITE * 13 + opAddressMode];
         nes->setCpuByte(address, ((nes->getCpuByte(address) - 1) & 0xFF));
         PS[N] = getBit(nes->getCpuByte(address), 7);
         PS[Z] = (nes->getCpuByte(address) == 0) ? true : false;
@@ -427,7 +439,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         
         //EOR
         case 0x49: case 0x45: case 0x55: case 0x4D: case 0x5D: case 0x59: case 0x41: case 0x51: 
-        cyc += addressCycles(opAddressMode, READ);
+        cyc += cycles[READ * 13 + opAddressMode];
         if (pass) cyc++;
         A = A ^ memoryByte;
         PS[N] = getBit(A, 7);
@@ -436,7 +448,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         
         //INC
         case 0xE6: case 0xF6: case 0xEE: case 0xFE: 
-        cyc += addressCycles(opAddressMode, READ_MODIFY_WRITE);
+        cyc += cycles[READ_MODIFY_WRITE * 13 + opAddressMode];
         nes->setCpuByte(address, ((nes->getCpuByte(address) + 1) & 0xFF));
         PS[N] = getBit(nes->getCpuByte(address), 7);
         PS[Z] = (nes->getCpuByte(address) == 0) ? true : false;
@@ -456,15 +468,12 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         //ISB
         case 0xE3: case 0xE7: case 0xF7: case 0xFB: case 0xEF: case 0xFF: case 0xF3: {     
-            cyc += addressCycles(opAddressMode, WRITE) + 2;   
+            cyc += cycles[WRITE * 13 + opAddressMode] + 2;;   
             nes->setCpuByte(address, (nes->getCpuByte(address) + 1) & 0xFF);
             memoryByte = nes->getCpuByte(address);
             int total;
             total = A - memoryByte - (!PS[C]);
-            int8_t num1, num2;
-            num1 = (int8_t) A;
-            num2 = (int8_t) memoryByte;
-            PS[V] = (num1 - num2 - (!PS[C]) < -128 || num1 - num2 - (!PS[C]) > 127);
+            PS[V] = (((int8_t) A) - ((int8_t) memoryByte) - (!PS[C]) < -128 || ((int8_t) A) - ((int8_t) memoryByte) - (!PS[C]) > 127);
             A = total & 0xFF;
             PS[C] = (total >= 0) ? true : false;
             PS[N] = getBit(total, 7);
@@ -501,7 +510,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         //LAX
         case 0xA3: case 0xA7: case 0xAF: case 0xB3: case 0xB7: case 0xBF:  
-        cyc += addressCycles(opAddressMode, READ);
+        cyc += cycles[READ * 13 + opAddressMode];
         if (pass) cyc++;    
         A = memoryByte;
         X = memoryByte;
@@ -511,7 +520,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         
         //LDA
         case 0xA9: case 0xA5: case 0xB5: case 0xAD: case 0xBD: case 0xB9: case 0xA1: case 0xB1: 
-        cyc += addressCycles(opAddressMode, READ);
+        cyc += cycles[READ * 13 + opAddressMode];
         if (pass) cyc++;
         A = memoryByte;
         PS[N] = getBit(A, 7);
@@ -520,7 +529,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         
         //LDX
         case 0xA2: case 0xA6: case 0xB6: case 0xAE: case 0xBE: 
-        cyc += addressCycles(opAddressMode, READ);
+        cyc += cycles[READ * 13 + opAddressMode];
         if (pass) cyc++;
         X = memoryByte;
         PS[N] = getBit(X, 7);
@@ -529,7 +538,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         
         //LDY
         case 0xA0: case 0xA4: case 0xB4: case 0xAC: case 0xBC: 
-        cyc += addressCycles(opAddressMode, READ);
+        cyc += cycles[READ * 13 + opAddressMode];
         if (pass) cyc++;
         Y = memoryByte;
         PS[N] = getBit(Y, 7);
@@ -538,7 +547,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         //LSR
         case 0x4A: case 0x46: case 0x56: case 0x4E: case 0x5E: {
-            cyc += addressCycles(opAddressMode, READ_MODIFY_WRITE);
+            cyc += cycles[READ_MODIFY_WRITE * 13 + opAddressMode];
             PS[N] = 0;
             if (opcode == 0x4A) {
                 PS[C] = getBit(A, 0);
@@ -556,13 +565,13 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         case 0x04: case 0x44: case 0x64: case 0x0C: case 0x14: case 0x34: case 0x54: case 0x74:
         case 0xD4: case 0xF4: case 0x1A: case 0x3A: case 0x5A: case 0x7A: case 0xDA: case 0xFA:
         case 0x80: case 0x1C: case 0x3C: case 0x5C: case 0x7C: case 0xDC: case 0xFC: case 0xEA:  
-        cyc += addressCycles(opAddressMode, READ);
+        cyc += cycles[READ * 13 + opAddressMode];
         if (pass) cyc++;               
         break;
         
         //ORA
         case 0x09: case 0x05: case 0x15: case 0x0D: case 0x1D: case 0x19: case 0x01: case 0x11: 
-        cyc += addressCycles(opAddressMode, READ);
+        cyc += cycles[READ * 13 + opAddressMode];
         if (pass) cyc++;
         A = (A | memoryByte);
         PS[N] = getBit(A, 7);
@@ -602,7 +611,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         
         //RLA
         case 0x23: case 0x27: case 0x2F: case 0x33: case 0x37: case 0x3B: case 0x3F: {
-            cyc += addressCycles(opAddressMode, WRITE) + 2;
+            cyc += cycles[WRITE * 13 + opAddressMode] + 2;;
             bool store;
             store = getBit(nes->getCpuByte(address), 7);
             nes->setCpuByte(address, (nes->getCpuByte(address) << 1) & 0xFE);
@@ -616,7 +625,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         //ROL
         case 0x2A: case 0x26: case 0x36: case 0x2E: case 0x3E: {
-            cyc += addressCycles(opAddressMode, READ_MODIFY_WRITE);
+            cyc += cycles[READ_MODIFY_WRITE * 13 + opAddressMode];
             bool store;
             if (opcode == 0x2A) {
                 store = getBit(A, 7);
@@ -637,7 +646,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         //ROR
         case 0x6A: case 0x66: case 0x76: case 0x6E: case 0x7E: {
-            cyc += addressCycles(opAddressMode, READ_MODIFY_WRITE);
+            cyc += cycles[READ_MODIFY_WRITE * 13 + opAddressMode];
             bool store;
             if (opcode == 0x6A) {
                 store = getBit(A, 0);
@@ -658,7 +667,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         //RRA
         case 0x63: case 0x67: case 0x6F: case 0x73: case 0x77: case 0x7B: case 0x7F: {
-            cyc += addressCycles(opAddressMode, WRITE) + 2;
+            cyc += cycles[WRITE * 13 + opAddressMode] + 2;;
             bool store;
             store = getBit(nes->getCpuByte(address), 0);
             nes->setCpuByte(address, (nes->getCpuByte(address) >> 1) & 0x7F);
@@ -668,10 +677,8 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
             memByte = nes->getCpuByte(address);
             uint16_t total;
             total = A + memByte + PS[C];
-            int8_t num1, num2;
-            num1 = (int8_t) A;
-            num2 = (int8_t) memByte;
-            PS[V] = (num1 + num2 + PS[C] < -128 || num1 + num2 + PS[C] > 127);
+            PS[V] = (((int8_t) A) + ((int8_t) memByte) + PS[C] < -128 
+                || ((int8_t) A) + ((int8_t) memByte) + PS[C] > 127);
             PS[C] = (total > 255) ? true : false;
             A = total & 0xFF;
             PS[Z] = (A == 0) ? true : false;
@@ -719,14 +726,12 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         //SBC
         case 0xE9: case 0xE5: case 0xF5: case 0xED: case 0xFD: case 0xF9: case 0xE1: case 0xF1: case 0xEB: {
-            cyc += addressCycles(opAddressMode, READ);
+            cyc += cycles[READ * 13 + opAddressMode];
             if (pass) cyc++;
             int total;
             total = A - memoryByte - (!PS[C]);
-            int8_t num1, num2;
-            num1 = (int8_t) A;
-            num2 = (int8_t) memoryByte;
-            PS[V] = (num1 - num2 - (!PS[C]) < -128 || num1 - num2 - (!PS[C]) > 127);
+            PS[V] = (((int8_t) A) - ((int8_t) memoryByte) - (!PS[C]) < -128 
+                || ((int8_t) A) - ((int8_t) memoryByte) - (!PS[C]) > 127);
             A = total & 0xFF;
             PS[C] = (total >= 0) ? true : false;
             PS[N] = getBit(total, 7);
@@ -748,13 +753,13 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         
         //SAX
         case 0x83: case 0x87: case 0x97: case 0x8F:
-        cyc += addressCycles(opAddressMode, WRITE);          
+        cyc += cycles[WRITE * 13 + opAddressMode];          
         nes->setCpuByte(address, A & X);
         break;
         
         //*SLO
         case 0x03: case 0x07: case 0x0F: case 0x13: case 0x17: case 0x1B: case 0x1F: 
-        cyc += addressCycles(opAddressMode, WRITE) + 2;
+        cyc += cycles[WRITE * 13 + opAddressMode] + 2;;
         PS[C] = getBit(nes->getCpuByte(address), 7);
         nes->setCpuByte(address, ((nes->getCpuByte(address) << 1) & 0xFE));
         A |= nes->getCpuByte(address);
@@ -764,8 +769,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         //SRE
         case 0x43: case 0x47: case 0x4F: case 0x53: case 0x57: case 0x5B: case 0x5F: 
-        cyc += addressCycles(opAddressMode, WRITE) + 2;
-        PS[N] = 0;
+        cyc += cycles[WRITE * 13 + opAddressMode] + 2;;
         PS[C] = getBit(nes->getCpuByte(address), 0);
         nes->setCpuByte(address, (nes->getCpuByte(address) >> 1) & 0x7F);
         A ^= nes->getCpuByte(address);
@@ -775,19 +779,19 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         //STA
         case 0x85: case 0x95: case 0x8D: case 0x9D: case 0x99: case 0x81: case 0x91: 
-        cyc += addressCycles(opAddressMode, WRITE);
+        cyc += cycles[WRITE * 13 + opAddressMode];
         nes->setCpuByte(address, A);
         break;
         
         //STX
         case 0x86: case 0x96: case 0x8E: 
-        cyc += addressCycles(opAddressMode, WRITE);
+        cyc += cycles[WRITE * 13 + opAddressMode];
         nes->setCpuByte(address, X);
         break;
 
         //STY
         case 0x84: case 0x94: case 0x8C: 
-        cyc += addressCycles(opAddressMode, WRITE);
+        cyc += cycles[WRITE * 13 + opAddressMode];
         nes->setCpuByte(address, Y);
         break;
 
@@ -855,17 +859,15 @@ static inline bool getBit(uint8_t num, int bitNum) {
     }
 }
 
-
 static inline uint8_t getPswByte(bool * PS) {
     uint8_t P;
-    P = 0;
+    P = 0x20;
     if (PS[C]) P |= 0x1;
     if (PS[Z]) P |= 0x2;
     if (PS[I]) P |= 0x4;
     if (PS[D]) P |= 0x8;
     if (PS[V]) P |= 0x40;
     if (PS[N]) P |= 0x80;
-    P |= 0x20;
     return P;
 }
 
@@ -877,75 +879,6 @@ static inline void getPswFromByte(bool * PS, uint8_t byte) {
     PS[Z] = getBit(byte, 1);
     PS[C] = getBit(byte, 0);
     return;
-}
-
-static inline int addressCycles(enum AddressMode mode, enum InstructionType type) {
-
-    switch (type) {
-        case READ: {
-
-            switch (mode) {
-
-                case ZRP:
-                return 1;
-
-                case ABS: case ABSX: case ABSY: case ZRPX: case ZRPY:
-                return 2;
-
-                case INDY:
-                return 3;
-
-                case INDX:
-                return 4;
-
-                default:
-                return 0;
-            }
-        }
-
-        case READ_MODIFY_WRITE: {
-
-            switch (mode) {
-
-                case ZRP:
-                return 3;
-
-                case ABS: case ZRPX: case ZRPY:
-                return 4;
-
-                case ABSX:
-                case ABSY:
-                return 5;
-
-                default:
-                return 0;
-            }
-        }
-
-        case WRITE: {
-
-            switch (mode) {
-
-                case ZRP:
-                return 1;
-
-                case ZRPX: case ZRPY: case ABS:
-                return 2;
-
-                case ABSX: case ABSY:
-                return 3;
-
-                case INDX: case INDY:
-                return 4;
-
-                default:
-                return 0;
-            }
-        }
-        
-        default:
-        return 0;
-    }
 }
 
 //debugging
@@ -1132,6 +1065,7 @@ static void printDebugLine(uint16_t address, uint8_t opcode, uint8_t iByte2, uin
     }
     std::cout << std::dec << count;
 
+    /*
     std::cout << " SL:";
 
     if (scanLines < 10) {
@@ -1140,6 +1074,7 @@ static void printDebugLine(uint16_t address, uint8_t opcode, uint8_t iByte2, uin
         std::cout << " ";
     }
     std::cout << std::dec << scanLines;
+    */
 
     return;
 

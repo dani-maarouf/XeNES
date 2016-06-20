@@ -13,25 +13,25 @@ enum ProcessorStatusIndex {
 };
 
 enum AddressMode {
-    ABS,    //absolute
-    ABSX,   //absolute indexed x
-    ABSY,   //absolute indexed y
-    ACC,    //accumulator
-    IMM,    //immediate
-    IMP,    //implied
-    IND,    //indirect
-    INDX,   //indexed indirect
-    INDY,   //indirect indexed
-    REL,    //relative
-    ZRP,    //zero-page
-    ZRPX,   //zero-page indexed x
-    ZRPY,   //zero-page indexed y
+    ABS  = 0,    //absolute
+    ABSX = 1,   //absolute indexed x
+    ABSY = 2,   //absolute indexed y
+    ACC  = 3,    //accumulator
+    IMM  = 4,    //immediate
+    IMP  = 5,    //implied
+    IND  = 6,    //indirect
+    INDX = 7,   //indexed indirect
+    INDY = 8,   //indirect indexed
+    REL  = 9,    //relative
+    ZRP  =10,    //zero-page
+    ZRPX =11,   //zero-page indexed x
+    ZRPY =12,   //zero-page indexed y
     NONE,
 };
 
-struct NES;      //forward decleration of outer NES class to allow pointer to be passed to executeNextOpcode()
+class NES;      //forward decleration of outer NES class to allow pointer to be passed to executeNextOpcode()
 
-struct CPU {
+class CPU {
 
 private:
     
@@ -46,6 +46,7 @@ public:
     uint16_t PC;        //program counter
     uint8_t X;          //register X
     uint8_t Y;          //register Y
+
     
     uint8_t RAM[0x800];         //2kB CPU RAM
     uint8_t * PRG_ROM;          //cartridge program ROM
