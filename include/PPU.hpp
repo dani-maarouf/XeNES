@@ -19,6 +19,15 @@ class PPU {
 
 private:
 
+    int nametableOffset;
+    int vramInc;
+    int spriteTableOffset;
+    int backgroundTableOffset;
+    bool extendedSprites;
+    bool ppuMaster;
+    bool generateNMI;
+
+
     uint8_t palette[0x20];      
     uint8_t VRAM[0x800];                    //2kB PPU internal RAM
     uint8_t OAM[0x100];                     //256 byte PPU OAM
@@ -47,7 +56,11 @@ public:
     bool readToRAM;             //CPU has written byte to 0x2007 in CPU address space
     bool readToOAM;             //CPU has written byte to 0x4014 in CPU address space
 
+    bool setCtrl;
+
     bool usesRAM;               //true if CHR_RAM is used rather than CHR_ROM
+
+
 
     uint8_t ppuRegisters[0x8];  //PPU registers
     enum Mirroring mirroring;   //nametable arrangement

@@ -53,6 +53,14 @@ PPU::PPU() {
     readToRAM = false;
     readToOAM = false;
 
+    nametableOffset = 0;
+    vramInc = 1;
+    spriteTableOffset = 0;
+    backgroundTableOffset = 0;
+    extendedSprites = false;
+    ppuMaster = false;
+    generateNMI = false;
+
     return;
 }
 
@@ -230,23 +238,18 @@ void PPU::drawSprites() {
 
 void PPU::tick(NES * nes) {
 
+    if (setCtrl) {
     /* PPUCTRL */   //this can be set in setCpuByte
-    int nametableOffset;
-    nametableOffset = (ppuRegisters[0] & 0x03) * 0x400;
-    int vramInc;
-    vramInc = (ppuRegisters[0] & 0x04) ? 32 : 1;
-    int spriteTableOffset;
-    spriteTableOffset = (ppuRegisters[0] & 0x8) ? 0x1000 : 0x0;
-    int backgroundTableOffset;
-    backgroundTableOffset = (ppuRegisters[0] & 0x10) ? 0x1000 : 0x0;
-    bool extendedSprites;
-    extendedSprites = (ppuRegisters[0] & 0x20) ? true : false;
-    bool ppuMaster;
-    ppuMaster = (ppuRegisters[0] & 0x40) ? true : false;
-    bool generateNMI;
-    generateNMI = (ppuRegisters[0] & 0x80) ? true : false;
+        nametableOffset = (ppuRegisters[0] & 0x03) * 0x400;
+        vramInc = (ppuRegisters[0] & 0x04) ? 32 : 1;
+        spriteTableOffset = (ppuRegisters[0] & 0x8) ? 0x1000 : 0x0;
+        backgroundTableOffset = (ppuRegisters[0] & 0x10) ? 0x1000 : 0x0;
+        extendedSprites = (ppuRegisters[0] & 0x20) ? true : false;
+        ppuMaster = (ppuRegisters[0] & 0x40) ? true : false;
+        generateNMI = (ppuRegisters[0] & 0x80) ? true : false;
 
-
+        setCtrl = false;
+    }
 
     if (getVramAddress) {
         if (readLower) {
@@ -281,47 +284,10 @@ void PPU::tick(NES * nes) {
 
 
 
-
+    ppuRegisters[2] &= 0xBF;
 
     if (scanline > 240 && scanline <= 261) {
         ppuRegisters[2] |= 0x80;
-
-
-        if (scanline == 261) {
-
-            if (ppuCycle == 340) {
-
-                //prepare secondary OAM for next scanline
-
-                for (int x = 0; x < 32; x++) {
-                    secondaryOAM[x] = 0;
-                }
-
-                secondaryOamAddress = 0;
-
-                for (int x = 0; x < 64; x++) {
-                    int yPos;
-                    yPos = OAM[x * 4];
-                    if (((scanline + 1) % 262) - yPos < 8 && ((scanline + 1) % 262) - yPos >= 0) {
-                        secondaryOAM[secondaryOamAddress * 4] = yPos;
-                        secondaryOAM[secondaryOamAddress * 4 + 1] = OAM[x * 4 + 1];
-                        secondaryOAM[secondaryOamAddress * 4 + 2] = OAM[x * 4 + 2];
-                        secondaryOAM[secondaryOamAddress * 4 + 3] = OAM[x * 4 + 3];
-
-                        secondaryOamAddress++;
-
-
-
-                        if (secondaryOamAddress > 7) {
-                            break;
-                        }
-
-                    }
-                }
-            }
-
-        }
-
 
     } else if (scanline >= 0 && scanline < 240) {
         ppuRegisters[2] &= 0x7F;
@@ -443,6 +409,14 @@ void PPU::tick(NES * nes) {
                 }
 
                 if (number == 0) {
+
+                    if (num == 0) {
+                        //sprite zero hit
+
+                        ppuRegisters[2] |= 0x40;
+
+                    }
+
                     continue;
                 }
 
@@ -452,37 +426,6 @@ void PPU::tick(NES * nes) {
 
 
 
-            }
-
-
-        } else if (ppuCycle == 340) {
-
-            //prepare secondary OAM for next scanline
-
-            for (int x = 0; x < 32; x++) {
-                secondaryOAM[x] = 0;
-            }
-
-            secondaryOamAddress = 0;
-
-            for (int x = 0; x < 64; x++) {
-                int yPos;
-                yPos = OAM[x * 4];
-                if ((scanline + 1) - yPos < 8 && (scanline + 1) - yPos >= 0) {
-                    secondaryOAM[secondaryOamAddress * 4] = yPos;
-                    secondaryOAM[secondaryOamAddress * 4 + 1] = OAM[x * 4 + 1];
-                    secondaryOAM[secondaryOamAddress * 4 + 2] = OAM[x * 4 + 2];
-                    secondaryOAM[secondaryOamAddress * 4 + 3] = OAM[x * 4 + 3];
-
-                    secondaryOamAddress++;
-
-
-
-                    if (secondaryOamAddress > 7) {
-                        break;
-                    }
-
-                }
             }
 
 
@@ -499,6 +442,36 @@ void PPU::tick(NES * nes) {
     } else {
         std::cout << "Error, invalid scanline " << scanline << std::endl;
     }
+
+    if (ppuCycle == 340) {
+
+        //prepare secondary OAM for next scanline
+        for (int x = 0; x < 32; x++) {
+            secondaryOAM[x] = 0;
+        }
+
+        secondaryOamAddress = 0;
+
+        for (int x = 0; x < 64; x++) {
+            int yPos;
+            yPos = OAM[x * 4];
+            if (((scanline + 1) % 262) - yPos < 8 && ((scanline + 1) % 262) - yPos >= 0) {
+                secondaryOAM[secondaryOamAddress * 4] = yPos;
+                secondaryOAM[secondaryOamAddress * 4 + 1] = OAM[x * 4 + 1];
+                secondaryOAM[secondaryOamAddress * 4 + 2] = OAM[x * 4 + 2];
+                secondaryOAM[secondaryOamAddress * 4 + 3] = OAM[x * 4 + 3];
+
+                secondaryOamAddress++;
+
+                if (secondaryOamAddress > 7) {
+                    break;
+                }
+
+            }
+        }
+    }
+
+
 
     draw = false;
     ppuCycle = (ppuCycle + 1) % 341;

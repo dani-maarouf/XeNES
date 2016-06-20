@@ -300,7 +300,7 @@ bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
         address = (memAddress - 0x2000) % 8;
 
         if (address == 0x0) {
-
+            nesPPU.setCtrl = true;
             nesPPU.ppuRegisters[0x2] |= (byte & 0x1F);
 
         } else if (address == 0x1) {
