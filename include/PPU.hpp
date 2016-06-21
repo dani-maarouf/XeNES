@@ -19,6 +19,8 @@ class PPU {
 
 private:
 
+    bool spriteZeroOnScanline;
+
     uint8_t xScrolling;
     uint8_t yScrolling;
 

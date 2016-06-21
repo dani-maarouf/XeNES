@@ -67,6 +67,8 @@ PPU::PPU() {
     xScrolling = 0;
     yScrolling = 0;
 
+    spriteZeroOnScanline = false;
+
     return;
 }
 
@@ -408,8 +410,6 @@ void PPU::tick(NES * nes) {
             }
 
             if (ppuRegisters[0x1] & 0x10) {
-
-
                 for (int i = 0; i < secondaryOamAddress; i++) {
 
                     int xPos;
@@ -461,19 +461,15 @@ void PPU::tick(NES * nes) {
                         number |= 0x2;
                     }
 
+                    if ((number != 0x0)) {
 
-                    if ((number != 0x0) && (num != 0x0) && ((secondaryOAM[i] == 0))) {
-
-                        if ((ppuRegisters[1] & 0x8) && (ppuRegisters[1] & 0x10)) {
-
-                            ppuRegisters[2] |= 0x40;
-
+                        if (secondaryOAM[i] == 0) {
+                            if ((ppuRegisters[1] & 0x8) && (ppuRegisters[1] & 0x10)) {
+                                spriteZeroOnScanline = true;
+                            }
                         }
-                        
-
-
                     }
-                    
+
                     if (number == 0x0) {
                         continue;
                     }    
@@ -531,6 +527,12 @@ void PPU::tick(NES * nes) {
     if (ppuCycle == 0) {
 
         scanline = (scanline + 1) % 262;
+
+        if (spriteZeroOnScanline) {
+            ppuRegisters[2] |= 0x40;
+            spriteZeroOnScanline = false;
+        }
+
         if (scanline == 0) {
             draw = true;
             evenFrame ^= true;
@@ -538,7 +540,7 @@ void PPU::tick(NES * nes) {
     }
 
     if (scanline == 200) {
-        std::cout << (int) xScrolling << std::endl;
+        //std::cout << (int) xScrolling << std::endl;
     }
 
     return;
