@@ -261,7 +261,12 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
     } else if (memAddress >= 0x8000 && memAddress <= 0xFFFF && nesCPU.numRomBanks == 2) {
         return nesCPU.PRG_ROM[memAddress - 0x8000];
     } else if (memAddress >= 0x2000 && memAddress < 0x4000) {
-        return nesPPU.ppuRegisters[ (memAddress - 0x2000) % 8 ];
+
+        uint16_t address;
+        address = (memAddress - 0x2000) % 8;
+
+        return nesPPU.ppuRegisters[address];
+
     } else if (memAddress >= 0x4000 && memAddress < 0x4020) {
 
         if (memAddress == 0x4016) {

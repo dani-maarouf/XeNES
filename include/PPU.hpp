@@ -19,6 +19,14 @@ class PPU {
 
 private:
 
+    //rendering
+    uint8_t attributeByte;
+    uint8_t spriteLayer1;
+    uint8_t spriteLayer2;
+    uint8_t spriteStart;
+    uint8_t paletteIndex;
+
+
     bool spriteZeroOnScanline;
 
     uint8_t xScrolling;
