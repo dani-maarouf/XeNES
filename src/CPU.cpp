@@ -141,6 +141,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         PC = nes->getCpuByte(0xFFFA) | (nes->getCpuByte(0xFFFB) << 8);
         cyc++;
+        cyc++;
 
         NMI = false;
         cpuCycle = (cpuCycle + 3 * cyc) % 341;
@@ -1065,7 +1066,7 @@ static void printDebugLine(uint16_t address, uint8_t opcode, uint8_t iByte2, uin
     }
     std::cout << std::dec << count;
 
-    /*
+    
     std::cout << " SL:";
 
     if (scanLines < 10) {
@@ -1074,7 +1075,7 @@ static void printDebugLine(uint16_t address, uint8_t opcode, uint8_t iByte2, uin
         std::cout << " ";
     }
     std::cout << std::dec << scanLines;
-    */
+    
 
     return;
 

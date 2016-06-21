@@ -50,7 +50,7 @@ void loop(NES nesSystem, const char * fileLoc) {
                     nesSystem.controllerByte |= 0x1;
                     break;
 
-                    case SDLK_RCTRL:    //B
+                    case SDLK_LCTRL:    //B
                     nesSystem.controllerByte |= 0x2;
                     break;
 
@@ -92,7 +92,7 @@ void loop(NES nesSystem, const char * fileLoc) {
                     nesSystem.controllerByte &= 0xFE;
                     break;
 
-                    case SDLK_RCTRL:    //B
+                    case SDLK_LCTRL:    //B
                     nesSystem.controllerByte &= 0xFD;
                     break;
 

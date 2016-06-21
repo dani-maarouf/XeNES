@@ -33,7 +33,7 @@ PPU::PPU() {
     for (int x = 0; x < 0x100; x++) OAM[x] = 0x0;
     for (int x = 0; x < (NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT); x++) pixels[x] = 0;
 
-    for (int x = 0; x < 32; x++) {
+    for (int x = 0; x < 8; x++) {
         secondaryOAM[x] = 0x0;
     }
 
@@ -290,21 +290,38 @@ void PPU::tick(NES * nes) {
         readToOAM = false;
     }
 
+
     if (readScroll) {
+
         if (scrollY) {
             yScrolling = ppuRegisters[0x5];
+
+            if (getBit(yScrolling, 7)) {
+                 ppuRegisters[0x0] |= 0x2;
+            }
+
             scrollY = false;
         } else {
             xScrolling = ppuRegisters[0x5];
+
+            if (getBit(xScrolling, 7)) {
+                 ppuRegisters[0x0] |= 0x1;
+            }
+
             scrollY = true;
         }
         readScroll = false;
     }
 
-    ppuRegisters[2] &= 0xBF;
+    
 
     if (scanline > 240 && scanline <= 261) {
         ppuRegisters[2] |= 0x80;
+
+        if (scanline == 261) {
+            ppuRegisters[2] &= 0xBF;
+        }
+
 
     } else if (scanline >= 0 && scanline < 240) {
         ppuRegisters[2] &= 0x7F;
@@ -328,7 +345,12 @@ void PPU::tick(NES * nes) {
                 tileX -= 32;
             }
 
-            tileY = ( scanline / 8);
+            tileY = ( (scanline + yScrolling) / 8);
+
+            if (tileY > 31) {
+                tableOverflow = 0x800;
+                tileY -= 32;
+            }
 
             nametableIndex = (tileY * 32 + tileX);
 
@@ -362,16 +384,16 @@ void PPU::tick(NES * nes) {
             int spriteStart;
             spriteStart = getPpuByte(0x2000 + nametableIndex + nametableOffset + tableOverflow);
 
-            uint8_t spriteLayer1 = getPpuByte(spriteStart * 16 + (scanline % 8) + backgroundTableOffset);
-            uint8_t spriteLayer2 = getPpuByte(spriteStart * 16 + (scanline % 8) + 8 + backgroundTableOffset);
+            uint8_t spriteLayer1 = getPpuByte(spriteStart * 16 + ((scanline + yScrolling) % 8) + backgroundTableOffset);
+            uint8_t spriteLayer2 = getPpuByte(spriteStart * 16 + ((scanline + yScrolling) % 8) + 8 + backgroundTableOffset);
 
             uint32_t colour;
             uint8_t num = 0;
 
-            if (getBit(spriteLayer1, 7 - ((ppuCycle - 1 + xScrolling) % 8 ))) {
+            if (getBit(spriteLayer1, 7 - ((ppuCycle - 1 + (xScrolling % 8)) % 8 ))) {
                 num |= 0x1;
             }
-            if (getBit(spriteLayer2, 7 - ((ppuCycle - 1 + xScrolling) % 8 ))) {
+            if (getBit(spriteLayer2, 7 - ((ppuCycle - 1 + (xScrolling % 8)) % 8 ))) {
                 num |= 0x2;
             }
 
@@ -381,73 +403,90 @@ void PPU::tick(NES * nes) {
                 colour = paletteTable[getPpuByte(0x3F00 + num + paletteIndex * 4)];
             }
 
-            pixels[pixelStart] = colour;
+            if (ppuRegisters[0x1] & 0x4) {
+                pixels[pixelStart] = colour;
+            }
 
-            for (int i = 0; i < secondaryOamAddress; i++) {
-
-                int xPos;
-                xPos = secondaryOAM[i * 4 + 3];
-
-                if (!( (ppuCycle - 1) - xPos < 8 && (ppuCycle - 1) - xPos >= 0 )) {
-                    continue;
-                }
-
-                uint8_t byte0, byte1, byte2;
-
-                byte0 = secondaryOAM[i * 4];
-                byte1 = secondaryOAM[(i * 4) + 1];
-                byte2 = secondaryOAM[(i * 4) + 2];
-
-                int paletteIndex2 = byte2 & 0x3;
-
-                bool flipHorizontal;
-                bool flipVertical;
-                flipHorizontal = (byte2 & 0x40) ? true : false;
-                flipVertical = (byte2 & 0x80) ? true : false;
-
-                int spriteRowNumber;
-
-                if (flipVertical) {
-                    spriteRowNumber = 7 -(scanline - byte0);
-                } else {
-                    spriteRowNumber = (scanline - byte0);
-                }
-
-                int spriteColumnNumber;
-
-                if (flipHorizontal) {
-                    spriteColumnNumber = ((ppuCycle - 1) - xPos);
-                } else {
-                    spriteColumnNumber = 7 - ((ppuCycle - 1) - xPos);
-                }
+            if (ppuRegisters[0x1] & 0x10) {
 
 
-                uint8_t spriteLayer3 = getPpuByte(byte1 * 16 + spriteRowNumber + spriteTableOffset);
-                uint8_t spriteLayer4 = getPpuByte(byte1 * 16 + spriteRowNumber + 8 + spriteTableOffset);
+                for (int i = 0; i < secondaryOamAddress; i++) {
 
-                uint8_t number = 0; 
+                    int xPos;
+                    xPos = OAM[secondaryOAM[i] + 3];
 
-                if (getBit(spriteLayer3, spriteColumnNumber)) {
-                    number |= 0x1;
-                }
-                if (getBit(spriteLayer4, spriteColumnNumber)) {
-                    number |= 0x2;
-                }
-
-                if (number == 0) {
-                    if (num == 0) {
-                        //sprite zero hit
-                        ppuRegisters[2] |= 0x40;
+                    if (!( (ppuCycle - 1) - xPos < 8 && (ppuCycle - 1) - xPos >= 0 )) {
+                        continue;
                     }
-                    continue;
-                }
 
-                uint32_t newColour;
-                newColour = paletteTable[getPpuByte(0x3F10 + number + paletteIndex2 * 4)];
-                pixels[pixelStart] = newColour;
+                    uint8_t byte0, byte1, byte2;
+
+                    byte0 = OAM[secondaryOAM[i]];
+                    byte1 = OAM[secondaryOAM[i] + 1];
+                    byte2 = OAM[secondaryOAM[i] + 2];
+
+                    int paletteIndex2 = byte2 & 0x3;
+
+                    bool flipHorizontal;
+                    bool flipVertical;
+                    flipHorizontal = (byte2 & 0x40) ? true : false;
+                    flipVertical = (byte2 & 0x80) ? true : false;
+
+                    int spriteRowNumber;
+
+                    if (flipVertical) {
+                        spriteRowNumber = 7 -(scanline - byte0);
+                    } else {
+                        spriteRowNumber = (scanline - byte0);
+                    }
+
+                    int spriteColumnNumber;
+
+                    if (flipHorizontal) {
+                        spriteColumnNumber = ((ppuCycle - 1) - xPos);
+                    } else {
+                        spriteColumnNumber = 7 - ((ppuCycle - 1) - xPos);
+                    }
+
+
+                    uint8_t spriteLayer3 = getPpuByte(byte1 * 16 + spriteRowNumber + spriteTableOffset);
+                    uint8_t spriteLayer4 = getPpuByte(byte1 * 16 + spriteRowNumber + 8 + spriteTableOffset);
+
+                    uint8_t number = 0; 
+
+                    if (getBit(spriteLayer3, spriteColumnNumber)) {
+                        number |= 0x1;
+                    }
+                    if (getBit(spriteLayer4, spriteColumnNumber)) {
+                        number |= 0x2;
+                    }
+
+
+                    if ((number != 0x0) && (num != 0x0) && ((secondaryOAM[i] == 0))) {
+
+                        if ((ppuRegisters[1] & 0x8) && (ppuRegisters[1] & 0x10)) {
+
+                            ppuRegisters[2] |= 0x40;
+
+                        }
+                        
+
+
+                    }
+                    
+                    if (number == 0x0) {
+                        continue;
+                    }    
+
+                    uint32_t newColour;
+                    newColour = paletteTable[getPpuByte(0x3F10 + number + paletteIndex2 * 4)];
+
+                    if (((byte2 & 0x20) == 0) || num == 0) {
+                        pixels[pixelStart] = newColour;
+                    }
+                }
             }
         }
-
     } else if (scanline == 240) {
 
         if (ppuCycle == 340) {
@@ -463,7 +502,7 @@ void PPU::tick(NES * nes) {
     if (ppuCycle == 340) {
 
         //prepare secondary OAM for next scanline
-        for (int x = 0; x < 32; x++) {
+        for (int x = 0; x < 8; x++) {
             secondaryOAM[x] = 0;
         }
 
@@ -473,10 +512,8 @@ void PPU::tick(NES * nes) {
             int yPos;
             yPos = OAM[x * 4];
             if (((scanline + 1) % 262) - yPos < 8 && ((scanline + 1) % 262) - yPos >= 0) {
-                secondaryOAM[secondaryOamAddress * 4] = yPos;
-                secondaryOAM[secondaryOamAddress * 4 + 1] = OAM[x * 4 + 1];
-                secondaryOAM[secondaryOamAddress * 4 + 2] = OAM[x * 4 + 2];
-                secondaryOAM[secondaryOamAddress * 4 + 3] = OAM[x * 4 + 3];
+
+                secondaryOAM[secondaryOamAddress] = x * 4;
 
                 secondaryOamAddress++;
 
@@ -492,11 +529,16 @@ void PPU::tick(NES * nes) {
     ppuCycle = (ppuCycle + 1) % 341;
 
     if (ppuCycle == 0) {
+
         scanline = (scanline + 1) % 262;
         if (scanline == 0) {
             draw = true;
             evenFrame ^= true;
         }
+    }
+
+    if (scanline == 200) {
+        std::cout << (int) xScrolling << std::endl;
     }
 
     return;

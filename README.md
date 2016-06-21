@@ -4,7 +4,7 @@
 | NES  | Keyboard |
 |------|----------|
 |A     | SPACE    |
-|B     | RCTRL    |
+|B     | LCTRL    |
 |Up    | w        |
 |Down  | s        |
 |Left  | a        |
@@ -15,6 +15,10 @@
 ## Semi-playable games
 
 Donkey Kong
+
+Spelunker
+
+Balloon fight
 
 Donkey Kong Jr.
 
