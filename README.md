@@ -12,6 +12,14 @@
 |Start | x        |
 |Select| c        |
 
+## Usage
+
+#### Linux:
+
+Run `make` to compile program
+
+Use program by running `./nes ROM` 
+
 ## Semi-playable games
 
 Super Mario Bros
