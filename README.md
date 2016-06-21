@@ -52,12 +52,12 @@ Passes nestest.log
 
 ## Next steps
 
-Continue adding hardware features necessary to play more games (eg. scrolling)
+Add support for more mappers
+
+Continue adding hardware features necessary to play more games
 
 Add audio
 
 Improve performance
-
-Add support for more mappers
 
 Easier multiplatform build

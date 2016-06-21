@@ -405,82 +405,80 @@ void PPU::tick(NES * nes) {
                 colour = paletteTable[getPpuByte(0x3F00 + num + paletteIndex * 4)];
             }
 
-            if (ppuRegisters[0x1] & 0x4) {
-                pixels[pixelStart] = colour;
-            }
+            pixels[pixelStart] = colour;
 
-            if (ppuRegisters[0x1] & 0x10) {
-                for (int i = 0; i < secondaryOamAddress; i++) {
+            
+            for (int i = 0; i < secondaryOamAddress; i++) {
 
-                    int xPos;
-                    xPos = OAM[secondaryOAM[i] + 3];
+                int xPos;
+                xPos = OAM[secondaryOAM[i] + 3];
 
-                    if (!( (ppuCycle - 1) - xPos < 8 && (ppuCycle - 1) - xPos >= 0 )) {
-                        continue;
-                    }
+                if (!( (ppuCycle - 1) - xPos < 8 && (ppuCycle - 1) - xPos >= 0 )) {
+                    continue;
+                }
 
-                    uint8_t byte0, byte1, byte2;
+                uint8_t byte0, byte1, byte2;
 
-                    byte0 = OAM[secondaryOAM[i]];
-                    byte1 = OAM[secondaryOAM[i] + 1];
-                    byte2 = OAM[secondaryOAM[i] + 2];
+                byte0 = OAM[secondaryOAM[i]];
+                byte1 = OAM[secondaryOAM[i] + 1];
+                byte2 = OAM[secondaryOAM[i] + 2];
 
-                    int paletteIndex2 = byte2 & 0x3;
+                int paletteIndex2 = byte2 & 0x3;
 
-                    bool flipHorizontal;
-                    bool flipVertical;
-                    flipHorizontal = (byte2 & 0x40) ? true : false;
-                    flipVertical = (byte2 & 0x80) ? true : false;
+                bool flipHorizontal;
+                bool flipVertical;
+                flipHorizontal = (byte2 & 0x40) ? true : false;
+                flipVertical = (byte2 & 0x80) ? true : false;
 
-                    int spriteRowNumber;
+                int spriteRowNumber;
 
-                    if (flipVertical) {
-                        spriteRowNumber = 7 -(scanline - byte0);
-                    } else {
-                        spriteRowNumber = (scanline - byte0);
-                    }
+                if (flipVertical) {
+                    spriteRowNumber = 7 -(scanline - byte0);
+                } else {
+                    spriteRowNumber = (scanline - byte0);
+                }
 
-                    int spriteColumnNumber;
+                int spriteColumnNumber;
 
-                    if (flipHorizontal) {
-                        spriteColumnNumber = ((ppuCycle - 1) - xPos);
-                    } else {
-                        spriteColumnNumber = 7 - ((ppuCycle - 1) - xPos);
-                    }
+                if (flipHorizontal) {
+                    spriteColumnNumber = ((ppuCycle - 1) - xPos);
+                } else {
+                    spriteColumnNumber = 7 - ((ppuCycle - 1) - xPos);
+                }
 
 
-                    uint8_t spriteLayer3 = getPpuByte(byte1 * 16 + spriteRowNumber + spriteTableOffset);
-                    uint8_t spriteLayer4 = getPpuByte(byte1 * 16 + spriteRowNumber + 8 + spriteTableOffset);
+                uint8_t spriteLayer3 = getPpuByte(byte1 * 16 + spriteRowNumber + spriteTableOffset);
+                uint8_t spriteLayer4 = getPpuByte(byte1 * 16 + spriteRowNumber + 8 + spriteTableOffset);
 
-                    uint8_t number = 0; 
+                uint8_t number = 0; 
 
-                    if (getBit(spriteLayer3, spriteColumnNumber)) {
-                        number |= 0x1;
-                    }
-                    if (getBit(spriteLayer4, spriteColumnNumber)) {
-                        number |= 0x2;
-                    }
+                if (getBit(spriteLayer3, spriteColumnNumber)) {
+                    number |= 0x1;
+                }
+                if (getBit(spriteLayer4, spriteColumnNumber)) {
+                    number |= 0x2;
+                }
 
-                    if ((number != 0x0)) {
+                if ((number != 0x0)) {
 
-                        if (secondaryOAM[i] == 0) {
-                            if ((ppuRegisters[1] & 0x8) && (ppuRegisters[1] & 0x10)) {
-                                spriteZeroOnScanline = true;
-                            }
+                    if (secondaryOAM[i] == 0) {
+                        if ((ppuRegisters[1] & 0x8) && (ppuRegisters[1] & 0x10)) {
+                            spriteZeroOnScanline = true;
                         }
                     }
-
-                    if (number == 0x0) {
-                        continue;
-                    }    
-
-                    uint32_t newColour;
-                    newColour = paletteTable[getPpuByte(0x3F10 + number + paletteIndex2 * 4)];
-
-                    if (((byte2 & 0x20) == 0) || num == 0) {
-                        pixels[pixelStart] = newColour;
-                    }
                 }
+
+                if (number == 0x0) {
+                    continue;
+                }    
+
+                uint32_t newColour;
+                newColour = paletteTable[getPpuByte(0x3F10 + number + paletteIndex2 * 4)];
+
+                if (((byte2 & 0x20) == 0) || num == 0) {
+                    pixels[pixelStart] = newColour;
+                }
+                
             }
         }
     } else if (scanline == 240) {
