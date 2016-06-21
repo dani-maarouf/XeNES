@@ -349,9 +349,9 @@ void PPU::tick(NES * nes) {
 
             tileY = ( (scanline + yScrolling) / 8);
 
-            if (tileY > 31) {
+            if (tileY > 29) {
                 tableOverflow = 0x800;
-                tileY -= 32;
+                tileY -= 30;
             }
 
             nametableIndex = (tileY * 32 + tileX);
@@ -538,7 +538,7 @@ void PPU::tick(NES * nes) {
     }
 
     if (scanline == 200) {
-        //std::cout << (int) xScrolling << std::endl;
+        //std::cout << (int) yScrolling << std::endl;
     }
 
     return;

@@ -14,23 +14,31 @@
 
 ## Semi-playable games
 
+Super Mario Bros
+
 Donkey Kong
 
 Spelunker
 
-Balloon fight
+Ice Climber
+
+Balloon Fight
 
 Donkey Kong Jr.
 
 Donkey Kong 3
 
-BKG graphics test
-
 Duck Hunt
 
-Super Mario Bros (menu flashes)
+10 Yard Fight
 
-Passes nestest.log
+Excitebike
+
+Galaga
+
+Golf
+
+Gyromite
 
 ## Sample screenshots
 
