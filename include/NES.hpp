@@ -40,7 +40,7 @@ public:
 
     uint32_t * getDisplayPixels();      //pixels in SDL_PIXELFORMAT_ARGB8888
     bool drawFlag();                    //draw frame?
-    void tickPPU();                      //1 ppu tick
+    void tickPPU(int);                      //1 ppu tick
 
     int executeOpcode(bool);            //CPU execute opcode interface
 };

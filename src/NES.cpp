@@ -51,8 +51,8 @@ int NES::executeOpcode(bool debug) {
     return nesCPU.executeNextOpcode(this, debug);
 }
 
-void NES::tickPPU() {
-    nesPPU.tick(this);
+void NES::tickPPU(int numTicks) {
+    nesPPU.tick(this, numTicks);
 }
 
 bool NES::drawFlag() {

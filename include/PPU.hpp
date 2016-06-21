@@ -21,11 +21,12 @@ private:
 
     //rendering
     uint8_t attributeByte;
+    int paletteIndex;
     uint8_t spriteLayer1;
     uint8_t spriteLayer2;
-    uint8_t spriteStart;
-    uint8_t paletteIndex;
+    int spriteStart;
 
+    //
 
     bool spriteZeroOnScanline;
 
@@ -90,7 +91,7 @@ public:
 
     PPU();
 
-    void tick(NES *);            //one PPU tick is executed
+    void tick(NES *, int);            //one PPU tick is executed
     void freePointers();        //free memory
 };
 

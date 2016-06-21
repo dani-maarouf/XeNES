@@ -139,30 +139,22 @@ void loop(NES nesSystem, const char * fileLoc) {
             std::cerr << "Error executing opcode" << std::endl;
             break;
         } else {
+            //2.2. logic (ppu)
+            nesSystem.tickPPU(3 * executeResult);
 
-            /* let PPU ticks catch up to CPU ticks */
-            for (int x = 0; x < 3 * executeResult; x++) {
+            if (nesSystem.drawFlag()) {
+                //3.1 draw
+                draw(nesSystem.getDisplayPixels());
 
-                //2.2. logic (ppu)
-                nesSystem.tickPPU();
+                //SDL_Delay(100);     //for testing
 
-                if (nesSystem.drawFlag()) {
-                    //3.1 draw
-                    draw(nesSystem.getDisplayPixels());
-
-                    
-                    //SDL_Delay(100);     //for testing
-                    
-                    //3.2 sync framerate
-                    int frameEndTime;
-                    frameEndTime = SDL_GetTicks();
-                    if (frameEndTime - frameStartTime < TICKS_PER_FRAME) {
-                        SDL_Delay(frameEndTime - frameStartTime);
-                    }
-                    frameStartTime = SDL_GetTicks();
-                    
-
+                //3.2 sync framerate
+                int frameEndTime;
+                frameEndTime = SDL_GetTicks();
+                if (frameEndTime - frameStartTime < TICKS_PER_FRAME) {
+                    SDL_Delay(frameEndTime - frameStartTime);
                 }
+                frameStartTime = SDL_GetTicks();
             }
         }
     }
