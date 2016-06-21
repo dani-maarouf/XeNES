@@ -67,6 +67,8 @@ PPU::PPU() {
     xScrolling = 0;
     yScrolling = 0;
 
+    CHR_ROM = NULL;
+
     spriteZeroOnScanline = false;
 
     return;

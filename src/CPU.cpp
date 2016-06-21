@@ -90,6 +90,9 @@ CPU::CPU() {
     for (int x = 0; x < 0x800; x++) RAM[x] = 0x0;
     for (int x = 0; x < 8; x++) PS[x] = false;
 
+    PRG_ROM = NULL;
+    PRG_RAM = NULL;
+
     SP = 0xFD;
     A  = 0x0;
     X  = 0x0;
