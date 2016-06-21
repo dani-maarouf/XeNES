@@ -70,7 +70,7 @@ static const int opnameMap[] = {
      6,52, 0,29,38,52,26,29,54,52,38,29,38,52,26,29,  //F
 };
 
-static const int cycles[] {
+static const int cycles[] = {
     2,2,2,0,0,0,0,4,3,0,1,2,2,  //read
     2,3,3,0,0,0,0,4,4,0,1,2,2,  //write
     4,5,5,0,0,0,0,0,0,0,3,4,4,  //read modify write

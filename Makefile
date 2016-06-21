@@ -13,7 +13,7 @@ nesWindows: $(SRC_FILES) $(HEADER_FILES)
 	x86_64-w64-mingw32-g++ $(SRC_FILES) $(CXXFLAGS) -o nes.exe -lmingw32 -lSDL2main -lSDL2
 
 nesMac: $(SRC_FILES) $(HEADER_FILES)
-	g++ $(SRC_FILES)-Iinclude -o nes -framework SDL2
+	g++ $(SRC_FILES) -Iinclude -I/usr/local/include -o nes -L/usr/local/lib -lSDL2 -fno-exceptions -Ofast -std=c++14 -march=native -fomit-frame-pointer
 
 profile: $(SRC_FILES) $(HEADER_FILES)
 	g++ $(SRC_FILES) -Iinclude -o nes -lSDL2 -pg
