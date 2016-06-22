@@ -289,18 +289,13 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
     }
 }
 
-bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
+void NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
 
     if (memAddress >= 0x0000 && memAddress < 0x2000) {
         nesCPU.RAM[memAddress] = byte;
-        return true;
     } else if (memAddress >= 0x8000 && memAddress <= 0xFFFF) {
-
         std::cerr << "Segmentation fault! Can't write to 0x" << std::hex << memAddress << std::endl;
-        return false;
-        
     } else if (memAddress >= 0x2000 && memAddress < 0x4000) {
-
         uint16_t address;
         address = (memAddress - 0x2000) % 8;
 
@@ -341,7 +336,6 @@ bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
         }
 
         nesPPU.ppuRegisters[address] = byte;
-        return true;
     } 
 
     else if (memAddress >= 0x4000 && memAddress < 0x4018) { 
@@ -361,15 +355,14 @@ bool NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
         }
 
         ioRegisters[memAddress - 0x4000] = byte;
-        return true;
 
     } else if (memAddress >= 0x6000 && memAddress < 0x8000) {
         nesCPU.PRG_RAM[memAddress - 0x6000] = byte;
-        return true;
     } else {
         nesCPU.cpuMem[memAddress] = byte;
-        return true;
     }
+
+    return;
 }
 
 uint16_t NES::retrieveCpuAddress(enum AddressMode mode, bool * pagePass, uint8_t firstByte, uint8_t secondByte) {

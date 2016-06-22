@@ -76,6 +76,14 @@ PPU::PPU() {
     spriteLayer1 = 0;
     spriteLayer2 = 0;
 
+    tileX = 0;
+    tileY = 0;
+    nametableIndex = 0;
+    tableOverflow = 0;
+    internalAttributeIndex = 0;
+    attributeTableIndex = 0;
+
+
     return;
 }
 
@@ -86,169 +94,143 @@ void PPU::freePointers() {
     return;
 }
 
-uint8_t PPU::getPpuByte(uint16_t address) {
+uint8_t inline PPU::getPpuByte(uint16_t address) {
     address %= 0x4000;
 
-    if (address >= 0x0 && address < 0x2000) {
+    if (address < 0x1000) {
         return CHR_ROM[address];
-    } else if (address >= 0x3F00 && address < 0x4000) {
-        uint16_t newAddress;
+    } else if (address < 0x2000) {
+        return CHR_ROM[address];
+    } else if (address < 0x2400) {
+        return VRAM[address - 0x2000];
+    } else if (address < 0x2800) {
+        if (mirroring == VERTICAL) {
+            return VRAM[address - 0x2000];
+        } else if (mirroring == HORIZONTAL) {
+            return VRAM[address - 0x2400];
+        } else {
+            return VRAM[address - 0x2000];
+        }
+    } else if (address < 0x2C00) {
+        if (mirroring == VERTICAL) {
+            return VRAM[address - 0x2800];
+        } else if (mirroring == HORIZONTAL) {
+            return VRAM[address - 0x2400];
+        } else {
+            return VRAM[address - 0x2000];
+        }
+    } else if (address < 0x3000) {
+        if (mirroring == VERTICAL) {
+            return VRAM[address - 0x2800];
+        } else if (mirroring == HORIZONTAL) {
+            return VRAM[address - 0x2800];
+        } else {
+            return VRAM[address - 0x2000];
+        }
+    } else if (address < 0x3400) {
+        return VRAM[address - 0x3000];
+    } else if (address < 0x3800) {
+        if (mirroring == VERTICAL) {
+            return VRAM[address - 0x3000];
+        } else if (mirroring == HORIZONTAL) {
+            return VRAM[address - 0x3400];
+        } else {
+            return VRAM[address - 0x3000];
+        }
+    } else if (address < 0x3C00) {
+        if (mirroring == VERTICAL) {
+            return VRAM[address - 0x3800];
+        } else if (mirroring == HORIZONTAL) {
+            return VRAM[address - 0x3400];
+        } else {
+            return VRAM[address - 0x3000];
+        }
+    } else if (address < 0x3F00) {
+        if (mirroring == VERTICAL) {
+            return VRAM[address - 0x3800];
+        } else if (mirroring == HORIZONTAL) {
+            return VRAM[address - 0x3800];
+        } else {
+            return VRAM[address - 0x3000];
+        }
+    } else {
+        uint8_t newAddress;
         newAddress = (address - 0x3F00) % 0x20;
-
         if (newAddress == 0x10 || newAddress == 0x14 || newAddress == 0x18 || newAddress == 0x1C) {
             newAddress -= 0x10;
         }
-
         return palette[newAddress];
-    } else {
-
-        if (address >= 0x3000 && address < 0x3F00) {
-            address -= 0x1000;      //0x3000-0x3EFF map to 0x2000-0x2EFF
-        }
-
-        if (mirroring == HORIZONTAL) {
-            if (address >= 0x2000 && address < 0x2400) {
-                return VRAM[address - 0x2000];
-            } else if (address >= 0x2400 && address < 0x2800) {
-                return VRAM[address - 0x2400];
-            } else if (address >= 0x2800 && address < 0x2C00) {
-                return VRAM[address - 0x2400];
-            } else if (address >= 0x2C00 && address < 0x3000) {
-                return VRAM[address - 0x2800];
-            } else {
-                return 0;
-            }
-        } else if (mirroring == VERTICAL) {
-
-            if (address >= 0x2000 && address < 0x2400) {
-                return VRAM[address - 0x2000];
-            } else if (address >= 0x2400 && address < 0x2800) {
-                return VRAM[address - 0x2000];
-            } else if (address >= 0x2800 && address < 0x2C00) {
-                return VRAM[address - 0x2800];
-            } else if (address >= 0x2C00 && address < 0x3000) {
-                return VRAM[address - 0x2800];
-            } else {
-                return 0;
-            }
-        } else {
-            std::cerr << "Mirroring not recognized in getPpuByte()" << std::endl;
-            return 0;
-        }
     }
 }
 
-bool PPU::setPpuByte(uint16_t address, uint8_t byte) {
+void inline PPU::setPpuByte(uint16_t address, uint8_t byte) {
     address %= 0x4000;
 
-    if (address >= 0x3000 && address < 0x3F00) {
-        address -= 0x1000;      //0x3000-0x3EFF map to 0x2000-0x2EFF
-    }
-
-    if (address >= 0x0 && address < 0x2000) {
+    if (address < 0x1000) {
         CHR_ROM[address] = byte;
-        if (usesRAM == false) {
-            //std::cerr << "Warning, modified ROM" << std::endl;
-        }
-        return true;
-    } else {
-
-        if (mirroring == HORIZONTAL) {
-
-            if (address >= 0x2000 && address < 0x2400) {
-                VRAM[address - 0x2000] = byte;
-                return true;
-            } else if (address >= 0x2400 && address < 0x2800) {
-                VRAM[address - 0x2400] = byte;
-                return true;
-            } else if (address >= 0x2800 && address < 0x2C00) {
-                VRAM[address - 0x2400] = byte;
-                return true;
-            } else if (address >= 0x2C00 && address < 0x3000) {
-                VRAM[address - 0x2800] = byte;
-                return true;
-            }
-
-        } else if (mirroring == VERTICAL) {
-
-            if (address >= 0x2000 && address < 0x2400) {
-                VRAM[address - 0x2000] = byte;
-                return true;
-            } else if (address >= 0x2400 && address < 0x2800) {
-                VRAM[address - 0x2000] = byte;
-                return true;
-            } else if (address >= 0x2800 && address < 0x2C00) {
-                VRAM[address - 0x2800] = byte;
-                return true;
-            } else if (address >= 0x2C00 && address < 0x3000) {
-                VRAM[address - 0x2800] = byte;
-                return true;
-            }
+    } else if (address < 0x2000) {
+        CHR_ROM[address] = byte;
+    } else if (address < 0x2400) {
+        VRAM[address - 0x2000] = byte;
+    } else if (address < 0x2800) {
+        if (mirroring == VERTICAL) {
+            VRAM[address - 0x2000] = byte;
+        } else if (mirroring == HORIZONTAL) {
+            VRAM[address - 0x2400] = byte;
         } else {
-            std::cerr << "Mirroring not recognized in getPpuByte()" << std::endl;
-            return false;
+            VRAM[address - 0x2000] = byte;
         }
-
-    }
-
-    if (address >= 0x3F00 && address < 0x4000) {
-
-        uint16_t newAddress;
+    } else if (address < 0x2C00) {
+        if (mirroring == VERTICAL) {
+            VRAM[address - 0x2800] = byte;
+        } else if (mirroring == HORIZONTAL) {
+            VRAM[address - 0x2400] = byte;
+        } else {
+            VRAM[address - 0x2000] = byte;
+        }
+    } else if (address < 0x3000) {
+        if (mirroring == VERTICAL) {
+            VRAM[address - 0x2800] = byte;
+        } else if (mirroring == HORIZONTAL) {
+            VRAM[address - 0x2800] = byte;
+        } else {
+            VRAM[address - 0x2000] = byte;
+        }
+    } else if (address < 0x3400) {
+        VRAM[address - 0x3000] = byte;
+    } else if (address < 0x3800) {
+        if (mirroring == VERTICAL) {
+            VRAM[address - 0x3000] = byte;
+        } else if (mirroring == HORIZONTAL) {
+            VRAM[address - 0x3400] = byte;
+        } else {
+            VRAM[address - 0x3000] = byte;
+        }
+    } else if (address < 0x3C00) {
+        if (mirroring == VERTICAL) {
+            VRAM[address - 0x3800] = byte;
+        } else if (mirroring == HORIZONTAL) {
+            VRAM[address - 0x3400] = byte;
+        } else {
+            VRAM[address - 0x3000] = byte;
+        }
+    } else if (address < 0x3F00) {
+        if (mirroring == VERTICAL) {
+            VRAM[address - 0x3800] = byte;
+        } else if (mirroring == HORIZONTAL) {
+            VRAM[address - 0x3800] = byte;
+        } else {
+            VRAM[address - 0x3000] = byte;
+        }
+    } else {
+        uint8_t newAddress;
         newAddress = (address - 0x3F00) % 0x20;
-
-                if (newAddress == 0x10 || newAddress == 0x14 || newAddress == 0x18 || newAddress == 0x1C) {
+        if (newAddress == 0x10 || newAddress == 0x14 || newAddress == 0x18 || newAddress == 0x1C) {
             newAddress -= 0x10;
         }
-
         palette[newAddress] = byte;
-        return true;
     }
-
-    return false;
-}
-
-void PPU::drawSprites() {
-
-    for (int i = 0; i < 32 * 30; i++) {
-
-        int x;
-        int y;
-
-        x = (i % 32);
-        y = (i / 32);
-
-        int pixelStart;
-        pixelStart = x * 8 + y * NES_SCREEN_WIDTH * 8;
-
-        for (int j = 0; j < 8; j++) {
-
-            int spriteRow2[8];
-
-            uint8_t spriteLayer1 = getPpuByte(i * 16 + j);
-            uint8_t spriteLayer2 = getPpuByte(i * 16 + j + 8);
-
-            for (int a = 0; a < 8; a++) {
-                spriteRow2[a] = 0;
-                spriteRow2[a] += getBit(spriteLayer1,a);
-                spriteRow2[a] += getBit(spriteLayer2,a);
-            }
-
-            for (int k = 7; k >= 0; k--) {
-                if (spriteRow2[k] == 3) {
-                    pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x00FFFFFF;
-                } else if (spriteRow2[k] == 2) {
-                    pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x00FFF000;
-                } else if (spriteRow2[k] == 1) {
-                    pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x00000FFF;
-                } else {
-                    pixels[pixelStart + (7 - k) + (j * NES_SCREEN_WIDTH)] = 0x00000000;
-               }
-           }
-       }
-
-   }
-
-   return;
+    return;
 }
 
 void PPU::tick(NES * nes, int numTicks) {
@@ -266,9 +248,7 @@ void PPU::tick(NES * nes, int numTicks) {
         generateNMI = (ppuRegisters[0] & 0x80) ? true : false;
 
         setCtrl = false;
-    }
-
-    if (getVramAddress) {
+    } else if (getVramAddress) {
         if (readLower) {
             vramAddress |= ppuRegisters[6];
             readLower = false;
@@ -277,9 +257,7 @@ void PPU::tick(NES * nes, int numTicks) {
             readLower = true;
         }
         getVramAddress = false;
-    }
-
-    if (readToRAM) {
+    } else if (readToRAM) {
 
         
         setPpuByte(vramAddress, ppuRegisters[7]);
@@ -287,9 +265,7 @@ void PPU::tick(NES * nes, int numTicks) {
         
         readToRAM = false;
 
-    }
-
-    if (readToOAM) {
+    } else if (readToOAM) {
         uint8_t OAMDMA;
         OAMDMA = nes->getCpuByte(0x4014);
 
@@ -299,16 +275,14 @@ void PPU::tick(NES * nes, int numTicks) {
         }
     
         readToOAM = false;
-    }
-
-
-    if (readScroll) {
+    } else if (readScroll) {
 
         if (scrollY) {
             yScrolling = ppuRegisters[0x5];
 
             if (getBit(yScrolling, 7)) {
-                 ppuRegisters[0x0] |= 0x2;
+                ppuRegisters[0x0] |= 0x2;
+                nametableOffset = (ppuRegisters[0] & 0x03) * 0x400;
             }
 
             scrollY = false;
@@ -316,7 +290,8 @@ void PPU::tick(NES * nes, int numTicks) {
             xScrolling = ppuRegisters[0x5];
 
             if (getBit(xScrolling, 7)) {
-                 ppuRegisters[0x0] |= 0x1;
+                ppuRegisters[0x0] |= 0x1;
+                nametableOffset = (ppuRegisters[0] & 0x03) * 0x400;
             }
 
             scrollY = true;
@@ -327,52 +302,40 @@ void PPU::tick(NES * nes, int numTicks) {
     
     for (int loop = 0; loop < numTicks; loop++) {
 
-        if (scanline > 240 && scanline <= 261) {
-            ppuRegisters[2] |= 0x80;
 
-            if (scanline == 261) {
-                ppuRegisters[2] &= 0xBF;
-            }
-
-        } else if (scanline >= 0 && scanline < 240) {
+        if (scanline < 240) {
             ppuRegisters[2] &= 0x7F;
 
             //crude pixel by pixel render of background
             if (ppuCycle > 0 && ppuCycle < 257) {
 
-                int tileX;
-                int tileY;
-
-                int nametableIndex;
-
-                int tableOverflow;
-                tableOverflow = 0;
+                int pixelStart;
+                pixelStart = (ppuCycle - 1) + NES_SCREEN_WIDTH * scanline;
 
 
-                tileX = ( (ppuCycle - 1 + xScrolling) / 8);
 
-                if (tileX > 31) {
-                    tableOverflow = 0x400;
-                    tileX -= 32;
-                }
 
-                tileY = ( (scanline + yScrolling) / 8);
 
-                if (tileY > 29) {
-                    tableOverflow = 0x800;
-                    tileY -= 30;
-                }
+                if (((ppuCycle - 1 + xScrolling) % 8 == 0 || ppuCycle == 1)) {
+                    
+                    int scrollingOffset = 0;
 
-                nametableIndex = (tileY * 32 + tileX);
+                    tileX = ( (ppuCycle - 1 + xScrolling) / 8);
+                    if (tileX > 31) {
+                        scrollingOffset = 0x400;
+                        tileX -= 32;
+                    }
+                    tileY = ( (scanline + yScrolling) / 8);
+                    if (tileY > 29) {
+                        scrollingOffset = 0x800;
+                        tileY -= 30;
+                    }
 
-                int internalAttributeIndex;
-                internalAttributeIndex = ((tileX % 4) / 2) + ((tileY % 4) / 2) * 2;
+                    nametableIndex = (tileY * 32 + tileX);
+                    internalAttributeIndex = ((tileX % 4) / 2) + ((tileY % 4) / 2) * 2;
+                    attributeTableIndex = (tileX / 4) + (tileY / 4) * 8;
 
-                int attributeTableIndex;
-                attributeTableIndex = (tileX / 4) + (tileY / 4) * 8;
-
-                if ((ppuCycle - 1 + xScrolling) % 8 == 0 || ppuCycle == 1) {
-                    attributeByte = getPpuByte(0x23C0 + nametableOffset + attributeTableIndex + tableOverflow);
+                    attributeByte = getPpuByte(0x2000 + (0x3C0 + nametableOffset + attributeTableIndex + scrollingOffset) % 0x1000);
 
                     if (internalAttributeIndex == 0) {
                         paletteIndex = (attributeByte & 0x3);
@@ -387,122 +350,139 @@ void PPU::tick(NES * nes, int numTicks) {
                         std::cout << "Error!" << std::endl;
                     }
 
-                    spriteStart = getPpuByte(0x2000 + nametableIndex + nametableOffset + tableOverflow);
+                    spriteStart = getPpuByte(0x2000 + (nametableIndex + nametableOffset + scrollingOffset) % 0x1000);
 
                     spriteLayer1 = getPpuByte(spriteStart * 16 + ((scanline + yScrolling) % 8) + backgroundTableOffset);
                     spriteLayer2 = getPpuByte(spriteStart * 16 + ((scanline + yScrolling) % 8) + 8 + backgroundTableOffset);
 
                 }
 
-                uint32_t colour;
-                uint8_t num = 0;
+                uint8_t num;
+                num = 0;
 
-                if (getBit(spriteLayer1, 7 - ((ppuCycle - 1 + (xScrolling % 8)) % 8 ))) {
-                    num |= 0x1;
+                if (ppuRegisters[1] & 0x8) {
+
+                    if (getBit(spriteLayer1, 7 - ((ppuCycle - 1 + (xScrolling % 8)) % 8 ))) {
+                        num |= 0x1;
+                    }
+                    if (getBit(spriteLayer2, 7 - ((ppuCycle - 1 + (xScrolling % 8)) % 8 ))) {
+                        num |= 0x2;
+                    }
+
+                    uint32_t colour;
+                    if (num == 0) {
+                        colour = paletteTable[getPpuByte(0x3F00)];
+                    } else { 
+                        colour = paletteTable[getPpuByte(0x3F00 + num + paletteIndex * 4)];
+                    }
+
+                    pixels[pixelStart] = colour;
+
                 }
-                if (getBit(spriteLayer2, 7 - ((ppuCycle - 1 + (xScrolling % 8)) % 8 ))) {
-                    num |= 0x2;
-                }
 
-                if (num == 0) {
-                    colour = paletteTable[getPpuByte(0x3F00)];
-                } else { 
-                    colour = paletteTable[getPpuByte(0x3F00 + num + paletteIndex * 4)];
-                }
+                if (ppuRegisters[1] & 0x10) {
 
-                int pixelStart;
-                pixelStart = (ppuCycle - 1) + NES_SCREEN_WIDTH * scanline;
-                pixels[pixelStart] = colour;
+                    for (int i = 0; i < secondaryOamAddress; i++) {
 
+                        int xPos;
+                        xPos = OAM[secondaryOAM[i] + 3];
 
-                for (int i = 0; i < secondaryOamAddress; i++) {
+                        if (!( (ppuCycle - 1) - xPos < 8 && (ppuCycle - 1) - xPos >= 0 )) {
+                            continue;
+                        }
 
-                    int xPos;
-                    xPos = OAM[secondaryOAM[i] + 3];
+                        uint8_t byte0, byte1, byte2;
 
-                    if (!( (ppuCycle - 1) - xPos < 8 && (ppuCycle - 1) - xPos >= 0 )) {
-                        continue;
-                    }
+                        byte0 = OAM[secondaryOAM[i]];
+                        byte1 = OAM[secondaryOAM[i] + 1];
+                        byte2 = OAM[secondaryOAM[i] + 2];
 
-                    uint8_t byte0, byte1, byte2;
+                        int paletteIndex2 = byte2 & 0x3;
 
-                    byte0 = OAM[secondaryOAM[i]];
-                    byte1 = OAM[secondaryOAM[i] + 1];
-                    byte2 = OAM[secondaryOAM[i] + 2];
+                        bool flipHorizontal;
+                        bool flipVertical;
+                        flipHorizontal = (byte2 & 0x40) ? true : false;
+                        flipVertical = (byte2 & 0x80) ? true : false;
 
-                    int paletteIndex2 = byte2 & 0x3;
+                        int spriteRowNumber;
 
-                    bool flipHorizontal;
-                    bool flipVertical;
-                    flipHorizontal = (byte2 & 0x40) ? true : false;
-                    flipVertical = (byte2 & 0x80) ? true : false;
+                        if (flipVertical) {
+                            spriteRowNumber = 7 -(scanline - byte0);
+                        } else {
+                            spriteRowNumber = (scanline - byte0);
+                        }
 
-                    int spriteRowNumber;
+                        int spriteColumnNumber;
 
-                    if (flipVertical) {
-                        spriteRowNumber = 7 -(scanline - byte0);
-                    } else {
-                        spriteRowNumber = (scanline - byte0);
-                    }
-
-                    int spriteColumnNumber;
-
-                    if (flipHorizontal) {
-                        spriteColumnNumber = ((ppuCycle - 1) - xPos);
-                    } else {
-                        spriteColumnNumber = 7 - ((ppuCycle - 1) - xPos);
-                    }
+                        if (flipHorizontal) {
+                            spriteColumnNumber = ((ppuCycle - 1) - xPos);
+                        } else {
+                            spriteColumnNumber = 7 - ((ppuCycle - 1) - xPos);
+                        }
 
 
-                    uint8_t spriteLayer3 = getPpuByte(byte1 * 16 + spriteRowNumber + spriteTableOffset);
-                    uint8_t spriteLayer4 = getPpuByte(byte1 * 16 + spriteRowNumber + 8 + spriteTableOffset);
+                        uint8_t spriteLayer3 = getPpuByte(byte1 * 16 + spriteRowNumber + spriteTableOffset);
+                        uint8_t spriteLayer4 = getPpuByte(byte1 * 16 + spriteRowNumber + 8 + spriteTableOffset);
 
-                    uint8_t number = 0; 
+                        uint8_t number = 0; 
 
-                    if (getBit(spriteLayer3, spriteColumnNumber)) {
-                        number |= 0x1;
-                    }
-                    if (getBit(spriteLayer4, spriteColumnNumber)) {
-                        number |= 0x2;
-                    }
+                        if (getBit(spriteLayer3, spriteColumnNumber)) {
+                            number |= 0x1;
+                        }
+                        if (getBit(spriteLayer4, spriteColumnNumber)) {
+                            number |= 0x2;
+                        }
 
-                    if ((number != 0x0)) {
+                        if ((number != 0x0)) {
 
-                        if (secondaryOAM[i] == 0) {
-                            if ((ppuRegisters[1] & 0x8) && (ppuRegisters[1] & 0x10)) {
-                                spriteZeroOnScanline = true;
+                            if (secondaryOAM[i] == 0) {
+                                if ((ppuRegisters[1] & 0x8) && (ppuRegisters[1] & 0x10)) {
+                                    spriteZeroOnScanline = true;
+                                }
                             }
                         }
+
+                        if (number == 0x0) {
+                            continue;
+                        }    
+
+                        uint32_t newColour;
+                        newColour = paletteTable[getPpuByte(0x3F10 + number + paletteIndex2 * 4)];
+
+                        if (((byte2 & 0x20) == 0) || num == 0) {
+                            pixels[pixelStart] = newColour;
+                        }
+
                     }
-
-                    if (number == 0x0) {
-                        continue;
-                    }    
-
-                    uint32_t newColour;
-                    newColour = paletteTable[getPpuByte(0x3F10 + number + paletteIndex2 * 4)];
-
-                    if (((byte2 & 0x20) == 0) || num == 0) {
-                        pixels[pixelStart] = newColour;
-                    }
-
                 }
             }
-        } else if (scanline == 240) {
+        } else if (scanline > 240) {
+            ppuRegisters[2] |= 0x80;
+
+            if (scanline == 261) {
+
+                if (ppuCycle == 2) {
+                    ppuRegisters[2] &= 0xBF;
+                    ppuRegisters[2] &= 0xDF;
+                }
+                
+
+            }
+
+        } else {
+
+            //scanline 240
 
             if (ppuCycle == 340) {
                 if (generateNMI) {
                     nes->nesCPU.NMI = true;
                 }
             }
-
-        } else {
-            std::cout << "Error, invalid scanline " << scanline << std::endl;
         }
 
-        if (ppuCycle == 340) {
+        if (ppuCycle == 340 && (scanline == 261 || scanline < 240)) {
 
-        //prepare secondary OAM for next scanline
+            //prepare secondary OAM for next scanline
             for (int x = 0; x < 8; x++) {
                 secondaryOAM[x] = 0;
             }
@@ -514,30 +494,37 @@ void PPU::tick(NES * nes, int numTicks) {
                 yPos = OAM[x * 4];
                 if (((scanline + 1) % 262) - yPos < 8 && ((scanline + 1) % 262) - yPos >= 0) {
 
-                    secondaryOAM[secondaryOamAddress] = x * 4;
+                    if (secondaryOamAddress < 8) {
+                        secondaryOAM[secondaryOamAddress] = x * 4;
+                    }
 
                     secondaryOamAddress++;
 
-                    if (secondaryOamAddress > 7) {
-                        break;
+                    //sprite overflow
+                    if (secondaryOamAddress == 9) {
+
+                        if ((ppuRegisters[1] & 0x10) == 0x10 || (ppuRegisters[1] & 0x8) == 0x8) {
+                            ppuRegisters[2] |= 0x20;
+                            break;
+                        }
+
+                        
                     }
+
 
                 }
             }
-        }
 
+        }
 
         ppuCycle = (ppuCycle + 1) % 341;
 
         if (ppuCycle == 0) {
-
             scanline = (scanline + 1) % 262;
-
             if (spriteZeroOnScanline) {
                 ppuRegisters[2] |= 0x40;
                 spriteZeroOnScanline = false;
             }
-
             if (scanline == 0) {
                 draw = true;
                 evenFrame ^= true;

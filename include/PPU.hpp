@@ -13,20 +13,29 @@ enum Mirroring {
     FOUR_SCREEN,
 };
 
+
 class NES;
 
 class PPU {
 
 private:
 
-    //rendering
+    
+
+    //render
     uint8_t attributeByte;
     int paletteIndex;
     uint8_t spriteLayer1;
     uint8_t spriteLayer2;
     int spriteStart;
+    int tileX;
+    int tileY;
+    int nametableIndex;
+    int tableOverflow;
+    int internalAttributeIndex;
+    int attributeTableIndex;
 
-    //
+    
 
     bool spriteZeroOnScanline;
 
@@ -46,8 +55,8 @@ private:
 
 
     uint8_t palette[0x20];      
-    uint8_t VRAM[0x800];                    //2kB PPU internal RAM
-    uint8_t OAM[0x100];                     //256 byte PPU OAM
+    uint8_t VRAM[0x1000];                   //4kB PPU internal RAM
+    
     uint8_t secondaryOAM[8];
     uint8_t secondaryOamAddress;        
     
@@ -56,12 +65,12 @@ private:
 
     uint16_t vramAddress;                   //current VRAM address
 
-
-    uint8_t getPpuByte(uint16_t);           //get byte from PPU address space
-    bool setPpuByte(uint16_t, uint8_t);     //set byte in PPU address space
-    void drawSprites();                     //draw sprites to pixel display
+    uint8_t inline getPpuByte(uint16_t);           //get byte from PPU address space
+    void inline setPpuByte(uint16_t, uint8_t);     //set byte in PPU address space
 
 public:
+
+    uint8_t OAM[0x100];                     //256 byte PPU OAM
 
     bool readScroll;
 

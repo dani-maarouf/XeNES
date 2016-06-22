@@ -145,9 +145,7 @@ void loop(NES nesSystem, const char * fileLoc) {
             if (nesSystem.drawFlag()) {
                 //3.1 draw
                 draw(nesSystem.getDisplayPixels());
-
-                //SDL_Delay(100);     //for testing
-
+                
                 //3.2 sync framerate
                 int frameEndTime;
                 frameEndTime = SDL_GetTicks();
