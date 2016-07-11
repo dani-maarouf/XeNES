@@ -48,7 +48,7 @@ PPU::PPU() {
     secondaryOamAddress = 0x0;
 
     getVramAddress = false;
-    readLower = false;
+    addressLatch = false;
 
     readToRAM = false;
     readToOAM = false;
@@ -62,7 +62,6 @@ PPU::PPU() {
     generateNMI = false;
 
     readScroll = false;
-    scrollY = false;
 
     xScrolling = 0;
     yScrolling = 0;
@@ -83,6 +82,8 @@ PPU::PPU() {
     internalAttributeIndex = 0;
     attributeTableIndex = 0;
 
+    readBuffer = 0;
+
 
     return;
 }
@@ -94,7 +95,7 @@ void PPU::freePointers() {
     return;
 }
 
-uint8_t inline PPU::getPpuByte(uint16_t address) {
+uint8_t PPU::getPpuByte(uint16_t address) {
     address %= 0x4000;
 
     if (address < 0x1000) {
@@ -249,12 +250,20 @@ void PPU::tick(NES * nes, int numTicks) {
 
         setCtrl = false;
     } else if (getVramAddress) {
-        if (readLower) {
+        if (addressLatch) {
             vramAddress |= ppuRegisters[6];
-            readLower = false;
+            addressLatch = false;
+            
+
+            if (vramAddress % 0x4000 < 0x3EFF) {
+                vramInc = (ppuRegisters[0] & 0x04) ? 32 : 1;
+                //vramAddress += vramInc;
+            }
+
         } else {
             vramAddress = (ppuRegisters[6] << 8);
-            readLower = true;
+            addressLatch = true;
+
         }
         getVramAddress = false;
     } else if (readToRAM) {
@@ -277,7 +286,7 @@ void PPU::tick(NES * nes, int numTicks) {
         readToOAM = false;
     } else if (readScroll) {
 
-        if (scrollY) {
+        if (addressLatch) {
             yScrolling = ppuRegisters[0x5];
 
             if (getBit(yScrolling, 7)) {
@@ -285,7 +294,7 @@ void PPU::tick(NES * nes, int numTicks) {
                 nametableOffset = (ppuRegisters[0] & 0x03) * 0x400;
             }
 
-            scrollY = false;
+            addressLatch = false;
         } else {
             xScrolling = ppuRegisters[0x5];
 
@@ -294,7 +303,7 @@ void PPU::tick(NES * nes, int numTicks) {
                 nametableOffset = (ppuRegisters[0] & 0x03) * 0x400;
             }
 
-            scrollY = true;
+            addressLatch = true;
         }
         readScroll = false;
     }
@@ -311,10 +320,6 @@ void PPU::tick(NES * nes, int numTicks) {
 
                 int pixelStart;
                 pixelStart = (ppuCycle - 1) + NES_SCREEN_WIDTH * scanline;
-
-
-
-
 
                 if (((ppuCycle - 1 + xScrolling) % 8 == 0 || ppuCycle == 1)) {
                     
@@ -505,6 +510,7 @@ void PPU::tick(NES * nes, int numTicks) {
 
                         if ((ppuRegisters[1] & 0x10) == 0x10 || (ppuRegisters[1] & 0x8) == 0x8) {
                             ppuRegisters[2] |= 0x20;
+                            secondaryOamAddress--;
                             break;
                         }
 
@@ -514,7 +520,6 @@ void PPU::tick(NES * nes, int numTicks) {
 
                 }
             }
-
         }
 
         ppuCycle = (ppuCycle + 1) % 341;
@@ -530,6 +535,10 @@ void PPU::tick(NES * nes, int numTicks) {
                 evenFrame ^= true;
             }
         }
+
+        
+        
+
     }
 
     return;

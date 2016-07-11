@@ -43,10 +43,7 @@ private:
     uint8_t yScrolling;
 
 
-    bool scrollY;
-
     int nametableOffset;
-    int vramInc;
     int spriteTableOffset;
     int backgroundTableOffset;
     bool extendedSprites;
@@ -63,12 +60,12 @@ private:
     int ppuCycle;                           //0-341 per scanline
     bool evenFrame;                         //tracks even and odd frames
 
-    uint16_t vramAddress;                   //current VRAM address
 
-    uint8_t inline getPpuByte(uint16_t);           //get byte from PPU address space
     void inline setPpuByte(uint16_t, uint8_t);     //set byte in PPU address space
 
 public:
+
+    uint8_t readBuffer;
 
     uint8_t OAM[0x100];                     //256 byte PPU OAM
 
@@ -77,9 +74,14 @@ public:
     uint8_t oamAddress;                     //current OAM address
 
     
+    int vramInc;
+    uint16_t vramAddress;                   //current VRAM address
+
 
     bool getVramAddress;        //CPU has written half of address to 0x2006 in CPU address space
-    bool readLower;             //lower part of write to 2006 is occuring
+
+
+    bool addressLatch;             //lower part of write to 2006 is occuring
 
     bool readToRAM;             //CPU has written byte to 0x2007 in CPU address space
     bool readToOAM;             //CPU has written byte to 0x4014 in CPU address space
@@ -102,6 +104,9 @@ public:
 
     void tick(NES *, int);            //one PPU tick is executed
     void freePointers();        //free memory
+
+    uint8_t getPpuByte(uint16_t);           //get byte from PPU address space
+
 };
 
 #endif
