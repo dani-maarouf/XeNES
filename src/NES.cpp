@@ -277,7 +277,7 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
 
         } else if (address == 0x7) {
 
-
+            
             if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x10) == false && ((nesPPU.ppuRegisters[0x1] & 0x4) == false))) {
 
                 uint8_t ppuByte;
@@ -302,6 +302,7 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
                 }
 
             }
+            
 
 
     }

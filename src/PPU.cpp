@@ -264,10 +264,13 @@ void PPU::tick(NES * nes, int numTicks) {
             //address latch sets to false on ppustatus read
 
             seperateVram = vramAddress;
+            addressLatch = false;
             
         } else {
 
             vramAddress = (ppuRegisters[6] << 8);
+            seperateVram = vramAddress;
+
             addressLatch = true;
 
         }
@@ -282,6 +285,7 @@ void PPU::tick(NES * nes, int numTicks) {
         vramInc = (ppuRegisters[0] & 0x04) ? 32 : 1;
 
         vramAddress += vramInc;
+        seperateVram += vramAddress;
         
         readToRAM = false;
 
