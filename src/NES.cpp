@@ -278,20 +278,33 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
         } else if (address == 0x7) {
 
 
-            uint8_t ppuByte;
+            if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x10) == false && ((nesPPU.ppuRegisters[0x1] & 0x4) == false))) {
 
-            ppuByte = nesPPU.readBuffer;
+                uint8_t ppuByte;
 
-            nesPPU.readBuffer = nesPPU.getPpuByte(nesPPU.vramAddress);
-            
-            if (nesPPU.vramAddress % 0x4000 < 0x3F00) {
+                ppuByte = nesPPU.readBuffer;
 
-                nesPPU.vramInc = (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
+                nesPPU.readBuffer = nesPPU.getPpuByte(nesPPU.seperateVram);
 
-                //nesPPU.vramAddress += nesPPU.vramInc;
-                //return ppuByte;
+                if (nesPPU.vramAddress % 0x4000 < 0x3F00) {
+
+                    nesPPU.vramInc = (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
+                    nesPPU.seperateVram += nesPPU.vramInc;
+
+                    return ppuByte;
+                } else {
+
+                    nesPPU.vramInc = (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
+                    nesPPU.seperateVram += nesPPU.vramInc;
+
+                    return nesPPU.readBuffer;
+
+                }
+
             }
-        }
+
+
+    }
 
         return nesPPU.ppuRegisters[address];
 

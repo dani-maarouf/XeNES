@@ -11,6 +11,18 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
+    /*
+    todo:
+
+    real vram address in PPU rendering
+    configurable getByte and setByte for mappers
+    read PPUDATA
+    scrolling, coarse vs fine, real PPU registers
+    oamdata read/write
+    clean up code
+
+    */
+
     NES nesSystem;
 
     if (!nesSystem.openCartridge(argv[1])) {

@@ -43,7 +43,7 @@ PPU::PPU() {
     evenFrame = true;
     draw = false;
     
-    vramAddress = 0x0;
+    vramAddress = 0x2000;
     oamAddress = 0x0;
     secondaryOamAddress = 0x0;
 
@@ -83,6 +83,8 @@ PPU::PPU() {
     attributeTableIndex = 0;
 
     readBuffer = 0;
+
+    seperateVram = 0;
 
 
     return;
@@ -164,7 +166,7 @@ uint8_t PPU::getPpuByte(uint16_t address) {
     }
 }
 
-void inline PPU::setPpuByte(uint16_t address, uint8_t byte) {
+void PPU::setPpuByte(uint16_t address, uint8_t byte) {
     address %= 0x4000;
 
     if (address < 0x1000) {
@@ -238,8 +240,13 @@ void PPU::tick(NES * nes, int numTicks) {
 
     draw = false;
 
+
+    /*
+     * process state changes
+     */
+
     if (setCtrl) {
-    /* PPUCTRL */   //this can be set in setCpuByte
+        /* PPUCTRL */   //this can be set in setCpuByte
         nametableOffset = (ppuRegisters[0] & 0x03) * 0x400;
         vramInc = (ppuRegisters[0] & 0x04) ? 32 : 1;
         spriteTableOffset = (ppuRegisters[0] & 0x8) ? 0x1000 : 0x0;
@@ -250,17 +257,16 @@ void PPU::tick(NES * nes, int numTicks) {
 
         setCtrl = false;
     } else if (getVramAddress) {
+
         if (addressLatch) {
+            vramAddress &= 0xFF00;
             vramAddress |= ppuRegisters[6];
-            addressLatch = false;
+            //address latch sets to false on ppustatus read
+
+            seperateVram = vramAddress;
             
-
-            if (vramAddress % 0x4000 < 0x3EFF) {
-                vramInc = (ppuRegisters[0] & 0x04) ? 32 : 1;
-                //vramAddress += vramInc;
-            }
-
         } else {
+
             vramAddress = (ppuRegisters[6] << 8);
             addressLatch = true;
 
@@ -268,8 +274,13 @@ void PPU::tick(NES * nes, int numTicks) {
         getVramAddress = false;
     } else if (readToRAM) {
 
-        
+        //read from 2007
         setPpuByte(vramAddress, ppuRegisters[7]);
+
+        //increment vram address
+
+        vramInc = (ppuRegisters[0] & 0x04) ? 32 : 1;
+
         vramAddress += vramInc;
         
         readToRAM = false;
@@ -308,16 +319,41 @@ void PPU::tick(NES * nes, int numTicks) {
         readScroll = false;
     }
 
+    /*
+     * render
+     */
     
     for (int loop = 0; loop < numTicks; loop++) {
 
+        if (scanline == 240) {
+            if (ppuCycle == 340) {
+                if (generateNMI) {
+                    //throw interupt
+                    nes->nesCPU.NMI = true;
+                }
+            }
+        } else if (scanline == 261) {
 
-        if (scanline < 240) {
+            //update ppustatus
+            ppuRegisters[2] |= 0x80;
+
+            //update ppustatus
+            if (ppuCycle == 2) {
+                ppuRegisters[2] &= 0xBF;
+                ppuRegisters[2] &= 0xDF;
+            }
+
+        } else if (scanline > 240) {
+
+            //update ppustatus
+            ppuRegisters[2] |= 0x80;
+
+        } else if (scanline < 240) {
             ppuRegisters[2] &= 0x7F;
 
-            //crude pixel by pixel render of background
             if (ppuCycle > 0 && ppuCycle < 257) {
 
+                //RENDER BACKGROUNDS
                 int pixelStart;
                 pixelStart = (ppuCycle - 1) + NES_SCREEN_WIDTH * scanline;
 
@@ -340,6 +376,7 @@ void PPU::tick(NES * nes, int numTicks) {
                     internalAttributeIndex = ((tileX % 4) / 2) + ((tileY % 4) / 2) * 2;
                     attributeTableIndex = (tileX / 4) + (tileY / 4) * 8;
 
+
                     attributeByte = getPpuByte(0x2000 + (0x3C0 + nametableOffset + attributeTableIndex + scrollingOffset) % 0x1000);
 
                     if (internalAttributeIndex == 0) {
@@ -355,10 +392,12 @@ void PPU::tick(NES * nes, int numTicks) {
                         std::cout << "Error!" << std::endl;
                     }
 
+                    //vramAddress = 0x2000 + (nametableIndex + nametableOffset + scrollingOffset) % 0x1000;
+
                     spriteStart = getPpuByte(0x2000 + (nametableIndex + nametableOffset + scrollingOffset) % 0x1000);
 
                     spriteLayer1 = getPpuByte(spriteStart * 16 + ((scanline + yScrolling) % 8) + backgroundTableOffset);
-                    spriteLayer2 = getPpuByte(spriteStart * 16 + ((scanline + yScrolling) % 8) + 8 + backgroundTableOffset);
+                    spriteLayer2 = getPpuByte(spriteStart * 16 + ((scanline + yScrolling) % 8) + backgroundTableOffset + 8);
 
                 }
 
@@ -385,6 +424,8 @@ void PPU::tick(NES * nes, int numTicks) {
 
                 }
 
+
+                //RENDER SPRITES
                 if (ppuRegisters[1] & 0x10) {
 
                     for (int i = 0; i < secondaryOamAddress; i++) {
@@ -461,30 +502,9 @@ void PPU::tick(NES * nes, int numTicks) {
                     }
                 }
             }
-        } else if (scanline > 240) {
-            ppuRegisters[2] |= 0x80;
-
-            if (scanline == 261) {
-
-                if (ppuCycle == 2) {
-                    ppuRegisters[2] &= 0xBF;
-                    ppuRegisters[2] &= 0xDF;
-                }
-                
-
-            }
-
-        } else {
-
-            //scanline 240
-
-            if (ppuCycle == 340) {
-                if (generateNMI) {
-                    nes->nesCPU.NMI = true;
-                }
-            }
         }
 
+        //prepare sprites for next scaline
         if (ppuCycle == 340 && (scanline == 261 || scanline < 240)) {
 
             //prepare secondary OAM for next scanline
@@ -517,13 +537,13 @@ void PPU::tick(NES * nes, int numTicks) {
                         
                     }
 
-
                 }
             }
         }
 
-        ppuCycle = (ppuCycle + 1) % 341;
 
+        //increment ppuCycle and scanline, and set draw flag
+        ppuCycle = (ppuCycle + 1) % 341;
         if (ppuCycle == 0) {
             scanline = (scanline + 1) % 262;
             if (spriteZeroOnScanline) {
@@ -531,12 +551,13 @@ void PPU::tick(NES * nes, int numTicks) {
                 spriteZeroOnScanline = false;
             }
             if (scanline == 0) {
+
+                //vramAddress = 0x2000;
+
                 draw = true;
                 evenFrame ^= true;
             }
         }
-
-        
         
 
     }

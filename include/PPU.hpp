@@ -20,8 +20,6 @@ class PPU {
 
 private:
 
-    
-
     //render
     uint8_t attributeByte;
     int paletteIndex;
@@ -34,19 +32,16 @@ private:
     int tableOverflow;
     int internalAttributeIndex;
     int attributeTableIndex;
-
-    
-
-    bool spriteZeroOnScanline;
-
-    uint8_t xScrolling;
-    uint8_t yScrolling;
-
-
     int nametableOffset;
     int spriteTableOffset;
     int backgroundTableOffset;
     bool extendedSprites;
+
+    //temp
+    bool spriteZeroOnScanline;
+    uint8_t xScrolling;
+    uint8_t yScrolling;
+
     bool ppuMaster;
     bool generateNMI;
 
@@ -61,43 +56,37 @@ private:
     bool evenFrame;                         //tracks even and odd frames
 
 
-    void inline setPpuByte(uint16_t, uint8_t);     //set byte in PPU address space
+    void setPpuByte(uint16_t, uint8_t);     //set byte in PPU address space
 
 public:
 
-    uint8_t readBuffer;
-
-    uint8_t OAM[0x100];                     //256 byte PPU OAM
-
-    bool readScroll;
-
-    uint8_t oamAddress;                     //current OAM address
-
-    
+    //temp
     int vramInc;
-    uint16_t vramAddress;                   //current VRAM address
+    uint8_t readBuffer;
+    int scanline;               //current scanline
+    bool draw;                  //draw frame?
+    uint16_t seperateVram;      //temp
 
-
+    //flags
+    bool setCtrl;
     bool getVramAddress;        //CPU has written half of address to 0x2006 in CPU address space
-
-
-    bool addressLatch;             //lower part of write to 2006 is occuring
-
     bool readToRAM;             //CPU has written byte to 0x2007 in CPU address space
     bool readToOAM;             //CPU has written byte to 0x4014 in CPU address space
+    bool readScroll;
 
-    bool setCtrl;
+    //registers
+    uint16_t vramAddress;                   //current VRAM address
+    uint8_t oamAddress;                     //current OAM address
+    bool addressLatch;             //lower part of write to 2006 is occuring
 
+    //settings
     bool usesRAM;               //true if CHR_RAM is used rather than CHR_ROM
-
-
-
-    uint8_t ppuRegisters[0x8];  //PPU registers
     enum Mirroring mirroring;   //nametable arrangement
-    uint8_t * CHR_ROM;          //cartridge video ROM
-    int scanline;               //current scanline
 
-    bool draw;                  //draw frame?
+    //hardware
+    uint8_t OAM[0x100];                     //256 byte PPU OAM
+    uint8_t ppuRegisters[0x8];  //PPU registers
+    uint8_t * CHR_ROM;          //cartridge video ROM
     uint32_t pixels[256 * 240]; //pixel display
 
     PPU();
