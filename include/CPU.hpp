@@ -42,7 +42,7 @@ private:
 
 public:
 
-    bool NMI;           //non maskable interupt occuring?
+    bool NMI;           //non maskable interupt
     uint16_t PC;        //program counter
     uint8_t X;          //register X
     uint8_t Y;          //register Y

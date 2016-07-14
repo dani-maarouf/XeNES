@@ -278,14 +278,12 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
 
                 if (nesPPU.m_t % 0x4000 < 0x3F00) {
 
-                    nesPPU.vramInc = (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
-                    nesPPU.m_t += nesPPU.vramInc;
+                    nesPPU.m_t += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
 
                     return ppuByte;
                 } else {
 
-                    nesPPU.vramInc = (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
-                    nesPPU.m_t += nesPPU.vramInc;
+                    nesPPU.m_t += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
 
                     return nesPPU.readBuffer;
 
