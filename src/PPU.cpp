@@ -51,7 +51,7 @@ PPU::PPU() {
     evenFrame = true;
     draw = false;
     
-    vramAddress = 0x2000;
+    //vramAddress = 0x2000;
     oamAddress = 0x0;
     secondaryOamAddress = 0x0;
 
@@ -388,8 +388,13 @@ void PPU::tick(NES * nes, int numTicks) {
 
         } else if (scanline > 240) {
 
-            //update ppustatus
-            ppuRegisters[2] |= 0x80;
+            if (scanline == 241) {
+                if (ppuCycle == 1) {
+                    //set vblank in PPUSTATUS
+                    ppuRegisters[2] |= 0x80;
+
+                }
+            }
 
         } else if (scanline < 240) {
             ppuRegisters[2] &= 0x7F;
@@ -633,9 +638,6 @@ void PPU::tick(NES * nes, int numTicks) {
                 spriteZeroFlag = false;
             }
             if (scanline == 0) {
-
-                //vramAddress = 0x2000;
-
                 draw = true;
                 evenFrame ^= true;
             }
