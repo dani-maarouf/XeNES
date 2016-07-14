@@ -37,6 +37,10 @@ PPU::PPU() {
         secondaryOAM[x] = 0x0;
     }
 
+    for (int x = 0; x < 0x9; x++) {
+        registerWriteFlags[x] = false;
+    }
+
     scanline = 241;
     ppuCycle = 0;
 
@@ -47,11 +51,7 @@ PPU::PPU() {
     oamAddress = 0x0;
     secondaryOamAddress = 0x0;
 
-    getVramAddress = false;
     addressLatch = false;
-
-    readToRAM = false;
-    readToOAM = false;
 
     nametableOffset = 0;
     vramInc = 1;
@@ -61,7 +61,6 @@ PPU::PPU() {
     ppuMaster = false;
     generateNMI = false;
 
-    readScroll = false;
 
     xScrolling = 0;
     yScrolling = 0;
@@ -84,7 +83,9 @@ PPU::PPU() {
 
     readBuffer = 0;
 
-    seperateVram = 0;
+    m_v = 0;
+    m_t = 0;
+    m_x = 0;
 
 
     return;
@@ -240,14 +241,18 @@ void PPU::tick(NES * nes, int numTicks) {
 
     draw = false;
 
-
     /*
-     * process state changes
+     * process flag changes
      */
 
-    if (setCtrl) {
-        /* PPUCTRL */   //this can be set in setCpuByte
+    if (registerWriteFlags[0]) {
+
+        m_t &= 0xF3FF;
+        m_t |= ((ppuRegisters[0] & 0x03) << 10);
+
+
         nametableOffset = (ppuRegisters[0] & 0x03) * 0x400;
+
         vramInc = (ppuRegisters[0] & 0x04) ? 32 : 1;
         spriteTableOffset = (ppuRegisters[0] & 0x8) ? 0x1000 : 0x0;
         backgroundTableOffset = (ppuRegisters[0] & 0x10) ? 0x1000 : 0x0;
@@ -255,27 +260,83 @@ void PPU::tick(NES * nes, int numTicks) {
         ppuMaster = (ppuRegisters[0] & 0x40) ? true : false;
         generateNMI = (ppuRegisters[0] & 0x80) ? true : false;
 
-        setCtrl = false;
-    } else if (getVramAddress) {
+        ppuRegisters[0x2] |= (ppuRegisters[0x0] & 0x1F);
+
+    } else if (registerWriteFlags[1]) {
+
+
+         ppuRegisters[0x2] |= (ppuRegisters[0x1] & 0x1F);
+    } else if (registerWriteFlags[2]) {
+
+
+         ppuRegisters[0x2] |= (ppuRegisters[0x2] & 0x1F);
+    } else if (registerWriteFlags[3]) {
+
+        oamAddress = ppuRegisters[0x3];
+
+         ppuRegisters[0x2] |= (ppuRegisters[0x3] & 0x1F);
+    } else if (registerWriteFlags[4]) {
+
+
+         ppuRegisters[0x2] |= (ppuRegisters[0x4] & 0x1F);
+    } else if (registerWriteFlags[5]) {
+
+
+        if (addressLatch == true) {
+
+            m_t &= 0x0C1F;
+            m_t |= (ppuRegisters[0x5] & 0x7) << 12;
+            m_t |= (ppuRegisters[0x5] & 0xF8) << 2;
+
+            yScrolling = ppuRegisters[0x5];
+            addressLatch = false;
+
+        } else {
+
+            m_x = (ppuRegisters[0x5] & 0x7);
+
+            m_t &= 0xFFE0;
+            m_t |= (ppuRegisters[0x5] & 0xF8) >> 3;
+
+            xScrolling = ppuRegisters[0x5];
+            addressLatch = true;
+
+        }
+        
+         ppuRegisters[0x2] |= (ppuRegisters[0x5] & 0x1F);
+    } else if (registerWriteFlags[6]) {
+
 
         if (addressLatch) {
+
+
+            m_t &= 0xFF00;
+            m_t |= ppuRegisters[6];
+            m_v = m_t;
+
+
             vramAddress &= 0xFF00;
             vramAddress |= ppuRegisters[6];
             //address latch sets to false on ppustatus read
-
-            seperateVram = vramAddress;
             addressLatch = false;
             
         } else {
 
+
+            m_t &= 0x00FF;
+            m_t |= (ppuRegisters[6] & 0x3F) << 8;
+
+
+
             vramAddress = (ppuRegisters[6] << 8);
-            seperateVram = vramAddress;
 
             addressLatch = true;
 
         }
-        getVramAddress = false;
-    } else if (readToRAM) {
+        
+         ppuRegisters[0x2] |= (ppuRegisters[0x6] & 0x1F);
+    } else if (registerWriteFlags[7]) {
+
 
         //read from 2007
         setPpuByte(vramAddress, ppuRegisters[7]);
@@ -285,11 +346,11 @@ void PPU::tick(NES * nes, int numTicks) {
         vramInc = (ppuRegisters[0] & 0x04) ? 32 : 1;
 
         vramAddress += vramInc;
-        seperateVram += vramAddress;
-        
-        readToRAM = false;
+        //v_t +=
+            
+         ppuRegisters[0x2] |= (ppuRegisters[0x7] & 0x1F);
+    } else if (registerWriteFlags[8]) {
 
-    } else if (readToOAM) {
         uint8_t OAMDMA;
         OAMDMA = nes->getCpuByte(0x4014);
 
@@ -297,31 +358,14 @@ void PPU::tick(NES * nes, int numTicks) {
             OAM[oamAddress] = nes->getCpuByte( (OAMDMA << 8) + x );
             oamAddress++;
         }
-    
-        readToOAM = false;
-    } else if (readScroll) {
 
-        if (addressLatch) {
-            yScrolling = ppuRegisters[0x5];
-
-            if (getBit(yScrolling, 7)) {
-                ppuRegisters[0x0] |= 0x2;
-                nametableOffset = (ppuRegisters[0] & 0x03) * 0x400;
-            }
-
-            addressLatch = false;
-        } else {
-            xScrolling = ppuRegisters[0x5];
-
-            if (getBit(xScrolling, 7)) {
-                ppuRegisters[0x0] |= 0x1;
-                nametableOffset = (ppuRegisters[0] & 0x03) * 0x400;
-            }
-
-            addressLatch = true;
-        }
-        readScroll = false;
     }
+
+    for (int x = 0; x < 0x9; x++) {
+        registerWriteFlags[x] = false;
+    }
+
+
 
     /*
      * render
@@ -331,15 +375,16 @@ void PPU::tick(NES * nes, int numTicks) {
 
         if (scanline == 240) {
             if (ppuCycle == 340) {
+
                 if (generateNMI) {
                     //throw interupt
                     nes->nesCPU.NMI = true;
                 }
+                
             }
         } else if (scanline == 261) {
 
-            //update ppustatus
-            ppuRegisters[2] |= 0x80;
+
 
             //update ppustatus
             if (ppuCycle == 2) {
@@ -357,76 +402,88 @@ void PPU::tick(NES * nes, int numTicks) {
 
             if (ppuCycle > 0 && ppuCycle < 257) {
 
-                //RENDER BACKGROUNDS
+
+
+                
                 int pixelStart;
-                pixelStart = (ppuCycle - 1) + NES_SCREEN_WIDTH * scanline;
-
-                if (((ppuCycle - 1 + xScrolling) % 8 == 0 || ppuCycle == 1)) {
-                    
-                    int scrollingOffset = 0;
-
-                    tileX = ( (ppuCycle - 1 + xScrolling) / 8);
-                    if (tileX > 31) {
-                        scrollingOffset = 0x400;
-                        tileX -= 32;
-                    }
-                    tileY = ( (scanline + yScrolling) / 8);
-                    if (tileY > 29) {
-                        scrollingOffset = 0x800;
-                        tileY -= 30;
-                    }
-
-                    nametableIndex = (tileY * 32 + tileX);
-                    internalAttributeIndex = ((tileX % 4) / 2) + ((tileY % 4) / 2) * 2;
-                    attributeTableIndex = (tileX / 4) + (tileY / 4) * 8;
-
-
-                    attributeByte = getPpuByte(0x2000 + (0x3C0 + nametableOffset + attributeTableIndex + scrollingOffset) % 0x1000);
-
-                    if (internalAttributeIndex == 0) {
-                        paletteIndex = (attributeByte & 0x3);
-                    } else if (internalAttributeIndex == 1) {
-                        paletteIndex = (attributeByte & 0xC) >> 2;
-                    } else if (internalAttributeIndex == 2) {
-                        paletteIndex = (attributeByte & 0x30) >> 4;
-                    } else if (internalAttributeIndex == 3) {
-                        paletteIndex = (attributeByte & 0xC0) >> 6;
-                    } else {
-                        paletteIndex = 0;
-                        std::cout << "Error!" << std::endl;
-                    }
-
-                    //vramAddress = 0x2000 + (nametableIndex + nametableOffset + scrollingOffset) % 0x1000;
-
-                    spriteStart = getPpuByte(0x2000 + (nametableIndex + nametableOffset + scrollingOffset) % 0x1000);
-
-                    spriteLayer1 = getPpuByte(spriteStart * 16 + ((scanline + yScrolling) % 8) + backgroundTableOffset);
-                    spriteLayer2 = getPpuByte(spriteStart * 16 + ((scanline + yScrolling) % 8) + backgroundTableOffset + 8);
-
-                }
+                pixelStart = (ppuCycle - 1) + NES_SCREEN_WIDTH * scanline;  //current pixel being rendered
 
                 uint8_t num;
                 num = 0;
 
-                if (ppuRegisters[1] & 0x8) {
+                m_v = 0;
 
-                    if (getBit(spriteLayer1, 7 - ((ppuCycle - 1 + (xScrolling % 8)) % 8 ))) {
-                        num |= 0x1;
+
+
+
+                //RENDER BACKGROUNDS
+                {
+                    
+                    if (((ppuCycle - 1 + xScrolling) % 8 == 0 || ppuCycle == 1)) {
+
+                        int scrollingOffset = 0;
+
+                        tileX = ( (ppuCycle - 1 + xScrolling) / 8);
+                        if (tileX > 31) {
+                            scrollingOffset = 0x400;
+                            tileX -= 32;
+                        }
+                        tileY = ( (scanline + yScrolling) / 8);
+                        if (tileY > 29) {
+                            scrollingOffset = 0x800;
+                            tileY -= 30;
+                        }
+
+                        nametableIndex = (tileY * 32 + tileX);
+                        attributeTableIndex = (tileX / 4) + (tileY / 4) * 8;
+                        attributeByte = getPpuByte(0x2000 + (0x3C0 + nametableOffset + attributeTableIndex + scrollingOffset) % 0x1000);
+
+
+                        internalAttributeIndex = ((tileX % 4) / 2) + ((tileY % 4) / 2) * 2;
+                        if (internalAttributeIndex == 0) {
+                            paletteIndex = (attributeByte & 0x3);
+                        } else if (internalAttributeIndex == 1) {
+                            paletteIndex = (attributeByte & 0xC) >> 2;
+                        } else if (internalAttributeIndex == 2) {
+                            paletteIndex = (attributeByte & 0x30) >> 4;
+                        } else if (internalAttributeIndex == 3) {
+                            paletteIndex = (attributeByte & 0xC0) >> 6;
+                        } else {
+                            paletteIndex = 0;
+                            std::cout << "Error!" << std::endl;
+                        }
+
+                        spriteStart = getPpuByte(0x2000 + (nametableIndex + nametableOffset + scrollingOffset) % 0x1000);
+
+                        spriteLayer1 = getPpuByte(spriteStart * 16 + ((scanline + yScrolling) % 8) + backgroundTableOffset);
+                        spriteLayer2 = getPpuByte(spriteStart * 16 + ((scanline + yScrolling) % 8) + backgroundTableOffset + 8);
+
                     }
-                    if (getBit(spriteLayer2, 7 - ((ppuCycle - 1 + (xScrolling % 8)) % 8 ))) {
-                        num |= 0x2;
+
+
+
+                    if (ppuRegisters[1] & 0x8) {
+
+                        if (getBit(spriteLayer1, 7 - ((ppuCycle - 1 + (xScrolling % 8)) % 8 ))) {
+                            num |= 0x1;
+                        }
+                        if (getBit(spriteLayer2, 7 - ((ppuCycle - 1 + (xScrolling % 8)) % 8 ))) {
+                            num |= 0x2;
+                        }
+
+                        uint32_t colour;
+                        if (num == 0) {
+                            colour = paletteTable[getPpuByte(0x3F00)];
+                        } else { 
+                            colour = paletteTable[getPpuByte(0x3F00 + num + paletteIndex * 4)];
+                        }
+
+                        pixels[pixelStart] = colour;
+
                     }
-
-                    uint32_t colour;
-                    if (num == 0) {
-                        colour = paletteTable[getPpuByte(0x3F00)];
-                    } else { 
-                        colour = paletteTable[getPpuByte(0x3F00 + num + paletteIndex * 4)];
-                    }
-
-                    pixels[pixelStart] = colour;
-
                 }
+
+
 
 
                 //RENDER SPRITES
@@ -505,11 +562,17 @@ void PPU::tick(NES * nes, int numTicks) {
 
                     }
                 }
+
+
+
+
+
+
             }
         }
 
         //prepare sprites for next scaline
-        if (ppuCycle == 340 && (scanline == 261 || scanline < 240)) {
+        if (ppuCycle == 340 && (scanline == 261 || scanline < 239)) {
 
             //prepare secondary OAM for next scanline
             for (int x = 0; x < 8; x++) {
@@ -529,10 +592,10 @@ void PPU::tick(NES * nes, int numTicks) {
 
                     secondaryOamAddress++;
 
-                    //sprite overflow
+                    //sprite overflow detection
                     if (secondaryOamAddress == 9) {
 
-                        if ((ppuRegisters[1] & 0x10) == 0x10 || (ppuRegisters[1] & 0x8) == 0x8) {
+                        if (((ppuRegisters[1] & 0x10)) || ((ppuRegisters[1] & 0x8))) {
                             ppuRegisters[2] |= 0x20;
                             secondaryOamAddress--;
                             break;
@@ -562,6 +625,8 @@ void PPU::tick(NES * nes, int numTicks) {
                 evenFrame ^= true;
             }
         }
+
+        //todo: odd/even frame timing
         
 
     }

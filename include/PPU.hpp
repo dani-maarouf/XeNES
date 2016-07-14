@@ -60,24 +60,24 @@ private:
 
 public:
 
+    //0-7 = $2000 - $2007, 8 = $4014
+    bool registerWriteFlags[9];
+
     //temp
     int vramInc;
     uint8_t readBuffer;
     int scanline;               //current scanline
     bool draw;                  //draw frame?
-    uint16_t seperateVram;      //temp
-
-    //flags
-    bool setCtrl;
-    bool getVramAddress;        //CPU has written half of address to 0x2006 in CPU address space
-    bool readToRAM;             //CPU has written byte to 0x2007 in CPU address space
-    bool readToOAM;             //CPU has written byte to 0x4014 in CPU address space
-    bool readScroll;
 
     //registers
     uint16_t vramAddress;                   //current VRAM address
     uint8_t oamAddress;                     //current OAM address
-    bool addressLatch;             //lower part of write to 2006 is occuring
+    
+    uint16_t m_v;       //current vram address
+    uint16_t m_t;       //temporary vram address
+    uint8_t m_x;        //fine x scroll
+    bool addressLatch;                      //this is the w register
+
 
     //settings
     bool usesRAM;               //true if CHR_RAM is used rather than CHR_ROM

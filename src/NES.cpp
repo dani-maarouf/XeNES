@@ -268,6 +268,7 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
 
         if (address == 0x2) {
 
+
             nesPPU.addressLatch = false;
 
         } else if (address == 0x4) {
@@ -278,24 +279,25 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
         } else if (address == 0x7) {
 
             
+            
             if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x10) == false && ((nesPPU.ppuRegisters[0x1] & 0x4) == false))) {
 
                 uint8_t ppuByte;
 
                 ppuByte = nesPPU.readBuffer;
 
-                nesPPU.readBuffer = nesPPU.getPpuByte(nesPPU.seperateVram);
+                nesPPU.readBuffer = nesPPU.getPpuByte(nesPPU.m_t);
 
                 if (nesPPU.vramAddress % 0x4000 < 0x3F00) {
 
                     nesPPU.vramInc = (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
-                    nesPPU.seperateVram += nesPPU.vramInc;
+                    nesPPU.m_t += nesPPU.vramInc;
 
                     return ppuByte;
                 } else {
 
                     nesPPU.vramInc = (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
-                    nesPPU.seperateVram += nesPPU.vramInc;
+                    nesPPU.m_t += nesPPU.vramInc;
 
                     return nesPPU.readBuffer;
 
@@ -303,9 +305,7 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
 
             }
             
-
-
-    }
+        }
 
         return nesPPU.ppuRegisters[address];
 
@@ -340,53 +340,13 @@ void NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
     } else if (memAddress >= 0x2000 && memAddress < 0x4000) {
         uint16_t address;
         address = (memAddress - 0x2000) % 8;
-
-        if (address == 0x0) {
-            nesPPU.setCtrl = true;
-            nesPPU.ppuRegisters[0x2] |= (byte & 0x1F);
-
-        } else if (address == 0x1) {
-
-            nesPPU.ppuRegisters[0x2] |= (byte & 0x1F);
-
-        } else if (address == 0x3) {
-
-            nesPPU.oamAddress = byte;
-            nesPPU.ppuRegisters[0x2] |= (byte & 0x1F);
-
-        } else if (address == 0x4) {
-
-            nesPPU.ppuRegisters[0x2] |= (byte & 0x1F);
-
-        } else if (address == 0x5) {
-
-            nesPPU.readScroll = true;
-            nesPPU.ppuRegisters[0x2] |= (byte & 0x1F);
-
-        } else if (address == 0x6) {
-
-            nesPPU.getVramAddress = true;
-
-            nesPPU.ppuRegisters[0x2] |= (byte & 0x1F);
-
-        } else if (address == 0x7) {
-            //collect all these flags in a more readable way in PPU class definition
-            nesPPU.readToRAM = true;
-
-            nesPPU.ppuRegisters[0x2] |= (byte & 0x1F);
-
-        }
-
+        nesPPU.registerWriteFlags[address] = true;
         nesPPU.ppuRegisters[address] = byte;
-    } 
-
-    else if (memAddress >= 0x4000 && memAddress < 0x4018) { 
+    } else if (memAddress >= 0x4000 && memAddress < 0x4018) { 
 
         if (memAddress == 0x4014) {
-            nesPPU.readToOAM = true;
-        }
-
-        if (memAddress == 0x4016) {
+            nesPPU.registerWriteFlags[8] = true;
+        } else if (memAddress == 0x4016) {
             if ((byte & 0x1) == 0x1) {
                 storedControllerByte = controllerByte;
                 readController = false;
