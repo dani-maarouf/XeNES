@@ -21,26 +21,24 @@ class PPU {
 private:
 
     //render
-    uint8_t attributeByte;
     int paletteIndex;
     uint8_t spriteLayer1;
     uint8_t spriteLayer2;
     int spriteStart;
-    int tileX;
-    int tileY;
-    int nametableIndex;
-    int tableOverflow;
     int internalAttributeIndex;
     int attributeTableIndex;
-    int nametableOffset;
     int spriteTableOffset;
     int backgroundTableOffset;
     bool extendedSprites;
 
     //temp
     bool spriteZeroOnScanline;
-    uint8_t xScrolling;
     uint8_t yScrolling;
+
+    //registers
+    uint16_t vramAddress;                   //current VRAM address
+    uint8_t oamAddress;                     //current OAM address
+
 
     bool ppuMaster;
     bool generateNMI;
@@ -62,6 +60,7 @@ public:
 
     //0-7 = $2000 - $2007, 8 = $4014
     bool registerWriteFlags[9];
+    bool registerReadFlags[8];
 
     //temp
     int vramInc;
@@ -70,9 +69,6 @@ public:
     bool draw;                  //draw frame?
 
     //registers
-    uint16_t vramAddress;                   //current VRAM address
-    uint8_t oamAddress;                     //current OAM address
-    
     uint16_t m_v;       //current vram address
     uint16_t m_t;       //temporary vram address
     uint8_t m_x;        //fine x scroll

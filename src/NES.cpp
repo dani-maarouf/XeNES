@@ -266,20 +266,8 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
         address = (memAddress - 0x2000) % 8;
 
 
-        if (address == 0x2) {
+        if (address == 0x7) {
 
-
-            nesPPU.addressLatch = false;
-
-        } else if (address == 0x4) {
-
-
-
-
-        } else if (address == 0x7) {
-
-            
-            
             if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x10) == false && ((nesPPU.ppuRegisters[0x1] & 0x4) == false))) {
 
                 uint8_t ppuByte;
@@ -288,7 +276,7 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
 
                 nesPPU.readBuffer = nesPPU.getPpuByte(nesPPU.m_t);
 
-                if (nesPPU.vramAddress % 0x4000 < 0x3F00) {
+                if (nesPPU.m_t % 0x4000 < 0x3F00) {
 
                     nesPPU.vramInc = (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
                     nesPPU.m_t += nesPPU.vramInc;
@@ -307,6 +295,7 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
             
         }
 
+        nesPPU.registerReadFlags[address] = true;
         return nesPPU.ppuRegisters[address];
 
     } else if (memAddress >= 0x4000 && memAddress < 0x4020) {
@@ -343,7 +332,6 @@ void NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
         nesPPU.registerWriteFlags[address] = true;
         nesPPU.ppuRegisters[address] = byte;
     } else if (memAddress >= 0x4000 && memAddress < 0x4018) { 
-
         if (memAddress == 0x4014) {
             nesPPU.registerWriteFlags[8] = true;
         } else if (memAddress == 0x4016) {
@@ -355,9 +343,7 @@ void NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
                 readController = true;
             }
         }
-
         ioRegisters[memAddress - 0x4000] = byte;
-
     } else if (memAddress >= 0x6000 && memAddress < 0x8000) {
         nesCPU.PRG_RAM[memAddress - 0x6000] = byte;
     } else {

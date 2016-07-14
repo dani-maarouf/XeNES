@@ -41,6 +41,10 @@ PPU::PPU() {
         registerWriteFlags[x] = false;
     }
 
+    for (int x = 0; x < 8; x++) {
+        registerReadFlags[x] = false;
+    }
+
     scanline = 241;
     ppuCycle = 0;
 
@@ -53,7 +57,6 @@ PPU::PPU() {
 
     addressLatch = false;
 
-    nametableOffset = 0;
     vramInc = 1;
     spriteTableOffset = 0;
     backgroundTableOffset = 0;
@@ -61,8 +64,6 @@ PPU::PPU() {
     ppuMaster = false;
     generateNMI = false;
 
-
-    xScrolling = 0;
     yScrolling = 0;
 
     CHR_ROM = NULL;
@@ -70,14 +71,9 @@ PPU::PPU() {
     spriteZeroOnScanline = false;
 
     //rendering
-    attributeByte = 0;
     spriteLayer1 = 0;
     spriteLayer2 = 0;
 
-    tileX = 0;
-    tileY = 0;
-    nametableIndex = 0;
-    tableOverflow = 0;
     internalAttributeIndex = 0;
     attributeTableIndex = 0;
 
@@ -251,8 +247,6 @@ void PPU::tick(NES * nes, int numTicks) {
         m_t |= ((ppuRegisters[0] & 0x03) << 10);
 
 
-        nametableOffset = (ppuRegisters[0] & 0x03) * 0x400;
-
         vramInc = (ppuRegisters[0] & 0x04) ? 32 : 1;
         spriteTableOffset = (ppuRegisters[0] & 0x8) ? 0x1000 : 0x0;
         backgroundTableOffset = (ppuRegisters[0] & 0x10) ? 0x1000 : 0x0;
@@ -298,7 +292,6 @@ void PPU::tick(NES * nes, int numTicks) {
             m_t &= 0xFFE0;
             m_t |= (ppuRegisters[0x5] & 0xF8) >> 3;
 
-            xScrolling = ppuRegisters[0x5];
             addressLatch = true;
 
         }
@@ -361,8 +354,24 @@ void PPU::tick(NES * nes, int numTicks) {
 
     }
 
+    if (registerReadFlags[2]) {
+
+        addressLatch = false;
+
+    } else if (registerReadFlags[4]) {
+
+    } else if (registerReadFlags[7]) {
+
+        //todo: fix this
+
+    }
+
     for (int x = 0; x < 0x9; x++) {
         registerWriteFlags[x] = false;
+    }
+
+    for (int x = 0; x < 8; x++) {
+        registerReadFlags[x] = false;
     }
 
 
@@ -392,6 +401,13 @@ void PPU::tick(NES * nes, int numTicks) {
                 ppuRegisters[2] &= 0xDF;
             }
 
+            if (ppuCycle == 304) {
+                m_v &= 0x041F;
+                m_v |= (m_t & (~0x041F));
+            }
+            
+
+
         } else if (scanline > 240) {
 
             //update ppustatus
@@ -399,6 +415,7 @@ void PPU::tick(NES * nes, int numTicks) {
 
         } else if (scanline < 240) {
             ppuRegisters[2] &= 0x7F;
+
 
             if (ppuCycle > 0 && ppuCycle < 257) {
 
@@ -411,33 +428,20 @@ void PPU::tick(NES * nes, int numTicks) {
                 uint8_t num;
                 num = 0;
 
-                m_v = 0;
-
-
+                int yScroll;
+                yScroll = (m_v & 0x7000) >> 12;
+                
 
 
                 //RENDER BACKGROUNDS
                 {
                     
-                    if (((ppuCycle - 1 + xScrolling) % 8 == 0 || ppuCycle == 1)) {
+                    if (((ppuCycle - 1 + m_x) % 8 == 0 || ppuCycle == 1)) {
 
-                        int scrollingOffset = 0;
+                        int tileX = (m_v & 0x1F);
+                        int tileY = (m_v & 0x370) >> 5;
 
-                        tileX = ( (ppuCycle - 1 + xScrolling) / 8);
-                        if (tileX > 31) {
-                            scrollingOffset = 0x400;
-                            tileX -= 32;
-                        }
-                        tileY = ( (scanline + yScrolling) / 8);
-                        if (tileY > 29) {
-                            scrollingOffset = 0x800;
-                            tileY -= 30;
-                        }
-
-                        nametableIndex = (tileY * 32 + tileX);
-                        attributeTableIndex = (tileX / 4) + (tileY / 4) * 8;
-                        attributeByte = getPpuByte(0x2000 + (0x3C0 + nametableOffset + attributeTableIndex + scrollingOffset) % 0x1000);
-
+                        uint8_t attributeByte = getPpuByte(0x23C0 | (m_v & 0x0C00) | ((m_v >> 4) & 0x38) | ((m_v >> 2) & 0x07));
 
                         internalAttributeIndex = ((tileX % 4) / 2) + ((tileY % 4) / 2) * 2;
                         if (internalAttributeIndex == 0) {
@@ -453,7 +457,7 @@ void PPU::tick(NES * nes, int numTicks) {
                             std::cout << "Error!" << std::endl;
                         }
 
-                        spriteStart = getPpuByte(0x2000 + (nametableIndex + nametableOffset + scrollingOffset) % 0x1000);
+                        spriteStart = getPpuByte(0x2000 | (m_v & 0x0FFF));
 
                         spriteLayer1 = getPpuByte(spriteStart * 16 + ((scanline + yScrolling) % 8) + backgroundTableOffset);
                         spriteLayer2 = getPpuByte(spriteStart * 16 + ((scanline + yScrolling) % 8) + backgroundTableOffset + 8);
@@ -464,10 +468,10 @@ void PPU::tick(NES * nes, int numTicks) {
 
                     if (ppuRegisters[1] & 0x8) {
 
-                        if (getBit(spriteLayer1, 7 - ((ppuCycle - 1 + (xScrolling % 8)) % 8 ))) {
+                        if (getBit(spriteLayer1, 7 - ((ppuCycle - 1 + (m_x)) % 8 ))) {
                             num |= 0x1;
                         }
-                        if (getBit(spriteLayer2, 7 - ((ppuCycle - 1 + (xScrolling % 8)) % 8 ))) {
+                        if (getBit(spriteLayer2, 7 - ((ppuCycle - 1 + (m_x)) % 8 ))) {
                             num |= 0x2;
                         }
 
@@ -565,10 +569,48 @@ void PPU::tick(NES * nes, int numTicks) {
 
 
 
+                if (((ppuCycle - 1 + m_x) % 8 == 0 || ppuCycle == 1)) {
+
+                    if ((m_v & 0x001F) == 31) {
+                        //~ = bitwise not
+                        m_v &= ~0x001F;
+                        m_v ^= 0x400;
+                    } else {
+                        m_v++;
+                    }
+                }
+
+                if (ppuCycle == 256) {
+
+                    if ((m_v & 0x7000) != 0x7000) {
+                        m_v += 0x1000;
+                    } else {
+                        m_v &= ~0x7000;
+
+                        int yVal;
+                        yVal = (m_v & 0x03E0) >> 5;
+
+                        if (yVal == 29) {
+                            yVal = 0;
+                            m_v ^= 0x800;
+                        } else if (yVal == 31) {
+                            yVal = 0;
+                        } else {
+                            yVal += 1;
+                        }
+
+                        m_v = (m_v & ~0x03E0) | (yVal << 5);
+                    }
+
+                }
+            } else if (ppuCycle == 257) {
+
+                m_v &= ~0x041F;
+                m_v |= (m_t & 0x041F);
+
+            } 
 
 
-
-            }
         }
 
         //prepare sprites for next scaline
