@@ -269,6 +269,7 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
         if (address == 0x7) {
 
             //hack
+            //required for SMB title screen and pacman collision detection
             /*
             if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x10) == false && ((nesPPU.ppuRegisters[0x1] & 0x4) == false))) {
 
@@ -291,9 +292,11 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
             */
             
             
+            
         }
 
         nesPPU.registerReadFlags[address] = true;
+        nesPPU.flagSet = true;
         return nesPPU.ppuRegisters[address];
 
     } else if (memAddress >= 0x4000 && memAddress < 0x4020) {
@@ -328,10 +331,12 @@ void NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
         uint16_t address;
         address = (memAddress - 0x2000) % 8;
         nesPPU.registerWriteFlags[address] = true;
+        nesPPU.flagSet = true;
         nesPPU.ppuRegisters[address] = byte;
     } else if (memAddress >= 0x4000 && memAddress < 0x4018) { 
         if (memAddress == 0x4014) {
             nesPPU.registerWriteFlags[8] = true;
+            nesPPU.flagSet = true;
         } else if (memAddress == 0x4016) {
             if ((byte & 0x1) == 0x1) {
                 storedControllerByte = controllerByte;

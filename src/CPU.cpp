@@ -4,7 +4,10 @@
 
 #include "NES.hpp"
 
-
+#define getBit(num, bit)   (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) : \
+                            (bit == 2) ? (num & 0x4) : (bit == 3) ? (num & 0x8) : \
+                            (bit == 4) ? (num & 0x10) : (bit == 5) ? (num & 0x20) : \
+                            (bit == 6) ? (num & 0x40) : (num & 0x80)
 enum InstructionType {
     READ = 0,               //read from mem address
     WRITE = 1,              //write to mem address
@@ -76,7 +79,6 @@ static const int cycles[] = {
     4,5,5,0,0,0,0,0,0,0,3,4,4,  //read modify write
 };
 
-static inline bool getBit(uint8_t, int);
 static inline uint8_t getPswByte(bool *);
 static inline void getPswFromByte(bool * PS, uint8_t byte);
 static void printByte(uint8_t);
@@ -840,27 +842,6 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
     cpuCycle = (cpuCycle + 3 * cyc) % 341;
     return cyc;
-}
-
-static inline bool getBit(uint8_t num, int bitNum) {
-
-    if (bitNum == 0) {
-        return (num & 0x1);
-    } else if (bitNum == 1) {
-        return (num & 0x2);
-    } else if (bitNum == 2) {
-        return (num & 0x4);
-    } else if (bitNum == 3) {
-        return (num & 0x8);
-    } else if (bitNum == 4) {
-        return (num & 0x10);
-    } else if (bitNum == 5) {
-        return (num & 0x20);
-    } else if (bitNum == 6) {
-        return (num & 0x40);
-    } else {
-        return (num & 0x80);
-    }
 }
 
 static inline uint8_t getPswByte(bool * PS) {

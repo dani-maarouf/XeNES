@@ -24,11 +24,9 @@ private:
     int paletteIndex;
     uint8_t spriteLayer1;
     uint8_t spriteLayer2;
-
     uint16_t shiftRegister1;
     uint16_t shiftRegister2;
-    
-    
+
     //info
     int ppuCycle;                           //0-341 per scanline
     bool evenFrame;                         //tracks even and odd frames
@@ -36,21 +34,26 @@ private:
     //registers
     uint8_t oamAddress;                     //current OAM address
     uint8_t secondaryOamAddress;        
-    bool spriteZeroFlag;
+    bool spriteZeroFlag;                    //set PPUSTATUS at end of line
 
     //hardware
     uint8_t OAM[0x100];                     //256 byte PPU OAM
-    uint8_t palette[0x20];      
-    uint8_t VRAM[0x1000];                   //4kB PPU internal RAM
-    uint8_t secondaryOAM[8];
+    uint8_t secondaryOAM[8];                //OAM for sprites on line
+    uint8_t palette[0x20];
+    uint8_t VRAM[0x1000];                   //4kB PPU internal VRAM
 
     void setPpuByte(uint16_t, uint8_t);     //set byte in PPU address space
-
+    void ppuFlagUpdate(NES *);
+    void renderPixel();
+    void updateSecondaryOAM();
+    void incrementCycle();
+    
 public:
 
     //0-7 = $2000 - $2007, 8 = $4014
     bool registerWriteFlags[9];
     bool registerReadFlags[8];
+    bool flagSet;
 
     //registers
     uint16_t m_v;           //current vram address
@@ -60,7 +63,7 @@ public:
     uint8_t readBuffer;
 
     //temp
-    uint16_t vramAddress;   //hack
+    uint16_t vramAddress;       //hack
 
     //info
     int scanline;               //current scanline
@@ -70,7 +73,6 @@ public:
     bool usesRAM;               //true if CHR_RAM is used rather than CHR_ROM
     enum Mirroring mirroring;   //nametable arrangement
 
-
     //hardware
     uint8_t ppuRegisters[0x8];              //PPU registers
     uint8_t * CHR_ROM;                      //cartridge video ROM (pattern tables)
@@ -78,8 +80,8 @@ public:
 
     PPU();
     void tick(NES *, int);            //one PPU tick is executed
-    void freePointers();        //free memory
-    uint8_t getPpuByte(uint16_t);           //get byte from PPU address space
+    void freePointers();              //free memory
+    uint8_t getPpuByte(uint16_t);     //get byte from PPU address space
 
 };
 

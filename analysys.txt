@@ -1,0 +1,338 @@
+Flat profile:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total           
+ time   seconds   seconds    calls   s/call   s/call  name    
+ 44.70      2.57     2.57 106905611     0.00     0.00  PPU::renderPixel()
+ 24.31      3.96     1.40 17065766     0.00     0.00  PPU::tick(NES*, int)
+ 14.55      4.80     0.84 157806454     0.00     0.00  PPU::getPpuByte(unsigned short)
+  6.19      5.15     0.36 17065766     0.00     0.00  CPU::executeNextOpcode(NES*, bool)
+  3.66      5.36     0.21 85946758     0.00     0.00  NES::getCpuByte(unsigned short)
+  2.79      5.52     0.16        1     0.16     5.66  loop(NES, char const*)
+  0.87      5.57     0.05        1     0.05     0.05  PPU::freePointers()
+  0.52      5.60     0.03 12596066     0.00     0.00  NES::retrieveCpuAddress(AddressMode, bool*, unsigned char, unsigned char)
+  0.44      5.63     0.03 17065766     0.00     0.00  NES::executeOpcode(bool)
+  0.35      5.65     0.02 17065766     0.00     0.00  NES::tickPPU(int)
+  0.35      5.67     0.02   409820     0.00     0.00  PPU::ppuFlagUpdate(NES*)
+  0.35      5.69     0.02        1     0.02     0.02  NES::openCartridge(char const*)
+  0.26      5.70     0.02     1734     0.00     0.00  getPswByte(bool*)
+  0.17      5.71     0.01 17065766     0.00     0.00  NES::drawFlag()
+  0.17      5.72     0.01  1394689     0.00     0.00  NES::setCpuByte(unsigned short, unsigned char)
+  0.17      5.73     0.01        1     0.01     0.01  CPU::freePointers()
+  0.09      5.74     0.01     1742     0.00     0.00  NES::getDisplayPixels()
+  0.00      5.74     0.00    22552     0.00     0.00  PPU::setPpuByte(unsigned short, unsigned char)
+  0.00      5.74     0.00    13872     0.00     0.00  getBit(unsigned char, int)
+  0.00      5.74     0.00     1742     0.00     0.00  draw(unsigned int*)
+  0.00      5.74     0.00     1733     0.00     0.00  getPswFromByte(bool*, unsigned char)
+  0.00      5.74     0.00        1     0.00     0.00  _GLOBAL__sub_I__ZN3CPUC2Ev
+  0.00      5.74     0.00        1     0.00     0.00  _GLOBAL__sub_I__ZN3NESC2Ev
+  0.00      5.74     0.00        1     0.00     0.00  _GLOBAL__sub_I__ZN3PPUC2Ev
+  0.00      5.74     0.00        1     0.00     0.00  _GLOBAL__sub_I_main
+  0.00      5.74     0.00        1     0.00     0.00  _GLOBAL__sub_I_window
+  0.00      5.74     0.00        1     0.00     0.00  __static_initialization_and_destruction_0(int, int)
+  0.00      5.74     0.00        1     0.00     0.00  __static_initialization_and_destruction_0(int, int)
+  0.00      5.74     0.00        1     0.00     0.00  __static_initialization_and_destruction_0(int, int)
+  0.00      5.74     0.00        1     0.00     0.00  __static_initialization_and_destruction_0(int, int)
+  0.00      5.74     0.00        1     0.00     0.00  __static_initialization_and_destruction_0(int, int)
+  0.00      5.74     0.00        1     0.00     0.00  initSDL(char const*)
+  0.00      5.74     0.00        1     0.00     0.00  closeSDL()
+  0.00      5.74     0.00        1     0.00     0.00  CPU::CPU()
+  0.00      5.74     0.00        1     0.00     0.06  NES::closeCartridge()
+  0.00      5.74     0.00        1     0.00     0.00  NES::NES()
+  0.00      5.74     0.00        1     0.00     0.00  PPU::PPU()
+
+ %         the percentage of the total running time of the
+time       program used by this function.
+
+cumulative a running sum of the number of seconds accounted
+ seconds   for by this function and those listed above it.
+
+ self      the number of seconds accounted for by this
+seconds    function alone.  This is the major sort for this
+           listing.
+
+calls      the number of times this function was invoked, if
+           this function is profiled, else blank.
+
+ self      the average number of milliseconds spent in this
+ms/call    function per call, if this function is profiled,
+	   else blank.
+
+ total     the average number of milliseconds spent in this
+ms/call    function and its descendents per call, if this
+	   function is profiled, else blank.
+
+name       the name of the function.  This is the minor sort
+           for this listing. The index shows the location of
+	   the function in the gprof listing. If the index is
+	   in parenthesis it shows where it would appear in
+	   the gprof listing if it were to be printed.
+
+Copyright (C) 2012-2015 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+		     Call graph (explanation follows)
+
+
+granularity: each sample hit covers 2 byte(s) for 0.17% of 5.74 seconds
+
+index % time    self  children    called     name
+                                                 <spontaneous>
+[1]    100.0    0.00    5.74                 main [1]
+                0.16    5.50       1/1           loop(NES, char const*) [2]
+                0.00    0.06       1/1           NES::closeCartridge() [10]
+                0.02    0.00       1/1           NES::openCartridge(char const*) [14]
+                0.00    0.00       1/1           NES::NES() [43]
+-----------------------------------------------
+                0.16    5.50       1/1           main [1]
+[2]     98.6    0.16    5.50       1         loop(NES, char const*) [2]
+                0.02    4.82 17065766/17065766     NES::tickPPU(int) [3]
+                0.03    0.62 17065766/17065766     NES::executeOpcode(bool) [7]
+                0.01    0.00 17065766/17065766     NES::drawFlag() [16]
+                0.01    0.00    1742/1742        NES::getDisplayPixels() [19]
+                0.00    0.00    1742/1742        draw(unsigned int*) [28]
+                0.00    0.00       1/1           initSDL(char const*) [40]
+                0.00    0.00       1/1           closeSDL() [41]
+-----------------------------------------------
+                0.02    4.82 17065766/17065766     loop(NES, char const*) [2]
+[3]     84.3    0.02    4.82 17065766         NES::tickPPU(int) [3]
+                1.40    3.42 17065766/17065766     PPU::tick(NES*, int) [4]
+-----------------------------------------------
+                1.40    3.42 17065766/17065766     NES::tickPPU(int) [3]
+[4]     84.0    1.40    3.42 17065766         PPU::tick(NES*, int) [4]
+                2.57    0.84 106905611/106905611     PPU::renderPixel() [5]
+                0.02    0.00  409820/409820      PPU::ppuFlagUpdate(NES*) [13]
+-----------------------------------------------
+                2.57    0.84 106905611/106905611     PPU::tick(NES*, int) [4]
+[5]     59.3    2.57    0.84 106905611         PPU::renderPixel() [5]
+                0.84    0.00 157806454/157806454     PPU::getPpuByte(unsigned short) [6]
+-----------------------------------------------
+                0.84    0.00 157806454/157806454     PPU::renderPixel() [5]
+[6]     14.6    0.84    0.00 157806454         PPU::getPpuByte(unsigned short) [6]
+-----------------------------------------------
+                0.03    0.62 17065766/17065766     loop(NES, char const*) [2]
+[7]     11.2    0.03    0.62 17065766         NES::executeOpcode(bool) [7]
+                0.36    0.26 17065766/17065766     CPU::executeNextOpcode(NES*, bool) [8]
+-----------------------------------------------
+                0.36    0.26 17065766/17065766     NES::executeOpcode(bool) [7]
+[8]     10.8    0.36    0.26 17065766         CPU::executeNextOpcode(NES*, bool) [8]
+                0.21    0.00 84904250/85946758     NES::getCpuByte(unsigned short) [9]
+                0.03    0.00 12596066/12596066     NES::retrieveCpuAddress(AddressMode, bool*, unsigned char, unsigned char) [12]
+                0.02    0.00    1734/1734        getPswByte(bool*) [15]
+                0.01    0.00 1394689/1394689     NES::setCpuByte(unsigned short, unsigned char) [17]
+                0.00    0.00    1733/1733        getPswFromByte(bool*, unsigned char) [29]
+-----------------------------------------------
+                0.00    0.00       2/85946758     NES::openCartridge(char const*) [14]
+                0.00    0.00  445638/85946758     PPU::ppuFlagUpdate(NES*) [13]
+                0.00    0.00  596868/85946758     NES::retrieveCpuAddress(AddressMode, bool*, unsigned char, unsigned char) [12]
+                0.21    0.00 84904250/85946758     CPU::executeNextOpcode(NES*, bool) [8]
+[9]      3.7    0.21    0.00 85946758         NES::getCpuByte(unsigned short) [9]
+                0.00    0.00   13872/13872       getBit(unsigned char, int) [27]
+-----------------------------------------------
+                0.00    0.06       1/1           main [1]
+[10]     1.0    0.00    0.06       1         NES::closeCartridge() [10]
+                0.05    0.00       1/1           PPU::freePointers() [11]
+                0.01    0.00       1/1           CPU::freePointers() [18]
+-----------------------------------------------
+                0.05    0.00       1/1           NES::closeCartridge() [10]
+[11]     0.9    0.05    0.00       1         PPU::freePointers() [11]
+-----------------------------------------------
+                0.03    0.00 12596066/12596066     CPU::executeNextOpcode(NES*, bool) [8]
+[12]     0.5    0.03    0.00 12596066         NES::retrieveCpuAddress(AddressMode, bool*, unsigned char, unsigned char) [12]
+                0.00    0.00  596868/85946758     NES::getCpuByte(unsigned short) [9]
+-----------------------------------------------
+                0.02    0.00  409820/409820      PPU::tick(NES*, int) [4]
+[13]     0.4    0.02    0.00  409820         PPU::ppuFlagUpdate(NES*) [13]
+                0.00    0.00  445638/85946758     NES::getCpuByte(unsigned short) [9]
+                0.00    0.00   22552/22552       PPU::setPpuByte(unsigned short, unsigned char) [26]
+-----------------------------------------------
+                0.02    0.00       1/1           main [1]
+[14]     0.3    0.02    0.00       1         NES::openCartridge(char const*) [14]
+                0.00    0.00       2/85946758     NES::getCpuByte(unsigned short) [9]
+-----------------------------------------------
+                0.02    0.00    1734/1734        CPU::executeNextOpcode(NES*, bool) [8]
+[15]     0.3    0.02    0.00    1734         getPswByte(bool*) [15]
+-----------------------------------------------
+                0.01    0.00 17065766/17065766     loop(NES, char const*) [2]
+[16]     0.2    0.01    0.00 17065766         NES::drawFlag() [16]
+-----------------------------------------------
+                0.01    0.00 1394689/1394689     CPU::executeNextOpcode(NES*, bool) [8]
+[17]     0.2    0.01    0.00 1394689         NES::setCpuByte(unsigned short, unsigned char) [17]
+-----------------------------------------------
+                0.01    0.00       1/1           NES::closeCartridge() [10]
+[18]     0.2    0.01    0.00       1         CPU::freePointers() [18]
+-----------------------------------------------
+                0.01    0.00    1742/1742        loop(NES, char const*) [2]
+[19]     0.1    0.01    0.00    1742         NES::getDisplayPixels() [19]
+-----------------------------------------------
+                0.00    0.00   22552/22552       PPU::ppuFlagUpdate(NES*) [13]
+[26]     0.0    0.00    0.00   22552         PPU::setPpuByte(unsigned short, unsigned char) [26]
+-----------------------------------------------
+                0.00    0.00   13872/13872       NES::getCpuByte(unsigned short) [9]
+[27]     0.0    0.00    0.00   13872         getBit(unsigned char, int) [27]
+-----------------------------------------------
+                0.00    0.00    1742/1742        loop(NES, char const*) [2]
+[28]     0.0    0.00    0.00    1742         draw(unsigned int*) [28]
+-----------------------------------------------
+                0.00    0.00    1733/1733        CPU::executeNextOpcode(NES*, bool) [8]
+[29]     0.0    0.00    0.00    1733         getPswFromByte(bool*, unsigned char) [29]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [65]
+[30]     0.0    0.00    0.00       1         _GLOBAL__sub_I__ZN3CPUC2Ev [30]
+                0.00    0.00       1/1           __static_initialization_and_destruction_0(int, int) [38]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [65]
+[31]     0.0    0.00    0.00       1         _GLOBAL__sub_I__ZN3NESC2Ev [31]
+                0.00    0.00       1/1           __static_initialization_and_destruction_0(int, int) [36]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [65]
+[32]     0.0    0.00    0.00       1         _GLOBAL__sub_I__ZN3PPUC2Ev [32]
+                0.00    0.00       1/1           __static_initialization_and_destruction_0(int, int) [39]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [65]
+[33]     0.0    0.00    0.00       1         _GLOBAL__sub_I_main [33]
+                0.00    0.00       1/1           __static_initialization_and_destruction_0(int, int) [35]
+-----------------------------------------------
+                0.00    0.00       1/1           __libc_csu_init [65]
+[34]     0.0    0.00    0.00       1         _GLOBAL__sub_I_window [34]
+                0.00    0.00       1/1           __static_initialization_and_destruction_0(int, int) [37]
+-----------------------------------------------
+                0.00    0.00       1/1           _GLOBAL__sub_I_main [33]
+[35]     0.0    0.00    0.00       1         __static_initialization_and_destruction_0(int, int) [35]
+-----------------------------------------------
+                0.00    0.00       1/1           _GLOBAL__sub_I__ZN3NESC2Ev [31]
+[36]     0.0    0.00    0.00       1         __static_initialization_and_destruction_0(int, int) [36]
+-----------------------------------------------
+                0.00    0.00       1/1           _GLOBAL__sub_I_window [34]
+[37]     0.0    0.00    0.00       1         __static_initialization_and_destruction_0(int, int) [37]
+-----------------------------------------------
+                0.00    0.00       1/1           _GLOBAL__sub_I__ZN3CPUC2Ev [30]
+[38]     0.0    0.00    0.00       1         __static_initialization_and_destruction_0(int, int) [38]
+-----------------------------------------------
+                0.00    0.00       1/1           _GLOBAL__sub_I__ZN3PPUC2Ev [32]
+[39]     0.0    0.00    0.00       1         __static_initialization_and_destruction_0(int, int) [39]
+-----------------------------------------------
+                0.00    0.00       1/1           loop(NES, char const*) [2]
+[40]     0.0    0.00    0.00       1         initSDL(char const*) [40]
+-----------------------------------------------
+                0.00    0.00       1/1           loop(NES, char const*) [2]
+[41]     0.0    0.00    0.00       1         closeSDL() [41]
+-----------------------------------------------
+                0.00    0.00       1/1           NES::NES() [43]
+[42]     0.0    0.00    0.00       1         CPU::CPU() [42]
+-----------------------------------------------
+                0.00    0.00       1/1           main [1]
+[43]     0.0    0.00    0.00       1         NES::NES() [43]
+                0.00    0.00       1/1           PPU::PPU() [44]
+                0.00    0.00       1/1           CPU::CPU() [42]
+-----------------------------------------------
+                0.00    0.00       1/1           NES::NES() [43]
+[44]     0.0    0.00    0.00       1         PPU::PPU() [44]
+-----------------------------------------------
+
+ This table describes the call tree of the program, and was sorted by
+ the total amount of time spent in each function and its children.
+
+ Each entry in this table consists of several lines.  The line with the
+ index number at the left hand margin lists the current function.
+ The lines above it list the functions that called this function,
+ and the lines below it list the functions this one called.
+ This line lists:
+     index	A unique number given to each element of the table.
+		Index numbers are sorted numerically.
+		The index number is printed next to every function name so
+		it is easier to look up where the function is in the table.
+
+     % time	This is the percentage of the `total' time that was spent
+		in this function and its children.  Note that due to
+		different viewpoints, functions excluded by options, etc,
+		these numbers will NOT add up to 100%.
+
+     self	This is the total amount of time spent in this function.
+
+     children	This is the total amount of time propagated into this
+		function by its children.
+
+     called	This is the number of times the function was called.
+		If the function called itself recursively, the number
+		only includes non-recursive calls, and is followed by
+		a `+' and the number of recursive calls.
+
+     name	The name of the current function.  The index number is
+		printed after it.  If the function is a member of a
+		cycle, the cycle number is printed between the
+		function's name and the index number.
+
+
+ For the function's parents, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the function into this parent.
+
+     children	This is the amount of time that was propagated from
+		the function's children into this parent.
+
+     called	This is the number of times this parent called the
+		function `/' the total number of times the function
+		was called.  Recursive calls to the function are not
+		included in the number after the `/'.
+
+     name	This is the name of the parent.  The parent's index
+		number is printed after it.  If the parent is a
+		member of a cycle, the cycle number is printed between
+		the name and the index number.
+
+ If the parents of the function cannot be determined, the word
+ `<spontaneous>' is printed in the `name' field, and all the other
+ fields are blank.
+
+ For the function's children, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the child into the function.
+
+     children	This is the amount of time that was propagated from the
+		child's children to the function.
+
+     called	This is the number of times the function called
+		this child `/' the total number of times the child
+		was called.  Recursive calls by the child are not
+		listed in the number after the `/'.
+
+     name	This is the name of the child.  The child's index
+		number is printed after it.  If the child is a
+		member of a cycle, the cycle number is printed
+		between the name and the index number.
+
+ If there are any cycles (circles) in the call graph, there is an
+ entry for the cycle-as-a-whole.  This entry shows who called the
+ cycle (as parents) and the members of the cycle (as children.)
+ The `+' recursive calls entry shows the number of function calls that
+ were internal to the cycle, and the calls entry for each member shows,
+ for that member, how many times it was called from other members of
+ the cycle.
+
+Copyright (C) 2012-2015 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+Index by function name
+
+  [30] _GLOBAL__sub_I__ZN3CPUC2Ev [28] draw(unsigned int*) [12] NES::retrieveCpuAddress(AddressMode, bool*, unsigned char, unsigned char)
+  [31] _GLOBAL__sub_I__ZN3NESC2Ev [27] getBit(unsigned char, int) [3] NES::tickPPU(int)
+  [32] _GLOBAL__sub_I__ZN3PPUC2Ev [40] initSDL(char const*) [16] NES::drawFlag()
+  [33] _GLOBAL__sub_I_main    [41] closeSDL()             [43] NES::NES()
+  [34] _GLOBAL__sub_I_window  [18] CPU::freePointers()     [6] PPU::getPpuByte(unsigned short)
+  [35] __static_initialization_and_destruction_0(int, int) [8] CPU::executeNextOpcode(NES*, bool) [26] PPU::setPpuByte(unsigned short, unsigned char)
+  [36] __static_initialization_and_destruction_0(int, int) [42] CPU::CPU() [5] PPU::renderPixel()
+  [37] __static_initialization_and_destruction_0(int, int) [9] NES::getCpuByte(unsigned short) [11] PPU::freePointers()
+  [38] __static_initialization_and_destruction_0(int, int) [17] NES::setCpuByte(unsigned short, unsigned char) [13] PPU::ppuFlagUpdate(NES*)
+  [39] __static_initialization_and_destruction_0(int, int) [7] NES::executeOpcode(bool) [4] PPU::tick(NES*, int)
+   [2] loop(NES, char const*) [14] NES::openCartridge(char const*) [44] PPU::PPU()
+  [15] getPswByte(bool*)      [10] NES::closeCartridge()
+  [29] getPswFromByte(bool*, unsigned char) [19] NES::getDisplayPixels()
