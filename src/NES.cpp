@@ -268,28 +268,28 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
 
         if (address == 0x7) {
 
+            //hack
+            /*
             if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x10) == false && ((nesPPU.ppuRegisters[0x1] & 0x4) == false))) {
 
                 uint8_t ppuByte;
 
                 ppuByte = nesPPU.readBuffer;
 
-                nesPPU.readBuffer = nesPPU.getPpuByte(nesPPU.m_t);
+                nesPPU.readBuffer = nesPPU.getPpuByte( nesPPU.m_t );
+
+                nesPPU.m_t += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
+
 
                 if (nesPPU.m_t % 0x4000 < 0x3F00) {
-
-                    nesPPU.m_t += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
-
                     return ppuByte;
                 } else {
-
-                    nesPPU.m_t += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
-
                     return nesPPU.readBuffer;
-
                 }
 
             }
+            */
+            
             
         }
 

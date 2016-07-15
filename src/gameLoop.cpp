@@ -8,7 +8,7 @@
 const int FPS = 60;
 const int TICKS_PER_FRAME = 1000/FPS;
 
-const int scaleFactor = 3;      //size of each NES display pixel in real pixels
+const int scaleFactor = 2;      //size of each NES display pixel in real pixels
 
 SDL_Window * window = NULL;     //SDL window
 SDL_Renderer * renderer = NULL; //SDL renderer

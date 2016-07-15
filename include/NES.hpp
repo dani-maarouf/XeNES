@@ -25,7 +25,7 @@ private:
     PPU nesPPU;                         //PPU
     CPU nesCPU;                         //CPU
     
-
+    
     uint8_t getCpuByte(uint16_t);       //get byte from CPU address space
     void setCpuByte(uint16_t, uint8_t); //set byte in CPU address space
     uint16_t retrieveCpuAddress(enum AddressMode, bool *, uint8_t, uint8_t);  //get address basedon address mode
