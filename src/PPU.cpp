@@ -14,21 +14,21 @@
     address++;                      \
 }                                   
 
-#define verticalIncrement(address) if ((m_v & 0x7000) != 0x7000) {  \
-    m_v += 0x1000;                              \
-} else {                                        \
-    m_v &= ~0x7000;                             \
-    int yVal;                                   \
-    yVal = (m_v & 0x03E0) >> 5;                 \
-    if (yVal == 29) {                           \
-        yVal = 0;                               \
-        m_v ^= 0x800;                           \
-    } else if (yVal == 31) {                    \
-        yVal = 0;                               \
-    } else {                                    \
-        yVal += 1;                              \
-    }                                           \
-    m_v = (m_v & ~0x03E0) | (yVal << 5);        \
+#define verticalIncrement(address) if ((address & 0x7000) != 0x7000) {  \
+    address += 0x1000;                              \
+} else {                                            \
+    address &= ~0x7000;                             \
+    int yVal;                                       \
+    yVal = (address & 0x03E0) >> 5;                 \
+    if (yVal == 29) {                               \
+        yVal = 0;                                   \
+        address ^= 0x800;                           \
+    } else if (yVal == 31) {                        \
+        yVal = 0;                                   \
+    } else {                                        \
+        yVal += 1;                                  \
+    }                                               \
+    address = (address & ~0x03E0) | (yVal << 5);    \
 }
 /* End macro functions */
 
@@ -72,6 +72,7 @@ PPU::PPU() {
     spriteZeroFlag = false;
     addressLatch = false;
     m_v = 0;
+    m_v2 = 0;
     m_t = 0;
     m_x = 0;
     oamAddress = 0x0;
@@ -167,9 +168,11 @@ void PPU::setPpuByte(uint16_t address, uint8_t byte) {
     address %= 0x4000;
 
     if (address < 0x1000) {
-        CHR_ROM[address] = byte;
+        //CHR_ROM[address] = byte;
+        std::cout << "Illegal write to PPU: $" << std::hex << address << std::endl;
     } else if (address < 0x2000) {
-        CHR_ROM[address] = byte;
+        //CHR_ROM[address] = byte;
+        std::cout << "Illegal write to PPU: $" << std::hex << address << std::endl;
     } else if (address < 0x2400) {
         VRAM[address - 0x2000] = byte;
     } else if (address < 0x2800) {
@@ -238,11 +241,11 @@ void PPU::ppuFlagUpdate(NES * nes) {
     if (registerWriteFlags[0]) {
         m_t &= 0xF3FF;
         m_t |= ((ppuRegisters[0] & 0x03) << 10);
-            //spriteTableOffset = (ppuRegisters[0] & 0x8) ? 0x1000 : 0x0;
-            //backgroundTableOffset = (ppuRegisters[0] & 0x10) ? 0x1000 : 0x0;
-            //extendedSprites = (ppuRegisters[0] & 0x20) ? true : false;
-            //ppuMaster = (ppuRegisters[0] & 0x40) ? true : false;
-            //generateNMI = (ppuRegisters[0] & 0x80) ? true : false;
+        //spriteTableOffset = (ppuRegisters[0] & 0x8) ? 0x1000 : 0x0;
+        //backgroundTableOffset = (ppuRegisters[0] & 0x10) ? 0x1000 : 0x0;
+        //extendedSprites = (ppuRegisters[0] & 0x20) ? true : false;
+        //ppuMaster = (ppuRegisters[0] & 0x40) ? true : false;
+        //generateNMI = (ppuRegisters[0] & 0x80) ? true : false;
         ppuRegisters[0x2] |= (ppuRegisters[0x0] & 0x1F);
     } else if (registerWriteFlags[1]) {
         ppuRegisters[0x2] |= (ppuRegisters[0x1] & 0x1F);
@@ -271,6 +274,7 @@ void PPU::ppuFlagUpdate(NES * nes) {
             m_t &= 0xFF00;
             m_t |= ppuRegisters[6];
             m_v = m_t;
+            m_v2 = m_t;
             vramAddress = m_t;
             addressLatch = false;
         } else {
@@ -280,10 +284,10 @@ void PPU::ppuFlagUpdate(NES * nes) {
         }
         ppuRegisters[0x2] |= (ppuRegisters[0x6] & 0x1F);
     } else if (registerWriteFlags[7]) {
-            /* HACK, FIX THIS */
-            //read from 2007
-        setPpuByte(vramAddress, ppuRegisters[7]);
-            //increment vram address
+        /* HACK, FIX THIS */
+        //read from 2007
+        setPpuByte(vramAddress , ppuRegisters[7]);
+        //increment vram address
         vramAddress += (ppuRegisters[0] & 0x04) ? 32 : 1;
         ppuRegisters[0x2] |= (ppuRegisters[0x7] & 0x1F);
     } else if (registerWriteFlags[8]) {
@@ -295,7 +299,7 @@ void PPU::ppuFlagUpdate(NES * nes) {
         }
     }
 
-        //process state changes due to register read
+    //process state changes due to register read
     if (registerReadFlags[2]) {
         addressLatch = false;
     } else if (registerReadFlags[4]) {
@@ -304,7 +308,7 @@ void PPU::ppuFlagUpdate(NES * nes) {
         //todo: fix this
     }
 
-        //reset register access flags
+    //reset register access flags
     for (int x = 0; x < 0x9; x++) registerWriteFlags[x] = false;
 
     for (int x = 0; x < 8; x++) registerReadFlags[x] = false;
@@ -313,7 +317,7 @@ void PPU::ppuFlagUpdate(NES * nes) {
 
 }
 
-void PPU::renderPixel() {
+void PPU::drawPixel(int cycle, int line) {
 
     //think about how chunks of similar operations can be grouped together for caching
     //decode palette info all at once at end of frame?
@@ -322,34 +326,38 @@ void PPU::renderPixel() {
      */
 
     int pixelLocation;
-    pixelLocation = (ppuCycle - 1) + NES_SCREEN_WIDTH * scanline;  //current pixel being rendered
+    pixelLocation = (cycle - 1) + NES_SCREEN_WIDTH * line;  //current pixel being rendered
 
     uint8_t backgroundColour;
     backgroundColour = 0;                
 
     //RENDER BACKGROUNDS
-    {
-        if (((ppuCycle - 1 + m_x) % 8 == 0 || ppuCycle == 1)) {
-            uint8_t attributeByte = getPpuByte(0x23C0 | (m_v & 0x0C00) | ((m_v >> 4) & 0x38) | ((m_v >> 2) & 0x07));
-            int internalAttributeIndex = (((m_v & 0x1F) % 4) / 2) + ((((m_v & 0x370) >> 5) % 4) / 2) * 2;
-            paletteIndex = (attributeByte >> (2 * internalAttributeIndex)) & 0x3;
-            int spriteStart = getPpuByte(0x2000 | (m_v & 0x0FFF));
-            spriteLayer1 = getPpuByte(spriteStart * 16 + ((m_v & 0x7000) >> 12) + ((ppuRegisters[0] & 0x10) ? 0x1000 : 0x0));
-            spriteLayer2 = getPpuByte(spriteStart * 16 + ((m_v & 0x7000) >> 12) + ((ppuRegisters[0] & 0x10) ? 0x1000 : 0x0) + 8);
-        }
+    if (((cycle - 1 + m_x) % 8 == 0 || cycle == 1)) {
+        
+        uint8_t attributeByte = getPpuByte(0x23C0 | (m_v & 0x0C00) | ((m_v >> 4) & 0x38) | ((m_v >> 2) & 0x07));
 
-        if (ppuRegisters[1] & 0x8) {
-            if (getBit(spriteLayer1, 7 - ((ppuCycle - 1 + (m_x)) % 8 ))) {
-                backgroundColour |= 0x1;
-            }
-            if (getBit(spriteLayer2, 7 - ((ppuCycle - 1 + (m_x)) % 8 ))) {
-                backgroundColour |= 0x2;
-            }
-            if (backgroundColour == 0) {
-                pixels[pixelLocation] = paletteTable[getPpuByte(0x3F00)];
-            } else { 
-                pixels[pixelLocation] = paletteTable[getPpuByte(0x3F00 + backgroundColour + paletteIndex * 4)];
-            }
+        int internalAttributeIndex = (((m_v & 0x1F) % 4) / 2) + ((((m_v & 0x370) >> 5) % 4) / 2) * 2;
+
+        paletteIndex = (attributeByte >> (2 * internalAttributeIndex)) & 0x3;
+
+        int spriteStart = getPpuByte(0x2000 | (m_v & 0x0FFF));
+
+        int spriteAddress = spriteStart * 16 + ((m_v & 0x7000) >> 12) + ((ppuRegisters[0] & 0x10) ? 0x1000 : 0x0);
+        spriteLayer1 = getPpuByte(spriteAddress);
+        spriteLayer2 = getPpuByte(spriteAddress + 8);
+    }
+
+    if (ppuRegisters[1] & 0x8) {
+        if (getBit(spriteLayer1, 7 - ((cycle - 1 + (m_x)) % 8 ))) {
+            backgroundColour |= 0x1;
+        }
+        if (getBit(spriteLayer2, 7 - ((cycle - 1 + (m_x)) % 8 ))) {
+            backgroundColour |= 0x2;
+        }
+        if (backgroundColour == 0) {
+            pixels[pixelLocation] = paletteTable[getPpuByte(0x3F00)];
+        } else { 
+            pixels[pixelLocation] = paletteTable[getPpuByte(0x3F00 + backgroundColour + paletteIndex * 4)];
         }
     }
 
@@ -361,7 +369,7 @@ void PPU::renderPixel() {
             int xPosition;
             xPosition = OAM[secondaryOAM[i] + 3];
 
-            if (!( (ppuCycle - 1) - xPosition < 8 && (ppuCycle - 1) - xPosition >= 0 )) {
+            if (!( (cycle - 1) - xPosition < 8 && (cycle - 1) - xPosition >= 0 )) {
                             //current sprite i, is out of range for current pixel location 
                 continue;
             }
@@ -372,16 +380,16 @@ void PPU::renderPixel() {
 
             int spriteRowNumber;
             if (spriteAttributes & 0x80) {
-                spriteRowNumber = 7 -(scanline - yPosition);
+                spriteRowNumber = 7 -(line - yPosition);
             } else {
-                spriteRowNumber = (scanline - yPosition);
+                spriteRowNumber = (line - yPosition);
             }
 
             int spriteColumnNumber;
             if (spriteAttributes & 0x40) {
-                spriteColumnNumber = ((ppuCycle - 1) - xPosition);
+                spriteColumnNumber = ((cycle - 1) - xPosition);
             } else {
-                spriteColumnNumber = 7 - ((ppuCycle - 1) - xPosition);
+                spriteColumnNumber = 7 - ((cycle - 1) - xPosition);
             }
 
             uint8_t spriteLayer3 = getPpuByte(spriteIndex * 16 + (spriteRowNumber + ((ppuRegisters[0] & 0x8) ? 0x1000 : 0x0)));
@@ -399,7 +407,7 @@ void PPU::renderPixel() {
             if ((spriteColour != 0x0)) {
                 if (secondaryOAM[i] == 0) {
                     if (((ppuRegisters[1] & 0x8)) && ((ppuRegisters[1] & 0x10))) {
-                                    //sprite zero hit
+                        //sprite zero hit
                         spriteZeroFlag = true;
                     }
                 }
@@ -418,16 +426,6 @@ void PPU::renderPixel() {
                 pixels[pixelLocation] = newColour;
             }
         }
-    }
-
-    //increment horizontal
-    if (((ppuCycle - 1 + m_x) % 8 == 0 || ppuCycle == 1)) {
-        horizontalIncrement(m_v);
-    }
-
-    //increment vertical
-    if (ppuCycle == 256) {
-        verticalIncrement(m_v);
     }
 
     return;
@@ -503,40 +501,77 @@ void PPU::tick(NES * nes, int numTicks) {
     for (int loop = 0; loop < numTicks; loop++, incrementCycle()) {
 
         if (scanline < 240) {
+
             ppuRegisters[2] &= 0x7F;
+
             if (ppuCycle > 0 && ppuCycle < 257) {
-                renderPixel();
+
+                drawPixel(ppuCycle, scanline);
+
+                //increment horizontal
+                if (((ppuCycle - 1 + m_x) % 8 == 0 || ppuCycle == 1)) {
+                    horizontalIncrement(m_v);
+                }
+
+                //increment vertical
+                if (ppuCycle == 256) {
+                    verticalIncrement(m_v);
+                }
+
+                
+
             } else if (ppuCycle == 257) {
+
                 m_v &= ~0x041F;
                 m_v |= (m_t & 0x041F);
+
+                m_v2 &= ~0x041F;
+                m_v2 |= (m_t & 0x041F);
+
             } else if (ppuCycle == 340) {
+
                 updateSecondaryOAM();
+
             }
+
         } else {
+
             if (scanline == 240) {
+
                 //idle scanline
+
             } else if (scanline == 261) {
-            //update ppustatus
+
+                //update ppustatus
                 if (ppuCycle == 1) {
                     ppuRegisters[2] &= 0x9F;
                 } else if (ppuCycle == 304) {
                     m_v &= 0x041F;
                     m_v |= (m_t & (~0x041F));
+
+                    m_v2 &= 0x041F;
+                    m_v2 |= (m_t & (~0x041F));
+
                 } else if (ppuCycle == 340) {
                     updateSecondaryOAM();
                 }
+
             } else if (scanline == 241) {
+
                 if (ppuCycle == 1) {
-                        //set vblank in PPUSTATUS
+                    //set vblank in PPUSTATUS
                     ppuRegisters[2] |= 0x80;
 
-                        //throw NMI
+                    //throw NMI
                     if ((ppuRegisters[0] & 0x80)) {
                         nes->nesCPU.NMI = true;
                     }
+
                 }
+
             }
-        }
+
+        } 
     }
 
     return;

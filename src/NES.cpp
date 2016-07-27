@@ -113,8 +113,14 @@ bool NES::openCartridge(const char * fileLoc) {
                 prg_rom_size = flags[4];
                 chr_rom_size = flags[5];
 
+                //upper nybble of flag 6 is lower nybble of mapper number 
+                mapperNumber = (flags[6] >> 4);
+                mapperNumber |= (flags[7] & 0xF0);
+
+
                 if (prg_rom_size != 1 && prg_rom_size != 2) {
                     std::cerr << "Unrecognized rom size " << (int) prg_rom_size << std::endl;
+                    std::cout << "Mapper " << (int) mapperNumber << std::endl;
                     romFile.close();
                     return false;
                 }
@@ -144,9 +150,6 @@ bool NES::openCartridge(const char * fileLoc) {
                     return false;
                 }
 
-                //upper nybble of flag 6 is lower nybble of mapper number 
-                mapperNumber = (flags[6] >> 4);
-
                 //flags 6
                 if ((flags[6] & 0x9) == 0x0) {
                     nesPPU.mirroring = HORIZONTAL;
@@ -174,7 +177,7 @@ bool NES::openCartridge(const char * fileLoc) {
                     return false;
                 }
 
-                mapperNumber |= (flags[7] & 0xF0);
+                
 
                 if ((flags[7] & 0xC) == 0x8) {
                     std::cout << "NES 2.0 format" << std::endl;
@@ -270,6 +273,7 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
 
             //hack
             //required for SMB title screen and pacman collision detection
+            
             /*
             if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x10) == false && ((nesPPU.ppuRegisters[0x1] & 0x4) == false))) {
 
@@ -277,12 +281,13 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
 
                 ppuByte = nesPPU.readBuffer;
 
-                nesPPU.readBuffer = nesPPU.getPpuByte( nesPPU.m_t );
+                //this address is wrong at the moment, introducing an offset can display more of SMB title screen
+                nesPPU.readBuffer = nesPPU.getPpuByte( nesPPU.m_v );
 
-                nesPPU.m_t += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
+                nesPPU.m_v += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
 
 
-                if (nesPPU.m_t % 0x4000 < 0x3F00) {
+                if (nesPPU.m_v % 0x4000 < 0x3F00) {
                     return ppuByte;
                 } else {
                     return nesPPU.readBuffer;
@@ -290,9 +295,6 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
 
             }
             */
-            
-            
-            
         }
 
         nesPPU.registerReadFlags[address] = true;

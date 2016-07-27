@@ -44,10 +44,10 @@ private:
 
     void setPpuByte(uint16_t, uint8_t);     //set byte in PPU address space
     void ppuFlagUpdate(NES *);
-    void renderPixel();
+    void drawPixel(int, int);
     void updateSecondaryOAM();
     void incrementCycle();
-    
+
 public:
 
     //0-7 = $2000 - $2007, 8 = $4014
@@ -64,6 +64,8 @@ public:
 
     //temp
     uint16_t vramAddress;       //hack
+    uint16_t m_v2;
+
 
     //info
     int scanline;               //current scanline

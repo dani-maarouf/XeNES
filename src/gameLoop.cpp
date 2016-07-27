@@ -224,6 +224,7 @@ static void closeSDL() {
 }
 
 static void draw(uint32_t * pixels) {
+
     SDL_UpdateTexture(texture, NULL, pixels, NES_SCREEN_WIDTH * sizeof(uint32_t));
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, NULL, NULL);

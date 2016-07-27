@@ -22,7 +22,6 @@ private:
 
     uint8_t ioRegisters[0x20];          //joystick and apu registers
 
-    PPU nesPPU;                         //PPU
     CPU nesCPU;                         //CPU
     
     
@@ -32,6 +31,7 @@ private:
 
 public:
 
+    PPU nesPPU;                         //PPU
     uint8_t controllerByte;
 
     NES();

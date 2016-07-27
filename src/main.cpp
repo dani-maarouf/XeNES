@@ -14,12 +14,12 @@ int main(int argc, char ** argv) {
     /*
     todo:
 
-    real vram address in PPU rendering
+    real ntsc ppu rendering algorithm
     configurable getByte and setByte for mappers
-    read PPUDATA
-    scrolling, coarse vs fine, real PPU registers
+    read/write PPUDATA fix
     oamdata read/write
     clean up code
+    automated testing where test programs are run, pixels are hashed and compared to known good result
 
     */
 

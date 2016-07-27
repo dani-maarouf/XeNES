@@ -195,7 +195,6 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         //ADC
         case 0x69: case 0x65: case 0x75: case 0x6D: case 0x7D: case 0x79: case 0x61: case 0x71: {
             cyc += cycles[READ * 13 + opAddressMode];
-
             if (pass) cyc++;
             uint16_t total;
             total = A + memoryByte + PS[C];
