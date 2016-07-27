@@ -63,8 +63,8 @@ public:
     uint8_t readBuffer;
 
     //temp
-    uint16_t vramAddress;       //hack
     uint16_t m_v2;
+    uint16_t vramAddress;
 
 
     //info

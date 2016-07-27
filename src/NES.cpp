@@ -5,26 +5,10 @@
 
 #include "NES.hpp"
 
-static inline bool getBit(uint8_t num, int bitNum) {
-
-    if (bitNum == 0) {
-        return (num & 0x1);
-    } else if (bitNum == 1) {
-        return (num & 0x2);
-    } else if (bitNum == 2) {
-        return (num & 0x4);
-    } else if (bitNum == 3) {
-        return (num & 0x8);
-    } else if (bitNum == 4) {
-        return (num & 0x10);
-    } else if (bitNum == 5) {
-        return (num & 0x20);
-    } else if (bitNum == 6) {
-        return (num & 0x40);
-    } else {
-        return (num & 0x80);
-    }
-}
+#define getBit(num, bit)    (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) : \
+    (bit == 2) ? (num & 0x4) : (bit == 3) ? (num & 0x8) :   \
+    (bit == 4) ? (num & 0x10) : (bit == 5) ? (num & 0x20) : \
+    (bit == 6) ? (num & 0x40) : (num & 0x80)
 
 NES::NES() {
 
@@ -269,32 +253,41 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
         address = (memAddress - 0x2000) % 8;
 
 
-        if (address == 0x7) {
+        if (address == 0x2) {
 
-            //hack
-            //required for SMB title screen and pacman collision detection
+            nesPPU.addressLatch = false;
+            //nesPPU.ppuRegisters[0x2] &= 0x7F;
+
+        } else if (address == 0x7) {
+
             
-            /*
-            if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x10) == false && ((nesPPU.ppuRegisters[0x1] & 0x4) == false))) {
+            //if screen off
+            if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x18) == 0)) {
+                if (nesPPU.m_t % 0x4000 < 0x3F00) {
 
-                uint8_t ppuByte;
-
-                ppuByte = nesPPU.readBuffer;
-
-                //this address is wrong at the moment, introducing an offset can display more of SMB title screen
-                nesPPU.readBuffer = nesPPU.getPpuByte( nesPPU.m_v );
-
-                nesPPU.m_v += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
+                    uint8_t ppuByte;
+                    ppuByte = nesPPU.readBuffer;
+                    nesPPU.readBuffer = nesPPU.getPpuByte( nesPPU.m_t );
 
 
-                if (nesPPU.m_v % 0x4000 < 0x3F00) {
+                    nesPPU.m_t += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
+
                     return ppuByte;
                 } else {
-                    return nesPPU.readBuffer;
-                }
 
+                    uint8_t ppuByte;
+
+                    ppuByte = nesPPU.getPpuByte( nesPPU.m_t );
+
+                    nesPPU.readBuffer = nesPPU.getPpuByte( nesPPU.m_t - 0x1000);
+
+                    nesPPU.m_t += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
+
+                    return ppuByte;
+
+                }
             }
-            */
+            
         }
 
         nesPPU.registerReadFlags[address] = true;
@@ -307,7 +300,9 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
             if (readController) {
                 if (currentControllerBit < 8) {
                     currentControllerBit++;
-                    return getBit(storedControllerByte, currentControllerBit - 1);
+                    bool bit;
+                    bit = getBit(storedControllerByte, currentControllerBit - 1);
+                    return bit;
                 } else {
                     return 1;
                 }

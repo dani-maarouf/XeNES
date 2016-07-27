@@ -171,7 +171,7 @@ static bool initSDL(const char * fileLoc) {
 
     //set window title
     char windowTitle[100];
-    strcpy(windowTitle, "NES: ");
+    strcpy(windowTitle, "XeNES: ");
     strcat(windowTitle, fileLoc);
 
     window = SDL_CreateWindow(windowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,

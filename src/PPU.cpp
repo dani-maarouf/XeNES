@@ -11,7 +11,7 @@
     address &= ~0x001F;             \
     address ^= 0x400;               \
 } else {                            \
-    address++;                      \
+    address += 1;                   \
 }                                   
 
 #define verticalIncrement(address) if ((address & 0x7000) != 0x7000) {  \
@@ -28,7 +28,7 @@
     } else {                                        \
         yVal += 1;                                  \
     }                                               \
-    address = (address & ~0x03E0) | (yVal << 5);    \
+    address = ((address & ~0x03E0) | (yVal << 5));    \
 }
 /* End macro functions */
 
@@ -286,10 +286,19 @@ void PPU::ppuFlagUpdate(NES * nes) {
     } else if (registerWriteFlags[7]) {
         /* HACK, FIX THIS */
         //read from 2007
-        setPpuByte(vramAddress , ppuRegisters[7]);
-        //increment vram address
-        vramAddress += (ppuRegisters[0] & 0x04) ? 32 : 1;
+
+        //if screen off
+        if ((ppuRegisters[0x2] & 0x80) || ((ppuRegisters[0x1] & 0x18) == 0)) {
+
+            //why does this work at all with SMB?
+            setPpuByte(vramAddress , ppuRegisters[7]);
+            //increment vram address
+            vramAddress += (ppuRegisters[0] & 0x04) ? 32 : 1;
+        }
+
         ppuRegisters[0x2] |= (ppuRegisters[0x7] & 0x1F);
+
+        
     } else if (registerWriteFlags[8]) {
         uint8_t OAMDMA;
         OAMDMA = nes->getCpuByte(0x4014);
@@ -500,9 +509,47 @@ void PPU::tick(NES * nes, int numTicks) {
 
     for (int loop = 0; loop < numTicks; loop++, incrementCycle()) {
 
+
+        
+        /*
+        if (scanline < 240 || scanline == 261) {
+
+            
+            if ((ppuCycle > 0 && ppuCycle < 256) && ((ppuCycle - 1) % 8 == 7)) {
+                horizontalIncrement(m_v2);
+            } else if (ppuCycle == 328 || ppuCycle == 336) {
+                horizontalIncrement(m_v2);
+            } else if (ppuCycle == 256) {
+                verticalIncrement(m_v2);
+
+            } else if (ppuCycle == 257) {
+
+                m_v2 &= ~0x041F;
+                m_v2 |= (m_t & 0x041F);
+
+            }
+
+            if (scanline == 261) {
+
+                if (ppuCycle == 280) {
+
+                    m_v2 &= 0x041F;
+                    m_v2 |= (m_t & (~0x041F));
+
+                }
+            }
+        }
+        */
+
         if (scanline < 240) {
 
+            //not in vblank
             ppuRegisters[2] &= 0x7F;
+
+            //first frame tick skipped on odd frame
+            if (scanline == 0 && ppuCycle == 0 && !evenFrame) {
+                ppuCycle++;
+            }
 
             if (ppuCycle > 0 && ppuCycle < 257) {
 
@@ -516,6 +563,7 @@ void PPU::tick(NES * nes, int numTicks) {
                 //increment vertical
                 if (ppuCycle == 256) {
                     verticalIncrement(m_v);
+
                 }
 
                 
@@ -525,36 +573,38 @@ void PPU::tick(NES * nes, int numTicks) {
                 m_v &= ~0x041F;
                 m_v |= (m_t & 0x041F);
 
-                m_v2 &= ~0x041F;
-                m_v2 |= (m_t & 0x041F);
-
             } else if (ppuCycle == 340) {
 
                 updateSecondaryOAM();
 
+            } else if (ppuCycle == 0) {
+                continue;
             }
 
         } else {
 
             if (scanline == 240) {
-
+                continue;
                 //idle scanline
 
             } else if (scanline == 261) {
 
                 //update ppustatus
                 if (ppuCycle == 1) {
-                    ppuRegisters[2] &= 0x9F;
+
+                    //clear vblank, sprite 0 and overflow
+                    ppuRegisters[2] &= 0x1F;
+
                 } else if (ppuCycle == 304) {
                     m_v &= 0x041F;
                     m_v |= (m_t & (~0x041F));
 
-                    m_v2 &= 0x041F;
-                    m_v2 |= (m_t & (~0x041F));
-
                 } else if (ppuCycle == 340) {
                     updateSecondaryOAM();
                 }
+
+
+
 
             } else if (scanline == 241) {
 
