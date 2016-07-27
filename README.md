@@ -1,4 +1,4 @@
-# nes
+# XeNES
 
 ## Input
 | NES  | Keyboard |
