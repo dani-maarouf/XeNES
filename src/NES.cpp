@@ -334,7 +334,7 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
         if (nesMapper == 0) {
             return getCpuMapper0(memAddress, nesCPU.numRomBanks, nesCPU.PRG_ROM);
         } else {
-            std::cerr << "Fatal error, mapper not recognized in getCpuByte()" << std::endl;
+            std::cerr << "Fatal error, mapper not recognized in getCpuByte" << std::endl;
             return 0;
         }
         

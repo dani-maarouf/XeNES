@@ -115,13 +115,14 @@ uint8_t PPU::getPpuByte(uint16_t address) {
     address %= 0x4000;
 
 	if (address < 0x2000) {
+		
 		if (ppuMapper == 0) {
 			return getPpuMapper0(address, CHR_ROM);
 		} else {
 			std::cerr << "Fatal error, mapper not recognized in getPpuByte()" << std::endl;
 			return 0;
 		}
-		
+
 
     } else if (address < 0x2400) {
         return VRAM[address - 0x2000];
@@ -257,7 +258,7 @@ void PPU::setPpuByte(uint16_t address, uint8_t byte) {
     return;
 }
 
-void PPU::ppuFlagUpdate(NES * nes, int ticksLeft) {
+void PPU::ppuFlagUpdate(NES * nes) {
 
     if (registerWriteFlags[0]) {
         m_t &= 0xF3FF;
@@ -307,7 +308,7 @@ void PPU::ppuFlagUpdate(NES * nes, int ticksLeft) {
     } else if (registerWriteFlags[4]) {
 
         OAM[oamAddress] = ppuRegisters[0x4];
-        oamAddress++;
+        oamAddress = (oamAddress + 1) & 0xFF;
 
         ppuRegisters[0x2] &= ~0x1F;
         ppuRegisters[0x2] |= (ppuRegisters[0x4] & 0x1F);
@@ -333,7 +334,6 @@ void PPU::ppuFlagUpdate(NES * nes, int ticksLeft) {
         if (addressLatch) {
             m_t &= 0xFF00;
             m_t |= ppuRegisters[6];
-            m_t %= 0x4000;
             m_v = m_t;
             vramAddress = m_t;
             addressLatch = false;
@@ -520,8 +520,9 @@ void PPU::drawPixel(int cycle, int line) {
                     if (((ppuRegisters[1] & 0x8)) && ((ppuRegisters[1] & 0x10))) {
 
                         if (backgroundColour != 0) {
-                            spriteZeroFlag = true;
+                            spriteZeroFlag = true;	//this alone makes NEStress flicker
                         }
+                        spriteZeroFlag = true;
 
                         
                     }
@@ -615,7 +616,7 @@ void PPU::tick(NES * nes, int numTicks) {
 
     //process state changes due to register write
     if (flagSet) {
-        ppuFlagUpdate(nes, numTicks);
+        ppuFlagUpdate(nes);
         flagSet = false;
     }  
 
@@ -670,8 +671,6 @@ void PPU::tick(NES * nes, int numTicks) {
                     suppressVBL = false;
                 }
                 
-
-
                 //throw NMI
                 if ((ppuRegisters[0] & 0x80) && (ppuRegisters[2] & 0x80)) {
                     nes->nesCPU.NMI = true;

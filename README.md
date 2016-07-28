@@ -16,7 +16,7 @@
 
 #### Linux:
 	
-Required SDL2
+Requires SDL2
 
 Run `make` to compile program
 

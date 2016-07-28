@@ -48,7 +48,7 @@ private:
     inline void loadNewTile();
 
     void setPpuByte(uint16_t, uint8_t);     //set byte in PPU address space
-    void ppuFlagUpdate(NES *, int);
+    void ppuFlagUpdate(NES *);
     void drawPixel(int, int);
     void updateSecondaryOAM();
     void incrementCycle();
