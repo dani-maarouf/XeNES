@@ -7,8 +7,8 @@
 
 const int FPS = 60;
 const int TICKS_PER_FRAME = 1000/FPS;
-
 const int scaleFactor = 2;      //size of each NES display pixel in real pixels
+const bool removeOverscan = false;
 
 SDL_Window * window = NULL;     //SDL window
 SDL_Renderer * renderer = NULL; //SDL renderer
@@ -89,35 +89,35 @@ void loop(NES nesSystem, const char * fileLoc) {
                 switch(event.key.keysym.sym) {
 
                     case SDLK_SPACE:    //A
-                    nesSystem.controllerByte &= 0xFE;
+                    nesSystem.controllerByte &= ~0x1;
                     break;
 
                     case SDLK_LCTRL:    //B
-                    nesSystem.controllerByte &= 0xFD;
+                    nesSystem.controllerByte &= ~0x2;
                     break;
 
                     case SDLK_c:    //select
-                    nesSystem.controllerByte &= 0xFB;
+                    nesSystem.controllerByte &= ~0x4;
                     break;
 
                     case SDLK_x:    //start
-                    nesSystem.controllerByte &= 0xF7;
+                    nesSystem.controllerByte &= ~0x8;
                     break;
 
                     case SDLK_w:    //up
-                    nesSystem.controllerByte &= 0xEF;
+                    nesSystem.controllerByte &= ~0x10;
                     break;
 
                     case SDLK_s:    //down
-                    nesSystem.controllerByte &= 0xDF;
+                    nesSystem.controllerByte &= ~0x20;
                     break;
 
                     case SDLK_a:    //left
-                    nesSystem.controllerByte &= 0xBF;
+                    nesSystem.controllerByte &= ~0x40;
                     break;
 
                     case SDLK_d:    //right
-                    nesSystem.controllerByte &= 0x7F;
+                    nesSystem.controllerByte &= ~0x80;
                     break;
 
                     default:
@@ -174,8 +174,16 @@ static bool initSDL(const char * fileLoc) {
     strcpy(windowTitle, "XeNES: ");
     strcat(windowTitle, fileLoc);
 
+    int outputHeight;
+
+    if (removeOverscan) {
+        outputHeight = (NES_SCREEN_HEIGHT - 16);
+    } else {
+        outputHeight = NES_SCREEN_HEIGHT;
+    }
+
     window = SDL_CreateWindow(windowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        NES_SCREEN_WIDTH * scaleFactor, NES_SCREEN_HEIGHT * scaleFactor, 0);
+        NES_SCREEN_WIDTH * scaleFactor, outputHeight * scaleFactor, 0);
 
     if (window == NULL) {
         std::cerr << "Could not create SDL window : " << SDL_GetError() << std::endl;
@@ -192,7 +200,7 @@ static bool initSDL(const char * fileLoc) {
     }
 
     texture = SDL_CreateTexture(renderer,
-        SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, NES_SCREEN_WIDTH, NES_SCREEN_HEIGHT);
+        SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, NES_SCREEN_WIDTH, outputHeight);
 
     if (texture == NULL) {
         std::cerr << "Could not create SDL texture : " << SDL_GetError() << std::endl;
@@ -225,7 +233,15 @@ static void closeSDL() {
 
 static void draw(uint32_t * pixels) {
 
-    SDL_UpdateTexture(texture, NULL, pixels, NES_SCREEN_WIDTH * sizeof(uint32_t));
+    uint32_t * sdlPixels;
+
+    if (removeOverscan) {
+        sdlPixels = pixels + NES_SCREEN_WIDTH * 8;
+    } else {
+        sdlPixels = pixels;
+    }
+
+    SDL_UpdateTexture(texture, NULL, sdlPixels, NES_SCREEN_WIDTH * sizeof(uint32_t));
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);

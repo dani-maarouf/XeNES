@@ -20,12 +20,13 @@ class PPU {
 
 private:
 
-    //rendering
-    int paletteIndex;
-    uint8_t spriteLayer1;
-    uint8_t spriteLayer2;
-    uint16_t shiftRegister1;
-    uint16_t shiftRegister2;
+    //temp
+    uint8_t m_SpriteOld1;
+    uint8_t m_SpriteOld2;
+    uint8_t m_PaletteOld;
+    uint8_t m_SpriteNew1;
+    uint8_t m_SpriteNew2;
+    uint8_t m_PaletteNew;
 
     //info
     int ppuCycle;                           //0-341 per scanline
@@ -42,6 +43,8 @@ private:
     uint8_t palette[0x20];
     uint8_t VRAM[0x1000];                   //4kB PPU internal VRAM
 
+    inline void loadNewTile();
+
     void setPpuByte(uint16_t, uint8_t);     //set byte in PPU address space
     void ppuFlagUpdate(NES *);
     void drawPixel(int, int);
@@ -51,6 +54,9 @@ private:
 public:
 
     int ppuMapper;
+
+    //temp
+    uint16_t vramAddress;
 
     //0-7 = $2000 - $2007, 8 = $4014
     bool registerWriteFlags[9];
@@ -63,11 +69,6 @@ public:
     uint8_t m_x;            //fine x scroll
     bool addressLatch;      //w register
     uint8_t readBuffer;
-
-    //temp
-    uint16_t m_v2;
-    uint16_t vramAddress;
-
 
     //info
     int scanline;               //current scanline

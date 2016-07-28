@@ -20,7 +20,7 @@ Run `make` to compile program
 
 Use program by running `./nes ROM` 
 
-## Semi-playable games
+## Playable games
 
 Super Mario Bros
 
@@ -48,6 +48,8 @@ Golf
 
 Gyromite
 
+And more.
+
 ## Sample screenshots
 
 
@@ -70,10 +72,14 @@ Gyromite
 
 Add support for more mappers
 
-Continue adding hardware features necessary to play more games
+Add hardware features
+
+Improve accuracy
 
 Add audio
 
 Improve performance
 
 Easier multiplatform build
+
+Add automated testing

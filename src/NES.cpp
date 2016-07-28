@@ -65,7 +65,7 @@ bool NES::openCartridge(const char * fileLoc) {
 
     uint8_t mapperNumber;
 
-    bool batteryRAM = false;
+    //bool batteryRAM = false;
     bool trainer = false;
 
     bool NTSC;      //false = PAL
@@ -159,7 +159,7 @@ bool NES::openCartridge(const char * fileLoc) {
                     return false;
                 }
                 if ((flags[6] & 0x2) == 0x2) {
-                    batteryRAM = true;
+                    //batteryRAM = true;
                 }
                 if ((flags[6] & 0x4) == 0x4) {
                     std::cout << "Trainer present" << std::endl;
@@ -276,20 +276,14 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
 
 
         if (address == 0x7) {
-
-            
-            
             
             //if screen off
-            if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x18) == 0)) {
+            if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x18) == 0) || true) {
                 if (nesPPU.m_t % 0x4000 < 0x3F00) {
 
                     uint8_t ppuByte;
                     ppuByte = nesPPU.readBuffer;
                     nesPPU.readBuffer = nesPPU.getPpuByte( nesPPU.m_t );
-
-                    //nesPPU.ppuRegisters[0x2] &= 
-
 
                     nesPPU.m_t += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
 
@@ -308,9 +302,6 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
 
                 }
             }
-            
-            
-            
         }
 
         nesPPU.registerReadFlags[address] = true;
