@@ -15,10 +15,12 @@
 ## Usage
 
 #### Linux:
+	
+Required SDL2
 
 Run `make` to compile program
 
-Use program by running `./nes ROM` 
+Use program by running `./XeNES ROM.nes` 
 
 ## Playable games
 

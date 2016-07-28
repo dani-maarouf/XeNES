@@ -1,5 +1,5 @@
-SRC_FILES    = src/main.cpp src/NES.cpp src/gameLoop.cpp src/CPU.cpp src/PPU.cpp
-HEADER_FILES = include/NES.hpp include/PPU.hpp include/CPU.hpp include/gameLoop.hpp
+SRC_FILES    = src/main.cpp src/NES.cpp src/gameLoop.cpp src/CPU.cpp src/PPU.cpp src/mappers.cpp
+HEADER_FILES = include/NES.hpp include/PPU.hpp include/CPU.hpp include/gameLoop.hpp include/mappers.hpp
 
 CXXFLAGS     = -Wall -Iinclude -pedantic -fno-exceptions -Ofast -std=c++14 -march=native -fomit-frame-pointer
 LINK_FLAGS   = -lSDL2 -lstdc++

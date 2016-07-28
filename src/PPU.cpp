@@ -1,5 +1,8 @@
 #include <iostream>
+
 #include "NES.hpp"
+#include "mappers.hpp"
+
 
 /* Begin macro functions */
 #define getBit(num, bit)    (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) : \
@@ -111,10 +114,15 @@ void PPU::freePointers() {
 uint8_t PPU::getPpuByte(uint16_t address) {
     address %= 0x4000;
 
-    if (address < 0x1000) {
-        return CHR_ROM[address];
-    } else if (address < 0x2000) {
-        return CHR_ROM[address];
+	if (address < 0x2000) {
+		if (ppuMapper == 0) {
+			return getPpuMapper0(address, CHR_ROM);
+		} else {
+			std::cerr << "Fatal error, mapper not recognized in getPpuByte()" << std::endl;
+			return 0;
+		}
+		
+
     } else if (address < 0x2400) {
         return VRAM[address - 0x2000];
     } else if (address < 0x2800) {
@@ -182,10 +190,10 @@ void PPU::setPpuByte(uint16_t address, uint8_t byte) {
 
     if (address < 0x1000) {
         CHR_ROM[address] = byte;
-        std::cout << "Illegal write to PPU: $" << std::hex << address << std::endl;
+        //std::cout << "Illegal write to PPU: $" << std::hex << address << std::endl;
     } else if (address < 0x2000) {
         CHR_ROM[address] = byte;
-        std::cout << "Illegal write to PPU: $" << std::hex << address << std::endl;
+        //std::cout << "Illegal write to PPU: $" << std::hex << address << std::endl;
     } else if (address < 0x2400) {
         VRAM[address - 0x2000] = byte;
     } else if (address < 0x2800) {
@@ -262,6 +270,10 @@ void PPU::ppuFlagUpdate(NES * nes, int ticksLeft) {
 
         //suppress vbl here?
 
+
+        //this breaks spelunker
+        /*
+
         if (suppressVBL) {
             ppuRegisters[0] &= 0x7F;
             suppressVBL = false;
@@ -273,6 +285,7 @@ void PPU::ppuFlagUpdate(NES * nes, int ticksLeft) {
             }
         }
 
+		*/
 
 
         ppuRegisters[0x2] &= ~0x1F;
@@ -333,28 +346,24 @@ void PPU::ppuFlagUpdate(NES * nes, int ticksLeft) {
         ppuRegisters[0x2] |= (ppuRegisters[0x6] & 0x1F);
 
     } else if (registerWriteFlags[7]) {
-        /* HACK, FIX THIS */
         //read from 2007
 
-        //why does this work at all with SMB?
         setPpuByte(vramAddress , ppuRegisters[7]);
+
         //increment vram address
-
-
-
         vramAddress += (ppuRegisters[0] & 0x04) ? 32 : 1;
-        vramAddress %= 0x4000;
+        vramAddress &= 0x7FFF;
 
         ppuRegisters[0x2] &= ~0x1F;
         ppuRegisters[0x2] |= (ppuRegisters[0x7] & 0x1F);
 
-        
     } else if (registerWriteFlags[8]) {
+
         uint8_t OAMDMA;
         OAMDMA = nes->getCpuByte(0x4014);
         for (unsigned int x = 0; x < 256; x++) {
             OAM[oamAddress] = nes->getCpuByte( (OAMDMA << 8) + x );
-            oamAddress++;
+            oamAddress = (oamAddress + 1) & 0xFF;
         }
     }
 
@@ -617,7 +626,7 @@ void PPU::tick(NES * nes, int numTicks) {
             //not in vblank
             //ppuRegisters[2] &= 0x7F;
 
-            //first frame tick skipped on odd frame
+            //first frame tick skipped on odd frame when screen on
             if (scanline == 0 && ppuCycle == 0 && !evenFrame && (ppuRegisters[1] & 0x18)) {
                 ppuCycle++;
             }
@@ -661,6 +670,8 @@ void PPU::tick(NES * nes, int numTicks) {
                     suppressVBL = false;
                 }
                 
+
+
                 //throw NMI
                 if ((ppuRegisters[0] & 0x80) && (ppuRegisters[2] & 0x80)) {
                     nes->nesCPU.NMI = true;
@@ -671,6 +682,7 @@ void PPU::tick(NES * nes, int numTicks) {
                 if (ppuCycle == 1) {
                     //clear vblank, sprite 0 and overflow
                     ppuRegisters[2] &= 0x1F;
+                    nes->nesCPU.NMI = false;
                 } else if (((ppuCycle - 1) % 8 == 7)) {
                     loadNewTile();
                     horizontalIncrement(m_v);

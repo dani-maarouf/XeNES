@@ -4,6 +4,7 @@
 #include <bitset>
 
 #include "NES.hpp"
+#include "mappers.hpp"
 
 #define getBit(num, bit)    (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) : \
     (bit == 2) ? (num & 0x4) : (bit == 3) ? (num & 0x8) :   \
@@ -246,23 +247,6 @@ bool NES::openCartridge(const char * fileLoc) {
     return true;
 }
 
-uint8_t mapper0(uint16_t memAddress, int romBanks, uint8_t * ROM) {
-
-
-    if (memAddress < 0xC000) {
-        return ROM[memAddress - 0x8000];
-    } else {
-        /* memAddress >= 0xC000 && < 0x10000 */
-        if (romBanks == 1) {
-            return ROM[ (memAddress - 0x8000) % 0x4000];
-        } else {
-            /* 2 rom banks */
-            return ROM[memAddress - 0x8000];
-        }
-    }
-
-}
-
 uint8_t NES::getCpuByte(uint16_t memAddress) {
 
     if (memAddress < 0x2000) {
@@ -286,6 +270,10 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
                     nesPPU.readBuffer = nesPPU.getPpuByte( nesPPU.m_t );
 
                     nesPPU.m_t += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
+                    nesPPU.m_v += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
+
+                    nesPPU.m_t &= 0x7FFF;
+                    nesPPU.m_v &= 0x7FFF;
 
                     return ppuByte;
                 } else {
@@ -297,6 +285,10 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
                     nesPPU.readBuffer = nesPPU.getPpuByte( nesPPU.m_t - 0x1000);
 
                     nesPPU.m_t += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
+                    nesPPU.m_v += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
+
+                    nesPPU.m_t &= 0x7FFF;
+                    nesPPU.m_v &= 0x7FFF;
 
                     return ppuByte;
 
@@ -340,9 +332,9 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
     } else {
 
         if (nesMapper == 0) {
-            return mapper0(memAddress, nesCPU.numRomBanks, nesCPU.PRG_ROM);
+            return getCpuMapper0(memAddress, nesCPU.numRomBanks, nesCPU.PRG_ROM);
         } else {
-            std::cerr << "Fatal error, mapper not recognized in getCpuByte" << std::endl;
+            std::cerr << "Fatal error, mapper not recognized in getCpuByte()" << std::endl;
             return 0;
         }
         
