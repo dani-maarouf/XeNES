@@ -30,6 +30,13 @@
     }                                               \
     loopyv = ((loopyv & ~0x03E0) | (yVal << 5));    \
 }
+
+#define copyHorizontalBits(loopyv, loopyt) loopyv &= ~0x041F;  \
+                loopyv |= (loopyt & 0x041F);
+
+
+#define copyVerticalBits(loopyv, loopyt) loopyv &= 0x041F;  \
+                loopyv |= (loopyt & (~0x041F));
 /* End macro functions */
 
 //obtained from blargg's Full Palette demo
@@ -88,6 +95,8 @@ PPU::PPU() {
     m_SpriteNew2 = 0;
     m_PaletteNew = 0;
     vramAddress = 0;
+
+    suppressVBL = false;
 
     return;
 }
@@ -240,7 +249,7 @@ void PPU::setPpuByte(uint16_t address, uint8_t byte) {
     return;
 }
 
-void PPU::ppuFlagUpdate(NES * nes) {
+void PPU::ppuFlagUpdate(NES * nes, int ticksLeft) {
 
     if (registerWriteFlags[0]) {
         m_t &= 0xF3FF;
@@ -250,6 +259,22 @@ void PPU::ppuFlagUpdate(NES * nes) {
         //extendedSprites = (ppuRegisters[0] & 0x20) ? true : false;
         //ppuMaster = (ppuRegisters[0] & 0x40) ? true : false;
         //generateNMI = (ppuRegisters[0] & 0x80) ? true : false;
+
+        //suppress vbl here?
+
+        if (suppressVBL) {
+            ppuRegisters[0] &= 0x7F;
+            suppressVBL = false;
+        } else {
+            if (ppuRegisters[0] & 0x80) {
+                if (ppuRegisters[2] & 0x80) {
+                    nes->nesCPU.NMI = true;
+                }
+            }
+        }
+
+
+
         ppuRegisters[0x2] &= ~0x1F;
         ppuRegisters[0x2] |= (ppuRegisters[0x0] & 0x1F);
     } else if (registerWriteFlags[1]) {
@@ -261,13 +286,20 @@ void PPU::ppuFlagUpdate(NES * nes) {
         ppuRegisters[0x2] |= (ppuRegisters[0x2] & 0x1F);
 
     } else if (registerWriteFlags[3]) {
+
         oamAddress = ppuRegisters[0x3];
         ppuRegisters[0x2] &= ~0x1F;
         ppuRegisters[0x2] |= (ppuRegisters[0x3] & 0x1F);
 
     } else if (registerWriteFlags[4]) {
+
+        OAM[oamAddress] = ppuRegisters[0x4];
+        oamAddress++;
+
         ppuRegisters[0x2] &= ~0x1F;
         ppuRegisters[0x2] |= (ppuRegisters[0x4] & 0x1F);
+
+
 
     } else if (registerWriteFlags[5]) {
         if (addressLatch == true) {
@@ -288,6 +320,7 @@ void PPU::ppuFlagUpdate(NES * nes) {
         if (addressLatch) {
             m_t &= 0xFF00;
             m_t |= ppuRegisters[6];
+            m_t %= 0x4000;
             m_v = m_t;
             vramAddress = m_t;
             addressLatch = false;
@@ -329,6 +362,16 @@ void PPU::ppuFlagUpdate(NES * nes) {
     if (registerReadFlags[2]) {
         addressLatch = false;
         ppuRegisters[2] &= 0x7F;
+
+        //does this need to be catched within some specific "tick window"?
+        if (scanline == 241 && ppuCycle == 1) {
+            suppressVBL = true;
+        }
+
+        if (scanline == 241 && ppuCycle == 1) {
+            nes->nesCPU.NMI = false;
+        }
+
     } else if (registerReadFlags[4]) {
 
     } else if (registerReadFlags[7]) {
@@ -373,7 +416,7 @@ void PPU::drawPixel(int cycle, int line) {
     uint8_t backgroundColour;
     backgroundColour = 0;                
 
-    if (ppuRegisters[1] & 0x8) {    //is background rendering enabled?
+    if (((ppuRegisters[1] & 0x2) && cycle - 1 < 8 && (ppuRegisters[1] & 0x8)) || ((ppuRegisters[1] & 0x8) && cycle - 1 >= 8)) {    //is background rendering enabled?
 
         bool passBound;
 
@@ -418,9 +461,7 @@ void PPU::drawPixel(int cycle, int line) {
         }
     }
 
-    //RENDER SPRITES
-    if (ppuRegisters[1] & 0x10) {
-
+    if (((ppuRegisters[1] & 0x4) && cycle - 1 < 8 && (ppuRegisters[1] & 0x10)) || ((ppuRegisters[1] & 0x10) && cycle - 1 >= 8)) {    
         for (int i = 0; i < secondaryOamAddress; i++) {
 
             int xPosition;
@@ -468,7 +509,12 @@ void PPU::drawPixel(int cycle, int line) {
             if ((spriteColour != 0x0)) {
                 if (secondaryOAM[i] == 0) {
                     if (((ppuRegisters[1] & 0x8)) && ((ppuRegisters[1] & 0x10))) {
-                        spriteZeroFlag = true;
+
+                        if (backgroundColour != 0) {
+                            spriteZeroFlag = true;
+                        }
+
+                        
                     }
                 }
             }
@@ -560,7 +606,7 @@ void PPU::tick(NES * nes, int numTicks) {
 
     //process state changes due to register write
     if (flagSet) {
-        ppuFlagUpdate(nes);
+        ppuFlagUpdate(nes, numTicks);
         flagSet = false;
     }  
 
@@ -569,11 +615,11 @@ void PPU::tick(NES * nes, int numTicks) {
         if (scanline < 240) {
 
             //not in vblank
-            ppuRegisters[2] &= 0x7F;
+            //ppuRegisters[2] &= 0x7F;
 
             //first frame tick skipped on odd frame
-            if (scanline == 0 && ppuCycle == 0 && !evenFrame) {
-                //ppuCycle++;
+            if (scanline == 0 && ppuCycle == 0 && !evenFrame && (ppuRegisters[1] & 0x18)) {
+                ppuCycle++;
             }
 
             if (ppuCycle == 0) {
@@ -586,77 +632,56 @@ void PPU::tick(NES * nes, int numTicks) {
                     loadNewTile();
                     horizontalIncrement(m_v);
                 }
-
-
             } else if (ppuCycle == 256) {
-
                 drawPixel(ppuCycle, scanline);
+                horizontalIncrement(m_v);
                 verticalIncrement(m_v);
-
             } else if (ppuCycle == 257) {
-
-                m_v &= ~0x041F;
-                m_v |= (m_t & 0x041F);
-
+                copyHorizontalBits(m_v, m_t);
             } else if (ppuCycle == 328) {
-
                 loadNewTile();
                 horizontalIncrement(m_v);
-
             } else if (ppuCycle == 336) {
-
                 loadNewTile();
                 horizontalIncrement(m_v);
-
             } else if (ppuCycle == 340) {
-
                 updateSecondaryOAM();
-
             } 
-
-
         } else if (scanline == 240) {
             continue;
             //idle scanline
         } else if (scanline == 241) {
-
             if (ppuCycle == 1) {
-                    //set vblank in PPUSTATUS
-                ppuRegisters[2] |= 0x80;
+                //set vblank in PPUSTATUS
 
-                    //throw NMI
-                if ((ppuRegisters[0] & 0x80)) {
+                if (!suppressVBL) {
+                    ppuRegisters[2] |= 0x80;
+                } else {
+                    ppuRegisters[2] &= 0x7F;
+                    suppressVBL = false;
+                }
+                
+                //throw NMI
+                if ((ppuRegisters[0] & 0x80) && (ppuRegisters[2] & 0x80)) {
                     nes->nesCPU.NMI = true;
                 }
             }
-
         } else if (scanline == 261) {
-            //update ppustatus
-
-
             if (ppuCycle > 0 && ppuCycle < 256) {
-
                 if (ppuCycle == 1) {
-
                     //clear vblank, sprite 0 and overflow
                     ppuRegisters[2] &= 0x1F;
-
-                } 
-
-                if (((ppuCycle - 1) % 8 == 7)) {
+                } else if (((ppuCycle - 1) % 8 == 7)) {
                     loadNewTile();
                     horizontalIncrement(m_v);
                 }
-
-
             } else if (ppuCycle == 256) {
+                horizontalIncrement(m_v);
                 verticalIncrement(m_v);
             } else if (ppuCycle == 257) {
-                m_v &= ~0x041F;
-                m_v |= (m_t & 0x041F);
+                copyHorizontalBits(m_v, m_t);
             } else if (ppuCycle == 304) {
-                m_v &= 0x041F;
-                m_v |= (m_t & (~0x041F));
+                copyVerticalBits(m_v, m_t);
             } else if (ppuCycle == 328) {
                 loadNewTile();
                 horizontalIncrement(m_v);

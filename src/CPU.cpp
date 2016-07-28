@@ -146,7 +146,6 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
 
         PC = nes->getCpuByte(0xFFFA) | (nes->getCpuByte(0xFFFB) << 8);
         cyc++;
-        cyc++;
 
         NMI = false;
         cpuCycle = (cpuCycle + 3 * cyc) % 341;

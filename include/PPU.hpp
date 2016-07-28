@@ -20,6 +20,8 @@ class PPU {
 
 private:
 
+    bool suppressVBL;
+
     //temp
     uint8_t m_SpriteOld1;
     uint8_t m_SpriteOld2;
@@ -46,7 +48,7 @@ private:
     inline void loadNewTile();
 
     void setPpuByte(uint16_t, uint8_t);     //set byte in PPU address space
-    void ppuFlagUpdate(NES *);
+    void ppuFlagUpdate(NES *, int);
     void drawPixel(int, int);
     void updateSecondaryOAM();
     void incrementCycle();
