@@ -50,6 +50,8 @@ private:
 
 public:
 
+    int ppuMapper;
+
     //0-7 = $2000 - $2007, 8 = $4014
     bool registerWriteFlags[9];
     bool registerReadFlags[8];

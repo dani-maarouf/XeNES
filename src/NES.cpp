@@ -101,10 +101,17 @@ bool NES::openCartridge(const char * fileLoc) {
                 mapperNumber = (flags[6] >> 4);
                 mapperNumber |= (flags[7] & 0xF0);
 
+                nesMapper = mapperNumber;
+                nesPPU.ppuMapper = mapperNumber;
+
+                if (mapperNumber != 0) {
+                    std::cout << "Unrecognized mapper " << (int) mapperNumber << std::endl;
+                    romFile.close();
+                    return false;
+                }
 
                 if (prg_rom_size != 1 && prg_rom_size != 2) {
                     std::cerr << "Unrecognized rom size " << (int) prg_rom_size << std::endl;
-                    std::cout << "Mapper " << (int) mapperNumber << std::endl;
                     romFile.close();
                     return false;
                 }
@@ -239,27 +246,39 @@ bool NES::openCartridge(const char * fileLoc) {
     return true;
 }
 
+uint8_t mapper0(uint16_t memAddress, int romBanks, uint8_t * ROM) {
+
+
+    if (memAddress < 0xC000) {
+        return ROM[memAddress - 0x8000];
+    } else {
+        /* memAddress >= 0xC000 && < 0x10000 */
+        if (romBanks == 1) {
+            return ROM[ (memAddress - 0x8000) % 0x4000];
+        } else {
+            /* 2 rom banks */
+            return ROM[memAddress - 0x8000];
+        }
+    }
+
+}
+
 uint8_t NES::getCpuByte(uint16_t memAddress) {
 
-    if (memAddress >= 0x0000 && memAddress < 0x2000) {
+    if (memAddress < 0x2000) {
+
         return nesCPU.RAM[memAddress % 0x800];
-    } else if (memAddress >= 0x8000 && memAddress <= 0xFFFF && nesCPU.numRomBanks == 1) {
-        return nesCPU.PRG_ROM[ (memAddress - 0x8000) % 0x4000];
-    } else if (memAddress >= 0x8000 && memAddress <= 0xFFFF && nesCPU.numRomBanks == 2) {
-        return nesCPU.PRG_ROM[memAddress - 0x8000];
-    } else if (memAddress >= 0x2000 && memAddress < 0x4000) {
+
+    } else if (memAddress < 0x4000) {
 
         uint16_t address;
         address = (memAddress - 0x2000) % 8;
 
 
-        if (address == 0x2) {
+        if (address == 0x7) {
 
-            nesPPU.addressLatch = false;
-            //nesPPU.ppuRegisters[0x2] &= 0x7F;
-
-        } else if (address == 0x7) {
-
+            
+            
             
             //if screen off
             if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x18) == 0)) {
@@ -268,6 +287,8 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
                     uint8_t ppuByte;
                     ppuByte = nesPPU.readBuffer;
                     nesPPU.readBuffer = nesPPU.getPpuByte( nesPPU.m_t );
+
+                    //nesPPU.ppuRegisters[0x2] &= 
 
 
                     nesPPU.m_t += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
@@ -288,13 +309,15 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
                 }
             }
             
+            
+            
         }
 
         nesPPU.registerReadFlags[address] = true;
         nesPPU.flagSet = true;
         return nesPPU.ppuRegisters[address];
 
-    } else if (memAddress >= 0x4000 && memAddress < 0x4020) {
+    } else if (memAddress < 0x4020) {
 
         if (memAddress == 0x4016) {
             if (readController) {
@@ -311,26 +334,47 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
 
         return ioRegisters[ memAddress - 0x4000 ];
 
-    } else if (memAddress >= 0x6000 && memAddress < 0x8000) {
+    } else if (memAddress < 0x6000) {
+
+
+
+        return nesCPU.cpuMem[memAddress - 0x4000];
+    } else if (memAddress < 0x8000) {
+
+
+        /* Family Basic only: PRG RAM, mirrored as necessary to fill entire 8 KiB window, write protectable with an external switch */
         return nesCPU.PRG_RAM[memAddress - 0x6000];
+
+
     } else {
-        return nesCPU.cpuMem[memAddress];
+
+        if (nesMapper == 0) {
+            return mapper0(memAddress, nesCPU.numRomBanks, nesCPU.PRG_ROM);
+        } else {
+            std::cerr << "Fatal error, mapper not recognized in getCpuByte" << std::endl;
+            return 0;
+        }
+        
+
     }
 }
 
 void NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
 
-    if (memAddress >= 0x0000 && memAddress < 0x2000) {
-        nesCPU.RAM[memAddress] = byte;
-    } else if (memAddress >= 0x8000 && memAddress <= 0xFFFF) {
-        std::cerr << "Segmentation fault! Can't write to 0x" << std::hex << memAddress << std::endl;
-    } else if (memAddress >= 0x2000 && memAddress < 0x4000) {
+    if (memAddress < 0x2000) {
+
+        nesCPU.RAM[memAddress % 0x800] = byte;
+
+    } else if (memAddress < 0x4000) {
+
         uint16_t address;
         address = (memAddress - 0x2000) % 8;
         nesPPU.registerWriteFlags[address] = true;
         nesPPU.flagSet = true;
         nesPPU.ppuRegisters[address] = byte;
-    } else if (memAddress >= 0x4000 && memAddress < 0x4018) { 
+
+    } else if (memAddress < 0x4020) { 
+
         if (memAddress == 0x4014) {
             nesPPU.registerWriteFlags[8] = true;
             nesPPU.flagSet = true;
@@ -344,10 +388,18 @@ void NES::setCpuByte(uint16_t memAddress, uint8_t byte) {
             }
         }
         ioRegisters[memAddress - 0x4000] = byte;
-    } else if (memAddress >= 0x6000 && memAddress < 0x8000) {
+
+    } else if (memAddress < 0x6000) {
+
+        nesCPU.cpuMem[memAddress - 0x4000] = byte;
+
+    } else if (memAddress < 0x8000) {
+
         nesCPU.PRG_RAM[memAddress - 0x6000] = byte;
+
     } else {
-        nesCPU.cpuMem[memAddress] = byte;
+        /* memAddress >= 0x8000 && memAddress <= 0xFFFF */
+        std::cerr << "Segmentation fault! Can't write to 0x" << std::hex << memAddress << std::endl;
     }
 
     return;

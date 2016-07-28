@@ -7,28 +7,28 @@
     (bit == 4) ? (num & 0x10) : (bit == 5) ? (num & 0x20) : \
     (bit == 6) ? (num & 0x40) : (num & 0x80)
 
-#define horizontalIncrement(address)  if ((address & 0x001F) == 31) {     \
-    address &= ~0x001F;             \
-    address ^= 0x400;               \
+#define horizontalIncrement(loopyv)  if ((loopyv & 0x001F) == 31) {     \
+    loopyv &= ~0x001F;             \
+    loopyv ^= 0x400;               \
 } else {                            \
-    address += 1;                   \
+    loopyv += 1;                   \
 }                                   
 
-#define verticalIncrement(address) if ((address & 0x7000) != 0x7000) {  \
-    address += 0x1000;                              \
+#define verticalIncrement(loopyv) if ((loopyv & 0x7000) != 0x7000) {  \
+    loopyv += 0x1000;                              \
 } else {                                            \
-    address &= ~0x7000;                             \
+    loopyv &= ~0x7000;                             \
     int yVal;                                       \
-    yVal = (address & 0x03E0) >> 5;                 \
+    yVal = (loopyv & 0x03E0) >> 5;                 \
     if (yVal == 29) {                               \
         yVal = 0;                                   \
-        address ^= 0x800;                           \
+        loopyv ^= 0x800;                           \
     } else if (yVal == 31) {                        \
         yVal = 0;                                   \
     } else {                                        \
         yVal += 1;                                  \
     }                                               \
-    address = ((address & ~0x03E0) | (yVal << 5));    \
+    loopyv = ((loopyv & ~0x03E0) | (yVal << 5));    \
 }
 /* End macro functions */
 
@@ -168,10 +168,10 @@ void PPU::setPpuByte(uint16_t address, uint8_t byte) {
     address %= 0x4000;
 
     if (address < 0x1000) {
-        //CHR_ROM[address] = byte;
+        CHR_ROM[address] = byte;
         std::cout << "Illegal write to PPU: $" << std::hex << address << std::endl;
     } else if (address < 0x2000) {
-        //CHR_ROM[address] = byte;
+        CHR_ROM[address] = byte;
         std::cout << "Illegal write to PPU: $" << std::hex << address << std::endl;
     } else if (address < 0x2400) {
         VRAM[address - 0x2000] = byte;
@@ -246,16 +246,25 @@ void PPU::ppuFlagUpdate(NES * nes) {
         //extendedSprites = (ppuRegisters[0] & 0x20) ? true : false;
         //ppuMaster = (ppuRegisters[0] & 0x40) ? true : false;
         //generateNMI = (ppuRegisters[0] & 0x80) ? true : false;
+        ppuRegisters[0x2] &= ~0x1F;
         ppuRegisters[0x2] |= (ppuRegisters[0x0] & 0x1F);
     } else if (registerWriteFlags[1]) {
+        ppuRegisters[0x2] &= ~0x1F;
         ppuRegisters[0x2] |= (ppuRegisters[0x1] & 0x1F);
+
     } else if (registerWriteFlags[2]) {
+        ppuRegisters[0x2] &= ~0x1F;
         ppuRegisters[0x2] |= (ppuRegisters[0x2] & 0x1F);
+
     } else if (registerWriteFlags[3]) {
         oamAddress = ppuRegisters[0x3];
+        ppuRegisters[0x2] &= ~0x1F;
         ppuRegisters[0x2] |= (ppuRegisters[0x3] & 0x1F);
+
     } else if (registerWriteFlags[4]) {
+        ppuRegisters[0x2] &= ~0x1F;
         ppuRegisters[0x2] |= (ppuRegisters[0x4] & 0x1F);
+
     } else if (registerWriteFlags[5]) {
         if (addressLatch == true) {
             m_t &= 0x0C1F;
@@ -268,7 +277,9 @@ void PPU::ppuFlagUpdate(NES * nes) {
             m_t |= (ppuRegisters[0x5] & 0xF8) >> 3;
             addressLatch = true;
         }
+        ppuRegisters[0x2] &= ~0x1F;
         ppuRegisters[0x2] |= (ppuRegisters[0x5] & 0x1F);
+
     } else if (registerWriteFlags[6]) {
         if (addressLatch) {
             m_t &= 0xFF00;
@@ -282,20 +293,20 @@ void PPU::ppuFlagUpdate(NES * nes) {
             m_t |= (ppuRegisters[6] & 0x3F) << 8;
             addressLatch = true;
         }
+        ppuRegisters[0x2] &= ~0x1F;
         ppuRegisters[0x2] |= (ppuRegisters[0x6] & 0x1F);
+
     } else if (registerWriteFlags[7]) {
         /* HACK, FIX THIS */
         //read from 2007
 
-        //if screen off
-        if ((ppuRegisters[0x2] & 0x80) || ((ppuRegisters[0x1] & 0x18) == 0)) {
+        //why does this work at all with SMB?
+        setPpuByte(vramAddress , ppuRegisters[7]);
+        //increment vram address
+        vramAddress += (ppuRegisters[0] & 0x04) ? 32 : 1;
 
-            //why does this work at all with SMB?
-            setPpuByte(vramAddress , ppuRegisters[7]);
-            //increment vram address
-            vramAddress += (ppuRegisters[0] & 0x04) ? 32 : 1;
-        }
 
+        ppuRegisters[0x2] &= ~0x1F;
         ppuRegisters[0x2] |= (ppuRegisters[0x7] & 0x1F);
 
         
@@ -452,7 +463,12 @@ void PPU::updateSecondaryOAM() {
     for (int x = 0; x < 64; x++) {
         int yPos;
         yPos = OAM[x * 4];
-        if (((scanline + 1) % 262) - yPos < 8 && ((scanline + 1) % 262) - yPos >= 0) {
+
+
+        //determine whether sprite will appear on next scanline
+        if ((((scanline + 1) % 262) - yPos < 8 && ((scanline + 1) % 262) - yPos >= 0 && (yPos < 240) && (OAM[x * 4 + 3] < 255) && ((ppuRegisters[0x0] & 0x20) == 0)) ||     //8x8
+            (((scanline + 1) % 262) - yPos < 16 && ((scanline + 1) % 262) - yPos >= 0 && (yPos < 240) && (OAM[x * 4 + 3] < 255) && ((ppuRegisters[0x0] & 0x20))))            //16x8
+            {
 
             if (secondaryOamAddress < 8) {
                 secondaryOAM[secondaryOamAddress] = x * 4;
@@ -548,7 +564,7 @@ void PPU::tick(NES * nes, int numTicks) {
 
             //first frame tick skipped on odd frame
             if (scanline == 0 && ppuCycle == 0 && !evenFrame) {
-                ppuCycle++;
+                //ppuCycle++;
             }
 
             if (ppuCycle > 0 && ppuCycle < 257) {

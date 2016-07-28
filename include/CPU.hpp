@@ -53,7 +53,7 @@ public:
     uint8_t * PRG_RAM;          //cartridge program RAM
     int numRomBanks;            //number of rom banks
     int numRamBanks;            //number of RAM banks
-    uint8_t cpuMem[0x10000];    //fallback memory addresses for testing
+    uint8_t cpuMem[0x2000];    //fallback memory addresses for (0x4020 - 0x6000)
     
     /*
     executeNextOpcode:

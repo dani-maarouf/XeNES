@@ -15,6 +15,8 @@ class NES {
 
 private:
 
+    int nesMapper;
+
     /* controller 1 */
     bool readController;
     uint8_t storedControllerByte;

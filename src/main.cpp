@@ -21,6 +21,8 @@ int main(int argc, char ** argv) {
     clean up code
     automated testing where test programs are run, pixels are hashed and compared to known good result
 
+    add 8x16 sprites
+
     */
 
     NES nesSystem;
