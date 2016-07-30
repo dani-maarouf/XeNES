@@ -28,10 +28,6 @@ void NES::closeCartridge() {
     return;
 }
 
-uint32_t * NES::getDisplayPixels() {
-    return nesPPU.pixels;
-}
-
 int NES::executeOpcode(bool debug) {
     return nesCPU.executeNextOpcode(this, debug);
 }
@@ -105,14 +101,9 @@ bool NES::openCartridge(const char * fileLoc) {
                 nesMapper = mapperNumber;
                 nesPPU.ppuMapper = mapperNumber;
 
-                if (mapperNumber != 0) {
-                    std::cout << "Unrecognized mapper " << (int) mapperNumber << std::endl;
-                    romFile.close();
-                    return false;
-                }
-
-                if (prg_rom_size != 1 && prg_rom_size != 2) {
-                    std::cerr << "Unrecognized rom size " << (int) prg_rom_size << std::endl;
+                if (mapperNumber != 0 && mapperNumber != 1) {
+                    std::cout << "Unrecognized mapper : " << (int) mapperNumber << std::endl;
+                    std::cerr << "Rom size : " << (int) prg_rom_size << std::endl;
                     romFile.close();
                     return false;
                 }
@@ -238,6 +229,7 @@ bool NES::openCartridge(const char * fileLoc) {
     }
 
     nesCPU.numRomBanks = prg_rom_size;
+    nesPPU.numRomBanks = chr_rom_size;
 
     nesCPU.PC = getCpuByte(0xFFFC) | (getCpuByte(0xFFFD) << 8);
 
@@ -258,8 +250,15 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
         uint16_t address;
         address = (memAddress - 0x2000) % 8;
 
+        if (address == 0x4) {
 
-        if (address == 0x7) {
+
+            nesPPU.registerReadFlags[address] = true;
+            nesPPU.flagSet = true;
+
+            return nesPPU.OAM[nesPPU.oamAddress];
+
+        } else if (address == 0x7) {
             
             //if screen off
             if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x18) == 0) || true) {
@@ -275,6 +274,9 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
                     nesPPU.m_t &= 0x7FFF;
                     nesPPU.m_v &= 0x7FFF;
 
+                    nesPPU.registerReadFlags[address] = true;
+                    nesPPU.flagSet = true;
+
                     return ppuByte;
                 } else {
 
@@ -289,6 +291,9 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
 
                     nesPPU.m_t &= 0x7FFF;
                     nesPPU.m_v &= 0x7FFF;
+
+                    nesPPU.registerReadFlags[address] = true;
+                    nesPPU.flagSet = true;
 
                     return ppuByte;
 
@@ -334,7 +339,8 @@ uint8_t NES::getCpuByte(uint16_t memAddress) {
         if (nesMapper == 0) {
             return getCpuMapper0(memAddress, nesCPU.numRomBanks, nesCPU.PRG_ROM);
         } else {
-            std::cerr << "Fatal error, mapper not recognized in getCpuByte" << std::endl;
+            std::cerr << "Fatal error, mapper not recognized in getCpuByte()" << std::endl;
+            exit(1);
             return 0;
         }
         

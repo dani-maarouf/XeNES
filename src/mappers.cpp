@@ -20,3 +20,4 @@ uint8_t getCpuMapper0(uint16_t memAddress, int romBanks, uint8_t * ROM) {
 uint8_t getPpuMapper0(uint16_t memAddress, uint8_t * VROM) {
     return VROM[memAddress];
 }
+

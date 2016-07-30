@@ -35,12 +35,10 @@ private:
     bool evenFrame;                         //tracks even and odd frames
 
     //registers
-    uint8_t oamAddress;                     //current OAM address
     uint8_t secondaryOamAddress;        
     bool spriteZeroFlag;                    //set PPUSTATUS at end of line
 
     //hardware
-    uint8_t OAM[0x100];                     //256 byte PPU OAM
     uint8_t secondaryOAM[8];                //OAM for sprites on line
     uint8_t palette[0x20];
     uint8_t VRAM[0x1000];                   //4kB PPU internal VRAM
@@ -54,6 +52,8 @@ private:
     void incrementCycle();
 
 public:
+
+    int numRomBanks;
 
     int ppuMapper;
 
@@ -71,6 +71,8 @@ public:
     uint8_t m_x;            //fine x scroll
     bool addressLatch;      //w register
     uint8_t readBuffer;
+    uint8_t oamAddress;                     //current OAM address
+
 
     //info
     int scanline;               //current scanline
@@ -81,9 +83,10 @@ public:
     enum Mirroring mirroring;   //nametable arrangement
 
     //hardware
+    uint8_t OAM[0x100];                     //256 byte PPU OAM
     uint8_t ppuRegisters[0x8];              //PPU registers
     uint8_t * CHR_ROM;                      //cartridge video ROM (pattern tables)
-    uint32_t pixels[256 * 240];             //pixel buffer
+    uint8_t pixels[256 * 240];
 
     PPU();
     void tick(NES *, int);            //one PPU tick is executed

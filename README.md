@@ -30,6 +30,12 @@ Donkey Kong
 
 Spelunker
 
+Baseball
+
+Defender II
+
+Dig Dug 2
+
 Ice Climber
 
 Balloon Fight
@@ -50,7 +56,17 @@ Golf
 
 Gyromite
 
-And more.
+Hogan's Alley
+
+Ice Hockey
+
+Ms. Pac Man
+
+Pinball
+
+Popeye
+
+And most other NROM/mapper 0 games
 
 ## Sample screenshots
 

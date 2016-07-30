@@ -25,6 +25,8 @@ int main(int argc, char ** argv) {
     remove overscan
     pass NEStress ppu
 
+    nes_instr_test 2 and 6
+
     */
 
     NES nesSystem;

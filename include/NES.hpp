@@ -39,7 +39,6 @@ public:
     bool openCartridge(const char *);   //load ROM
     void closeCartridge();              //free memory associated with cartridge
 
-    uint32_t * getDisplayPixels();      //pixels in SDL_PIXELFORMAT_ARGB8888
     bool drawFlag();                    //draw frame?
     void tickPPU(int);                      //1 ppu tick
 

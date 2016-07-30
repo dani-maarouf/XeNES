@@ -42,27 +42,6 @@
                 loopyv |= (loopyt & (~0x041F));
 /* End macro functions */
 
-//obtained from blargg's Full Palette demo
-const uint32_t paletteTable [] =
- {  
-    ( 84 << 16) | ( 84 << 8) | ( 84),  (  0 << 16) | ( 30 << 8) | (116),  (  8 << 16) | ( 16 << 8) | (144),  ( 48 << 16) | (  0 << 8) | (136),
-    ( 68 << 16) | (  0 << 8) | (100),  ( 92 << 16) | (  0 << 8) | ( 48),  ( 84 << 16) | (  4 << 8) | (  0),  ( 60 << 16) | ( 24 << 8) | (  0),
-    ( 32 << 16) | ( 42 << 8) | (  0),  (  8 << 16) | ( 58 << 8) | (  0),  (  0 << 16) | ( 64 << 8) | (  0),  (  0 << 16) | ( 60 << 8) | (  0),
-    (  0 << 16) | ( 50 << 8) | ( 60),  (  0 << 16) | (  0 << 8) | (  0),  (  0 << 16) | (  0 << 8) | (  0),  (  0 << 16) | (  0 << 8) | (  0),
-    (152 << 16) | (150 << 8) | (152),  (  8 << 16) | ( 76 << 8) | (196),  ( 48 << 16) | ( 50 << 8) | (236),  ( 92 << 16) | ( 30 << 8) | (228),
-    (136 << 16) | ( 20 << 8) | (176),  (160 << 16) | ( 20 << 8) | (100),  (152 << 16) | ( 34 << 8) | ( 32),  (120 << 16) | ( 60 << 8) | (  0),
-    ( 84 << 16) | ( 90 << 8) | (  0),  ( 40 << 16) | (114 << 8) | (  0),  (  8 << 16) | (124 << 8) | (  0),  (  0 << 16) | (118 << 8) | ( 40), 
-    (  0 << 16) | (102 << 8) | (120),  (  0 << 16) | (  0 << 8) | (  0),  (  0 << 16) | (  0 << 8) | (  0),  (  0 << 16) | (  0 << 8) | (  0),
-    (236 << 16) | (238 << 8) | (236),  ( 76 << 16) | (154 << 8) | (236),  (120 << 16) | (124 << 8) | (236),  (176 << 16) | ( 98 << 8) | (236), 
-    (228 << 16) | ( 84 << 8) | (236),  (236 << 16) | ( 88 << 8) | (180),  (236 << 16) | (106 << 8) | (100),  (212 << 16) | (136 << 8) | ( 32),
-    (160 << 16) | (170 << 8) | (  0),  (116 << 16) | (196 << 8) | (  0),  ( 76 << 16) | (208 << 8) | ( 32),  ( 56 << 16) | (204 << 8) | (108),
-    ( 56 << 16) | (180 << 8) | (204),  ( 60 << 16) | ( 60 << 8) | ( 60),  (  0 << 16) | (  0 << 8) | (  0),  (  0 << 16) | (  0 << 8) | (  0),
-    (236 << 16) | (238 << 8) | (236),  (168 << 16) | (204 << 8) | (236),  (188 << 16) | (188 << 8) | (236),  (212 << 16) | (178 << 8) | (236),
-    (236 << 16) | (174 << 8) | (236),  (236 << 16) | (174 << 8) | (212),  (236 << 16) | (180 << 8) | (176),  (228 << 16) | (196 << 8) | (144),
-    (204 << 16) | (210 << 8) | (120),  (180 << 16) | (222 << 8) | (120),  (168 << 16) | (226 << 8) | (144),  (152 << 16) | (226 << 8) | (180),
-    (160 << 16) | (214 << 8) | (228),  (160 << 16) | (162 << 8) | (160),  (  0 << 16) | (  0 << 8) | (  0),  (  0 << 16) | (  0 << 8) | (  0)
-};
-
 /* Begin PPU class functions */
 PPU::PPU() {
 
@@ -70,7 +49,7 @@ PPU::PPU() {
     for (int x = 0; x < 0x8; x++) ppuRegisters[x] = 0x0;
     for (int x = 0; x < 0x800; x++) VRAM[x] = 0x0;
     for (int x = 0; x < 0x100; x++) OAM[x] = 0x0;
-    for (int x = 0; x < (NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT); x++) pixels[x] = 0;
+    for (int x = 0; x < (NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT); x++) pixels[x] = 63;    //black in palette
     for (int x = 0; x < 8; x++) secondaryOAM[x] = 0x0;
     for (int x = 0; x < 0x9; x++) registerWriteFlags[x] = false;
     for (int x = 0; x < 8; x++) registerReadFlags[x] = false;
@@ -120,6 +99,7 @@ uint8_t PPU::getPpuByte(uint16_t address) {
 			return getPpuMapper0(address, CHR_ROM);
 		} else {
 			std::cerr << "Fatal error, mapper not recognized in getPpuByte()" << std::endl;
+			exit(1);
 			return 0;
 		}
 
@@ -263,18 +243,13 @@ void PPU::ppuFlagUpdate(NES * nes) {
     if (registerWriteFlags[0]) {
         m_t &= 0xF3FF;
         m_t |= ((ppuRegisters[0] & 0x03) << 10);
-        //spriteTableOffset = (ppuRegisters[0] & 0x8) ? 0x1000 : 0x0;
-        //backgroundTableOffset = (ppuRegisters[0] & 0x10) ? 0x1000 : 0x0;
+
         //extendedSprites = (ppuRegisters[0] & 0x20) ? true : false;
         //ppuMaster = (ppuRegisters[0] & 0x40) ? true : false;
-        //generateNMI = (ppuRegisters[0] & 0x80) ? true : false;
-
-        //suppress vbl here?
-
 
         //this breaks spelunker
+        
         /*
-
         if (suppressVBL) {
             ppuRegisters[0] &= 0x7F;
             suppressVBL = false;
@@ -285,9 +260,9 @@ void PPU::ppuFlagUpdate(NES * nes) {
                 }
             }
         }
+        */
 
-		*/
-
+		
 
         ppuRegisters[0x2] &= ~0x1F;
         ppuRegisters[0x2] |= (ppuRegisters[0x0] & 0x1F);
@@ -314,7 +289,6 @@ void PPU::ppuFlagUpdate(NES * nes) {
         ppuRegisters[0x2] |= (ppuRegisters[0x4] & 0x1F);
 
 
-
     } else if (registerWriteFlags[5]) {
         if (addressLatch == true) {
             m_t &= 0x0C1F;
@@ -334,6 +308,7 @@ void PPU::ppuFlagUpdate(NES * nes) {
         if (addressLatch) {
             m_t &= 0xFF00;
             m_t |= ppuRegisters[6];
+            m_t &= 0x7FFF;
             m_v = m_t;
             vramAddress = m_t;
             addressLatch = false;
@@ -352,7 +327,7 @@ void PPU::ppuFlagUpdate(NES * nes) {
 
         //increment vram address
         vramAddress += (ppuRegisters[0] & 0x04) ? 32 : 1;
-        vramAddress &= 0x7FFF;
+        vramAddress %= 0x4000;
 
         ppuRegisters[0x2] &= ~0x1F;
         ppuRegisters[0x2] |= (ppuRegisters[0x7] & 0x1F);
@@ -370,16 +345,21 @@ void PPU::ppuFlagUpdate(NES * nes) {
     //process state changes due to register read
     if (registerReadFlags[2]) {
         addressLatch = false;
+
+
         ppuRegisters[2] &= 0x7F;
 
         //does this need to be catched within some specific "tick window"?
         if (scanline == 241 && ppuCycle == 1) {
+
             suppressVBL = true;
+            //ppuRegisters[0] &= 0x7F;	breaks spelunker
+            //nes->nesCPU.NMI = false;
+
+
         }
 
-        if (scanline == 241 && ppuCycle == 1) {
-            nes->nesCPU.NMI = false;
-        }
+
 
     } else if (registerReadFlags[4]) {
 
@@ -464,9 +444,9 @@ void PPU::drawPixel(int cycle, int line) {
 
         //draw rgb pixel based on palette
         if (backgroundColour == 0) {
-            pixels[pixelLocation] = paletteTable[getPpuByte(0x3F00)];
+            pixels[pixelLocation] = getPpuByte(0x3F00);
         } else { 
-            pixels[pixelLocation] = paletteTable[getPpuByte(0x3F00 + backgroundColour + pal * 4)];
+            pixels[pixelLocation] = getPpuByte(0x3F00 + backgroundColour + pal * 4);
         }
     }
 
@@ -534,13 +514,9 @@ void PPU::drawPixel(int cycle, int line) {
                 continue;
             }    
 
-            //get rgb pixel based on palette for pixel
-            uint32_t newColour;
-            newColour = paletteTable[getPpuByte(0x3F10 + spriteColour + (spriteAttributes & 0x3) * 4)];
-
             //priority
             if (((spriteAttributes & 0x20) == 0) || backgroundColour == 0) {
-                pixels[pixelLocation] = newColour;
+                pixels[pixelLocation] = getPpuByte(0x3F10 + spriteColour + (spriteAttributes & 0x3) * 4);
             }
         }
     }
@@ -681,7 +657,8 @@ void PPU::tick(NES * nes, int numTicks) {
                 if (ppuCycle == 1) {
                     //clear vblank, sprite 0 and overflow
                     ppuRegisters[2] &= 0x1F;
-                    nes->nesCPU.NMI = false;
+                    //nes->nesCPU.NMI = false;
+                    //ppuRegisters[0] &= 0x7F;	//breaks spelunker
                 } else if (((ppuCycle - 1) % 8 == 7)) {
                     loadNewTile();
                     horizontalIncrement(m_v);
