@@ -35,8 +35,6 @@ SDL_Renderer * renderer = NULL; //SDL renderer
 SDL_Texture * texture = NULL;   //SDL texture
 
 uint32_t localPixels[256 * 240];
-bool vsyncEnabled = true;
-
 
 static bool initSDL(const char *);
 static void closeSDL();
@@ -54,79 +52,49 @@ void loop(NES nesSystem, const char * fileLoc) {
         localPixels[x] = 0;
     }
 
+    double frequency = SDL_GetPerformanceFrequency();
+    double startTime = SDL_GetPerformanceCounter();
+
     bool running = true;
+    
     SDL_Event event;
+
     draw(nesSystem.nesPPU.pixels);
 
-    if (vsyncEnabled) {
-        while (running) {
+    while (running) {
 
-            //1. process events
-            if (!processEvents(&event, &nesSystem.controllerByte)) {
+        //1. process events
+        if (!processEvents(&event, &nesSystem.controllerByte)) {
+            running = false;
+            break;
+        }
+
+        do {
+
+            //2.1 logic (cpu)
+            int executeResult = nesSystem.executeOpcode(false);
+            if (executeResult == 0) {
+                std::cerr << "Error executing opcode" << std::endl;
                 running = false;
                 break;
             }
 
-            do {
+            //2.2. logic (ppu)
+            nesSystem.tickPPU(3 * executeResult);
 
-                //2.1 logic (cpu)
-                int executeResult = nesSystem.executeOpcode(false);
-                if (executeResult == 0) {
-                    std::cerr << "Error executing opcode" << std::endl;
-                    running = false;
-                    break;
-                }
+        } while (!nesSystem.drawFlag());
 
-                //2.2. logic (ppu)
-                nesSystem.tickPPU(3 * executeResult);      
-
-            } while (!nesSystem.drawFlag());
-
-            //3 draw
-            draw(nesSystem.nesPPU.pixels);
+        //3 draw
+        draw(nesSystem.nesPPU.pixels);
+        
+        //4 sync framerate
+        double delay = TICKS_PER_FRAME - (((SDL_GetPerformanceCounter() - startTime) / frequency) * 1000);
+        if (delay > 0) {
+            SDL_Delay(delay);
         }
-    } else {
-
-        double frequency = SDL_GetPerformanceFrequency();
-        double startTime = SDL_GetPerformanceCounter();
-
-        while (running) {
-
-            //1. process events
-            if (!processEvents(&event, &nesSystem.controllerByte)) {
-                running = false;
-                break;
-            }
-
-            do {
-
-                //2.1 logic (cpu)
-                int executeResult = nesSystem.executeOpcode(false);
-                if (executeResult == 0) {
-                    std::cerr << "Error executing opcode" << std::endl;
-                    running = false;
-                    break;
-                }
-
-                //2.2. logic (ppu)
-                nesSystem.tickPPU(3 * executeResult);      
-
-            } while (!nesSystem.drawFlag());
-
-            //3 draw
-            draw(nesSystem.nesPPU.pixels);
-            
-            //4 sync framerate
-            double frameTime;
-            frameTime = (SDL_GetPerformanceCounter() - startTime) / frequency;
-            if (frameTime < TICKS_PER_FRAME) {
-                SDL_Delay(TICKS_PER_FRAME - frameTime * 1000.0f);
-            }
-            startTime = SDL_GetPerformanceCounter();
-        }
+        startTime = SDL_GetPerformanceCounter();
     }
 
-    
     closeSDL();
 
     return;
@@ -152,47 +120,16 @@ static bool initSDL(const char * fileLoc) {
         outputHeight = NES_SCREEN_HEIGHT;
     }
 
-    /*
-    SDL_DisplayMode mode;
-
-    if (SDL_GetDesktopDisplayMode(0, &mode)) {
-        std::cerr << "Could not query desktop display mode : " << SDL_GetError() << std::endl;
-        SDL_Quit();
-        return false;
-    }
-
-    
-    if (mode.refresh_rate >= 49 && mode.refresh_rate <= 76) {
-        //now check whether vsync is actually supported
-
-        vsyncEnabled = true;
-
-
-    } else {
-        vsyncEnabled = false;
-    }
-    */
-    
-
     window = SDL_CreateWindow(windowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        NES_SCREEN_WIDTH * scaleFactor, outputHeight * scaleFactor, SDL_WINDOW_OPENGL);
+        NES_SCREEN_WIDTH * scaleFactor, outputHeight * scaleFactor, 0);
 
     if (window == NULL) {
         std::cerr << "Could not create SDL window : " << SDL_GetError() << std::endl;
         SDL_Quit();
         return false;
     }
-
-    /*
-    if (vsyncEnabled) {
-        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
-    } else {
-        renderer = SDL_CreateRenderer(window, -1, 0);
-    }
-    */
-    vsyncEnabled = false;
-    renderer = SDL_CreateRenderer(window, -1, 0);
     
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 
     if (renderer == NULL) {
         std::cerr << "Could not create SDL renderer : " << SDL_GetError() << std::endl;
@@ -207,11 +144,11 @@ static bool initSDL(const char * fileLoc) {
 
     if (texture == NULL) {
         std::cerr << "Could not create SDL texture : " << SDL_GetError() << std::endl;
+        SDL_DestroyRenderer(renderer);
+        renderer = NULL;
         SDL_DestroyWindow(window);
         window = NULL;
         SDL_Quit();
-        SDL_DestroyRenderer(renderer);
-        renderer = NULL;
         return false;
     }
 
@@ -235,7 +172,6 @@ static void closeSDL() {
 
 static void draw(uint8_t * pixels) {
 
-    //decode NES palette buffer to argb buffer
     for (int x = 0; x < 256 * 240; x++) {
         localPixels[x] = paletteTable[pixels[x]];
     }
@@ -258,8 +194,7 @@ static void draw(uint8_t * pixels) {
 
 static bool processEvents(SDL_Event * event, uint8_t * controller) {
 
-    while(SDL_PollEvent(event)) {
-
+    while (SDL_PollEvent(event)) {
         switch(event->type) {
             case SDL_QUIT:
             return false;
@@ -352,7 +287,5 @@ static bool processEvents(SDL_Event * event, uint8_t * controller) {
             break;
         }
     }
-
     return true;
-
 }
