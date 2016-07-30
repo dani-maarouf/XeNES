@@ -80,6 +80,8 @@ PPU::PPU() {
 
     suppressVBL = false;
 
+    ppuClock = 241 * 341;
+
     return;
 }
 
@@ -416,7 +418,7 @@ void PPU::drawPixel(int cycle, int line) {
         }
 
         int interTilePixelLoc;
-        interTilePixelLoc = ((cycle - 1 + (m_x)) % 8 );
+        interTilePixelLoc = (((cycle - 1) % 8 + (m_x)) % 8 );
 
         int pal;
 
@@ -564,9 +566,10 @@ void PPU::updateSecondaryOAM() {
     return;
 }
 
+//increment ppuCycle and scanline, and set draw flag
 void PPU::incrementCycle() {
-
-    //increment ppuCycle and scanline, and set draw flag
+    
+    ppuClock++;
     ppuCycle++;
     ppuCycle %= 341;
 
@@ -582,7 +585,6 @@ void PPU::incrementCycle() {
             evenFrame ^= true;
         }
     }
-    //todo: odd/even frame timing
     return;
 }
 
@@ -598,46 +600,54 @@ void PPU::tick(NES * nes, int numTicks) {
 
     for (int loop = 0; loop < numTicks; loop++, incrementCycle()) {
 
-        if (scanline < 240) {
+        int cyc;
+        cyc = ppuClock % 341;
+
+        int line;
+        line = (ppuClock % (341 * 262)) / 341;
+
+
+        if (line < 240) {
 
             //not in vblank
-            //ppuRegisters[2] &= 0x7F;
+            ppuRegisters[2] &= 0x7F;
 
             //first frame tick skipped on odd frame when screen on
-            if (scanline == 0 && ppuCycle == 0 && !evenFrame && (ppuRegisters[1] & 0x18)) {
+            if (line == 0 && ppuCycle == 0 && !evenFrame && (ppuRegisters[1] & 0x18)) {
+                ppuClock++;
                 ppuCycle++;
             }
 
-            if (ppuCycle == 0) {
+            if (cyc == 0) {
                 continue;
-            } else if (ppuCycle > 0 && ppuCycle < 256) {
+            } else if (cyc > 0 && cyc < 256) {
 
-                drawPixel(ppuCycle, scanline);
+                drawPixel(cyc, line);
 
-                if (((ppuCycle - 1) % 8 == 7)) {
+                if (((cyc - 1) % 8 == 7)) {
                     loadNewTile();
                     horizontalIncrement(m_v);
                 }
-            } else if (ppuCycle == 256) {
-                drawPixel(ppuCycle, scanline);
+            } else if (cyc == 256) {
+                drawPixel(cyc, line);
                 horizontalIncrement(m_v);
                 verticalIncrement(m_v);
-            } else if (ppuCycle == 257) {
+            } else if (cyc == 257) {
                 copyHorizontalBits(m_v, m_t);
-            } else if (ppuCycle == 328) {
+            } else if (cyc == 328) {
                 loadNewTile();
                 horizontalIncrement(m_v);
-            } else if (ppuCycle == 336) {
+            } else if (cyc == 336) {
                 loadNewTile();
                 horizontalIncrement(m_v);
-            } else if (ppuCycle == 340) {
+            } else if (cyc == 340) {
                 updateSecondaryOAM();
             } 
-        } else if (scanline == 240) {
+        } else if (line == 240) {
             continue;
             //idle scanline
-        } else if (scanline == 241) {
-            if (ppuCycle == 1) {
+        } else if (line == 241) {
+            if (cyc == 1) {
                 //set vblank in PPUSTATUS
 
                 if (!suppressVBL) {
@@ -652,31 +662,31 @@ void PPU::tick(NES * nes, int numTicks) {
                     nes->nesCPU.NMI = true;
                 }
             }
-        } else if (scanline == 261) {
-            if (ppuCycle > 0 && ppuCycle < 256) {
-                if (ppuCycle == 1) {
+        } else if (line == 261) {
+            if (cyc > 0 && cyc < 256) {
+                if (cyc == 1) {
                     //clear vblank, sprite 0 and overflow
                     ppuRegisters[2] &= 0x1F;
                     //nes->nesCPU.NMI = false;
                     //ppuRegisters[0] &= 0x7F;	//breaks spelunker
-                } else if (((ppuCycle - 1) % 8 == 7)) {
+                } else if (((cyc - 1) % 8 == 7)) {
                     loadNewTile();
                     horizontalIncrement(m_v);
                 }
-            } else if (ppuCycle == 256) {
+            } else if (cyc == 256) {
                 horizontalIncrement(m_v);
                 verticalIncrement(m_v);
-            } else if (ppuCycle == 257) {
+            } else if (cyc == 257) {
                 copyHorizontalBits(m_v, m_t);
-            } else if (ppuCycle == 304) {
+            } else if (cyc == 304) {
                 copyVerticalBits(m_v, m_t);
-            } else if (ppuCycle == 328) {
+            } else if (cyc == 328) {
                 loadNewTile();
                 horizontalIncrement(m_v);
-            } else if (ppuCycle == 336) {
+            } else if (cyc == 336) {
                 loadNewTile();
                 horizontalIncrement(m_v);
-            } else if (ppuCycle == 340) {
+            } else if (cyc == 340) {
                 updateSecondaryOAM();
             } 
         }

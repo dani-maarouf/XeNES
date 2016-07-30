@@ -53,6 +53,8 @@ private:
 
 public:
 
+    uint64_t ppuClock;
+
     int numRomBanks;
 
     int ppuMapper;

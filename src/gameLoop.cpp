@@ -5,8 +5,7 @@
 
 #include "NES.hpp"
 
-const int FPS = 60;
-const int TICKS_PER_FRAME = 1000/FPS;
+const double TICKS_PER_FRAME = 1000.0/60.0; //60FPS
 const int scaleFactor = 2;      //size of each NES display pixel in real pixels
 const bool removeOverscan = false;
 
@@ -36,6 +35,8 @@ SDL_Renderer * renderer = NULL; //SDL renderer
 SDL_Texture * texture = NULL;   //SDL texture
 
 uint32_t localPixels[256 * 240];
+bool vsyncEnabled = true;
+
 
 static bool initSDL(const char *);
 static void closeSDL();
@@ -54,58 +55,78 @@ void loop(NES nesSystem, const char * fileLoc) {
     }
 
     bool running = true;
-    int startTime = SDL_GetTicks();;
     SDL_Event event;
-
     draw(nesSystem.nesPPU.pixels);
 
-    while (running) {
+    if (vsyncEnabled) {
+        while (running) {
 
-        //1. process events
-        if (!processEvents(&event, &nesSystem.controllerByte)) {
-            running = false;
-            break;
-        }
-
-        do {
-
-            //2.1 logic (cpu)
-            int executeResult = nesSystem.executeOpcode(false);
-            if (executeResult == 0) {
-                std::cerr << "Error executing opcode" << std::endl;
+            //1. process events
+            if (!processEvents(&event, &nesSystem.controllerByte)) {
                 running = false;
                 break;
             }
 
-            //2.2. logic (ppu)
-            nesSystem.tickPPU(3 * executeResult);
+            do {
 
-            
-            if (SDL_GetTicks() - startTime >= TICKS_PER_FRAME) {
+                //2.1 logic (cpu)
+                int executeResult = nesSystem.executeOpcode(false);
+                if (executeResult == 0) {
+                    std::cerr << "Error executing opcode" << std::endl;
+                    running = false;
+                    break;
+                }
+
+                //2.2. logic (ppu)
+                nesSystem.tickPPU(3 * executeResult);      
+
+            } while (!nesSystem.drawFlag());
+
+            //3 draw
+            draw(nesSystem.nesPPU.pixels);
+        }
+    } else {
+
+        double frequency = SDL_GetPerformanceFrequency();
+        double startTime = SDL_GetPerformanceCounter();
+
+        while (running) {
+
+            //1. process events
+            if (!processEvents(&event, &nesSystem.controllerByte)) {
+                running = false;
                 break;
             }
-            
-            
 
-        } while (!nesSystem.drawFlag());
+            do {
 
-        //3.1 draw
-        draw(nesSystem.nesPPU.pixels);
-        
-        //3.2 sync framerate
-        int frameTime;
-        frameTime = SDL_GetTicks() - startTime;
+                //2.1 logic (cpu)
+                int executeResult = nesSystem.executeOpcode(false);
+                if (executeResult == 0) {
+                    std::cerr << "Error executing opcode" << std::endl;
+                    running = false;
+                    break;
+                }
 
-        if (frameTime < TICKS_PER_FRAME) {
-            SDL_Delay(TICKS_PER_FRAME - frameTime);
+                //2.2. logic (ppu)
+                nesSystem.tickPPU(3 * executeResult);      
+
+            } while (!nesSystem.drawFlag());
+
+            //3 draw
+            draw(nesSystem.nesPPU.pixels);
             
+            //4 sync framerate
+            double frameTime;
+            frameTime = (SDL_GetPerformanceCounter() - startTime) / frequency;
+            if (frameTime < TICKS_PER_FRAME) {
+                SDL_Delay(TICKS_PER_FRAME - frameTime * 1000.0f);
+            }
+            startTime = SDL_GetPerformanceCounter();
         }
-
-        startTime = SDL_GetTicks();
     }
-    
-    
 
+    
     closeSDL();
 
     return;
@@ -131,8 +152,30 @@ static bool initSDL(const char * fileLoc) {
         outputHeight = NES_SCREEN_HEIGHT;
     }
 
+    /*
+    SDL_DisplayMode mode;
+
+    if (SDL_GetDesktopDisplayMode(0, &mode)) {
+        std::cerr << "Could not query desktop display mode : " << SDL_GetError() << std::endl;
+        SDL_Quit();
+        return false;
+    }
+
+    
+    if (mode.refresh_rate >= 49 && mode.refresh_rate <= 76) {
+        //now check whether vsync is actually supported
+
+        vsyncEnabled = true;
+
+
+    } else {
+        vsyncEnabled = false;
+    }
+    */
+    
+
     window = SDL_CreateWindow(windowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        NES_SCREEN_WIDTH * scaleFactor, outputHeight * scaleFactor, 0);
+        NES_SCREEN_WIDTH * scaleFactor, outputHeight * scaleFactor, SDL_WINDOW_OPENGL);
 
     if (window == NULL) {
         std::cerr << "Could not create SDL window : " << SDL_GetError() << std::endl;
@@ -140,10 +183,21 @@ static bool initSDL(const char * fileLoc) {
         return false;
     }
 
+    /*
+    if (vsyncEnabled) {
+        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+    } else {
+        renderer = SDL_CreateRenderer(window, -1, 0);
+    }
+    */
+    vsyncEnabled = false;
     renderer = SDL_CreateRenderer(window, -1, 0);
+    
 
     if (renderer == NULL) {
         std::cerr << "Could not create SDL renderer : " << SDL_GetError() << std::endl;
+        SDL_DestroyWindow(window);
+        window = NULL;
         SDL_Quit();
         return false;
     }
@@ -153,7 +207,11 @@ static bool initSDL(const char * fileLoc) {
 
     if (texture == NULL) {
         std::cerr << "Could not create SDL texture : " << SDL_GetError() << std::endl;
+        SDL_DestroyWindow(window);
+        window = NULL;
         SDL_Quit();
+        SDL_DestroyRenderer(renderer);
+        renderer = NULL;
         return false;
     }
 
@@ -163,18 +221,13 @@ static bool initSDL(const char * fileLoc) {
 }
 
 static void closeSDL() {
-    if (texture != NULL) {
-        SDL_DestroyTexture(texture);
-        texture = NULL;
-    }
-    if (renderer != NULL) {
-        SDL_DestroyRenderer(renderer);
-        renderer = NULL;
-    }
-    if (window != NULL) {
-        SDL_DestroyWindow(window);
-        window = NULL;
-    }
+
+    SDL_DestroyTexture(texture);
+    texture = NULL;
+    SDL_DestroyRenderer(renderer);
+    renderer = NULL;
+    SDL_DestroyWindow(window);
+    window = NULL;
 
     SDL_Quit();
     return;
@@ -182,6 +235,7 @@ static void closeSDL() {
 
 static void draw(uint8_t * pixels) {
 
+    //decode NES palette buffer to argb buffer
     for (int x = 0; x < 256 * 240; x++) {
         localPixels[x] = paletteTable[pixels[x]];
     }
@@ -204,98 +258,101 @@ static void draw(uint8_t * pixels) {
 
 static bool processEvents(SDL_Event * event, uint8_t * controller) {
 
-    SDL_PollEvent(event);
-    switch(event->type) {
-        case SDL_QUIT:
-        return false;
+    while(SDL_PollEvent(event)) {
 
-        case SDL_KEYDOWN: {
-            switch(event->key.keysym.sym) {
+        switch(event->type) {
+            case SDL_QUIT:
+            return false;
 
-                case SDLK_SPACE:    //A
-                (*controller) |= 0x1;
+            case SDL_KEYDOWN: {
+                switch(event->key.keysym.sym) {
+
+                    case SDLK_SPACE:    //A
+                    (*controller) |= 0x1;
+                    break;
+
+                    case SDLK_LCTRL:    //B
+                    (*controller) |= 0x2;
+                    break;
+
+                    case SDLK_c:    //select
+                    (*controller) |= 0x4;
+                    break;
+
+                    case SDLK_x:    //start
+                    (*controller) |= 0x8;
+                    break;
+
+                    case SDLK_w:    //up
+                    (*controller) |= 0x10;
+                    break;
+
+                    case SDLK_s:    //down
+                    (*controller) |= 0x20;
+                    break;
+
+                    case SDLK_a:    //left
+                    (*controller) |= 0x40;
+                    break;
+
+                    case SDLK_d:    //right
+                    (*controller) |= 0x80;
+                    break;
+
+                    default:
+                    break;
+
+                }
                 break;
-
-                case SDLK_LCTRL:    //B
-                (*controller) |= 0x2;
-                break;
-
-                case SDLK_c:    //select
-                (*controller) |= 0x4;
-                break;
-
-                case SDLK_x:    //start
-                (*controller) |= 0x8;
-                break;
-
-                case SDLK_w:    //up
-                (*controller) |= 0x10;
-                break;
-
-                case SDLK_s:    //down
-                (*controller) |= 0x20;
-                break;
-
-                case SDLK_a:    //left
-                (*controller) |= 0x40;
-                break;
-
-                case SDLK_d:    //right
-                (*controller) |= 0x80;
-                break;
-
-                default:
-                break;
-
             }
+
+            case SDL_KEYUP: {
+                switch(event->key.keysym.sym) {
+
+                    case SDLK_SPACE:    //A
+                    (*controller) &= ~0x1;
+                    break;
+
+                    case SDLK_LCTRL:    //B
+                    (*controller) &= ~0x2;
+                    break;
+
+                    case SDLK_c:    //select
+                    (*controller) &= ~0x4;
+                    break;
+
+                    case SDLK_x:    //start
+                    (*controller) &= ~0x8;
+                    break;
+
+                    case SDLK_w:    //up
+                    (*controller) &= ~0x10;
+                    break;
+
+                    case SDLK_s:    //down
+                    (*controller) &= ~0x20;
+                    break;
+
+                    case SDLK_a:    //left
+                    (*controller) &= ~0x40;
+                    break;
+
+                    case SDLK_d:    //right
+                    (*controller) &= ~0x80;
+                    break;
+
+                    default:
+                    break;
+
+                }
+                break;
+            }
+
+            default:
             break;
         }
-
-        case SDL_KEYUP: {
-            switch(event->key.keysym.sym) {
-
-                case SDLK_SPACE:    //A
-                (*controller) &= ~0x1;
-                break;
-
-                case SDLK_LCTRL:    //B
-                (*controller) &= ~0x2;
-                break;
-
-                case SDLK_c:    //select
-                (*controller) &= ~0x4;
-                break;
-
-                case SDLK_x:    //start
-                (*controller) &= ~0x8;
-                break;
-
-                case SDLK_w:    //up
-                (*controller) &= ~0x10;
-                break;
-
-                case SDLK_s:    //down
-                (*controller) &= ~0x20;
-                break;
-
-                case SDLK_a:    //left
-                (*controller) &= ~0x40;
-                break;
-
-                case SDLK_d:    //right
-                (*controller) &= ~0x80;
-                break;
-
-                default:
-                break;
-
-            }
-            break;
-        }
-
-        default:
-        break;
     }
 
     return true;
+
 }
