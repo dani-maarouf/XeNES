@@ -7,7 +7,7 @@
 
 const double TICKS_PER_FRAME = 1000.0/60.0; //60FPS
 const int scaleFactor = 2;      //size of each NES display pixel in real pixels
-const bool removeOverscan = false;
+const bool removeOverscan = true;
 
 //obtained from blargg's Full Palette demo
 const uint32_t paletteTable [] =
@@ -153,6 +153,7 @@ static bool initSDL(const char * fileLoc) {
     }
 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, 0); 
+    SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 
     return true;
 }
