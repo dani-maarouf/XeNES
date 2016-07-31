@@ -13,9 +13,6 @@ enum Mirroring {
     FOUR_SCREEN,
 };
 
-
-class NES;
-
 class PPU {
 
 private:
@@ -48,7 +45,7 @@ private:
     inline void loadNewTile();
 
     void setPpuByte(uint16_t, uint8_t);     //set byte in PPU address space
-    void ppuFlagUpdate(NES *);
+    void ppuFlagUpdate(bool *);
     void drawPixel(int, int);
     void updateSecondaryOAM(int);
 
@@ -86,7 +83,7 @@ public:
     uint8_t pixels[256 * 240];
 
     PPU();
-    void tick(NES *, int);            //one PPU tick is executed
+    void tick(bool *, int);            //one PPU tick is executed
     void freePointers();              //free memory
     uint8_t getPpuByte(uint16_t);     //get byte from PPU address space
 

@@ -1,7 +1,7 @@
 #include <iostream>
 
-#include "NES.hpp"
 #include "mappers.hpp"
+#include "PPU.hpp"
 
 
 /* Begin macro functions */
@@ -256,7 +256,7 @@ void PPU::setPpuByte(uint16_t address, uint8_t byte) {
     return;
 }
 
-void PPU::ppuFlagUpdate(NES * nes) {
+void PPU::ppuFlagUpdate(bool * NMI) {
 
     if (registerWriteFlags[0]) {
         m_t &= 0xF3FF;
@@ -274,7 +274,7 @@ void PPU::ppuFlagUpdate(NES * nes) {
         } else {
             if (ppuRegisters[0] & 0x80) {
                 if (ppuRegisters[2] & 0x80) {
-                    nes->nesCPU.NMI = true;
+                    *NMI = true;
                 }
             }
         }
@@ -352,12 +352,14 @@ void PPU::ppuFlagUpdate(NES * nes) {
 
     } else if (registerWriteFlags[8]) {
 
+        /* now done in cpu
         uint8_t OAMDMA;
         OAMDMA = nes->nesCPU.getCpuByte(0x4014);
         for (unsigned int x = 0; x < 256; x++) {
             OAM[oamAddress] = nes->nesCPU.getCpuByte( (OAMDMA << 8) + x );
             oamAddress = (oamAddress + 1) & 0xFF;
         }
+        */
     }
 
     //process state changes due to register read
@@ -373,7 +375,7 @@ void PPU::ppuFlagUpdate(NES * nes) {
 
             suppressVBL = true;
             //ppuRegisters[0] &= 0x7F;	breaks spelunker
-            //nes->nesCPU.NMI = false;
+            //*NMI = false;
 
 
         }
@@ -565,13 +567,13 @@ void PPU::updateSecondaryOAM(int line) {
     return;
 }
 
-void PPU::tick(NES * nes, int numTicks) {
+void PPU::tick(bool * NMI, int numTicks) {
 
     draw = false; 
 
     //process state changes due to register write
     if (flagSet) {
-        ppuFlagUpdate(nes);
+        ppuFlagUpdate(NMI);
         flagSet = false;
     }  
 
@@ -638,7 +640,7 @@ void PPU::tick(NES * nes, int numTicks) {
                 
                 //throw NMI
                 if ((ppuRegisters[0] & 0x80) && (ppuRegisters[2] & 0x80)) {
-                    nes->nesCPU.NMI = true;
+                    *NMI = true;
                 }
             }
         } else if (line == 261) {
@@ -646,7 +648,7 @@ void PPU::tick(NES * nes, int numTicks) {
                 if (cyc == 1) {
                     //clear vblank, sprite 0 and overflow
                     ppuRegisters[2] &= 0x1F;
-                    //nes->nesCPU.NMI = false;
+                    //*NMI = false;
                     //ppuRegisters[0] &= 0x7F;	//breaks spelunker
                 } else if (((cyc - 1) % 8 == 7)) {
                     loadNewTile();

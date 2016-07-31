@@ -1,6 +1,4 @@
 #include <iostream>
-#include <cstring>
-#include <bitset>
 #include <SDL2/SDL.h>
 
 #include "NES.hpp"
@@ -80,9 +78,9 @@ void loop(NES nesSystem, const char * fileLoc) {
             }
 
             //2.2. logic (ppu)
-            nesSystem.tickPPU(3 * executeResult);
+            nesSystem.nesCPU.nesPPU.tick(&nesSystem.nesCPU.NMI, 3 * executeResult);
 
-        } while (!nesSystem.drawFlag());
+        } while (!nesSystem.nesCPU.nesPPU.draw);
 
         //3 draw
         draw(nesSystem.nesCPU.nesPPU.pixels);

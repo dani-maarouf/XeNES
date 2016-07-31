@@ -2,7 +2,7 @@
 #include <cstring>
 #include <iomanip>
 
-#include "NES.hpp"
+#include "CPU.hpp"
 #include "mappers.hpp"
 
 
@@ -252,8 +252,18 @@ void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
     } else if (memAddress < 0x4020) { 
 
         if (memAddress == 0x4014) {
+
+            uint8_t OAMDMA;
+            OAMDMA = getCpuByte(0x4014);
+            for (unsigned int x = 0; x < 256; x++) {
+                nesPPU.OAM[nesPPU.oamAddress] = getCpuByte( (OAMDMA << 8) + x );
+                nesPPU.oamAddress = (nesPPU.oamAddress + 1) & 0xFF;
+            }
+
             nesPPU.registerWriteFlags[8] = true;
             nesPPU.flagSet = true;
+
+
         } else if (memAddress == 0x4016) {
             if ((byte & 0x1) == 0x1) {
                 storedControllerByte = controllerByte;

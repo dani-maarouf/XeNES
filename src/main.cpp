@@ -20,9 +20,7 @@ int main(int argc, char ** argv) {
     oamdata read/write
     clean up code
     automated testing where test programs are run, pixel buffer is hashed and compared to known good result
-    add better timer
     add 8x16 sprites
-    remove overscan
     pass NEStress ppu
 
     nes_instr_test 2 and 6

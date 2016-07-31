@@ -1,14 +1,7 @@
 #include <iostream>
-#include <cstring>
 #include <fstream>
-#include <bitset>
 
 #include "NES.hpp"
-
-#define getBit(num, bit)    (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) : \
-    (bit == 2) ? (num & 0x4) : (bit == 3) ? (num & 0x8) :   \
-    (bit == 4) ? (num & 0x10) : (bit == 5) ? (num & 0x20) : \
-    (bit == 6) ? (num & 0x40) : (num & 0x80)
 
 NES::NES() {
 
@@ -20,14 +13,6 @@ void NES::closeCartridge() {
     nesCPU.freePointers();
     nesCPU.nesPPU.freePointers();
     return;
-}
-
-void NES::tickPPU(int numTicks) {
-    nesCPU.nesPPU.tick(this, numTicks);
-}
-
-bool NES::drawFlag() {
-    return nesCPU.nesPPU.draw;
 }
 
 //fix possible memory leaks
