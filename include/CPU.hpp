@@ -34,54 +34,50 @@ class CPU {
 
 private:
     
-    uint8_t SP;         //stack pointer
-    uint8_t A;          //accumulator
-    bool PS[8];         //processor status word
-
-public:
-
-    /* controller 1 */
+    //controller 1
     bool readController;
     uint8_t storedControllerByte;
     int currentControllerBit;
-    uint8_t controllerByte;
 
-    int cpuMapper;
-
-    uint8_t ioRegisters[0x20];          //joystick and apu registers
-
-
-    PPU nesPPU;                         //PPU
-    uint64_t cpuClock;
-
-    bool NMI;           //non maskable interupt
-    uint16_t PC;        //program counter
+    //registers
+    uint8_t SP;         //stack pointer
+    uint8_t A;          //accumulator
+    bool PS[8];         //processor status word
     uint8_t X;          //register X
     uint8_t Y;          //register Y
 
-    
+    //hardware
     uint8_t RAM[0x800];         //2kB CPU RAM
-    uint8_t * PRG_ROM;          //cartridge program ROM
-    uint8_t * PRG_RAM;          //cartridge program RAM
-    int numRomBanks;            //number of rom banks
-    int numRamBanks;            //number of RAM banks
     uint8_t cpuMem[0x2000];    //fallback memory addresses for (0x4020 - 0x6000)
-    
-    /*
-    executeNextOpcode:
-    execute instruction located at PC in CPU address space
-    */
-    int executeNextOpcode(bool);
 
-    uint8_t getCpuByte(uint16_t);       //get byte from CPU address space
-
-    CPU();                  //stage 1 initialize, stage 2 when ROM loading occurs
-    void freePointers();    //deinitialize
-    
-
+    bool returnControllerBit();
     void setCpuByte(uint16_t, uint8_t); //set byte in CPU address space
     uint16_t retrieveCpuAddress(enum AddressMode, bool *, uint8_t, uint8_t);  //get address basedon address mode
 
+public:
+
+    PPU nesPPU;
+    uint64_t cpuClock;          //time in ppu ticks
+
+    //info
+    int cpuMapper;
+    int numRomBanks;            //number of rom banks
+    int numRamBanks;            //number of RAM banks
+
+    //registers
+    bool NMI;                   //non maskable interupt
+    uint16_t PC;                //program counter
+    uint8_t controllerByte;     //controller 1
+
+    //hardware
+    uint8_t ioRegisters[0x20];          //joystick and apu registers
+    uint8_t * PRG_ROM;          //cartridge program ROM
+    uint8_t * PRG_RAM;          //cartridge program RAM
+
+    CPU();                  //stage 1 initialize, stage 2 when ROM loading occurs
+    void freePointers();    //deinitialize
+    void executeNextOpcode(bool);
+    uint8_t getCpuByte(uint16_t);       //get byte from CPU address space
 
 };
 

@@ -4,28 +4,28 @@
 #include "NES.hpp"
 
 const double TICKS_PER_FRAME = 1000.0/60.0; //60FPS
-const int scaleFactor = 2;      //size of each NES display pixel in real pixels
+const int scaleFactor = 2;                  //size of each NES display pixel in real pixels
 const bool removeOverscan = true;
 
 //obtained from blargg's Full Palette demo
 const uint32_t paletteTable [] =
  {  
-    ( 84 << 16) | ( 84 << 8) | ( 84),  (  0 << 16) | ( 30 << 8) | (116),  (  8 << 16) | ( 16 << 8) | (144),  ( 48 << 16) | (  0 << 8) | (136),
-    ( 68 << 16) | (  0 << 8) | (100),  ( 92 << 16) | (  0 << 8) | ( 48),  ( 84 << 16) | (  4 << 8) | (  0),  ( 60 << 16) | ( 24 << 8) | (  0),
-    ( 32 << 16) | ( 42 << 8) | (  0),  (  8 << 16) | ( 58 << 8) | (  0),  (  0 << 16) | ( 64 << 8) | (  0),  (  0 << 16) | ( 60 << 8) | (  0),
-    (  0 << 16) | ( 50 << 8) | ( 60),  (  0 << 16) | (  0 << 8) | (  0),  (  0 << 16) | (  0 << 8) | (  0),  (  0 << 16) | (  0 << 8) | (  0),
-    (152 << 16) | (150 << 8) | (152),  (  8 << 16) | ( 76 << 8) | (196),  ( 48 << 16) | ( 50 << 8) | (236),  ( 92 << 16) | ( 30 << 8) | (228),
-    (136 << 16) | ( 20 << 8) | (176),  (160 << 16) | ( 20 << 8) | (100),  (152 << 16) | ( 34 << 8) | ( 32),  (120 << 16) | ( 60 << 8) | (  0),
-    ( 84 << 16) | ( 90 << 8) | (  0),  ( 40 << 16) | (114 << 8) | (  0),  (  8 << 16) | (124 << 8) | (  0),  (  0 << 16) | (118 << 8) | ( 40), 
-    (  0 << 16) | (102 << 8) | (120),  (  0 << 16) | (  0 << 8) | (  0),  (  0 << 16) | (  0 << 8) | (  0),  (  0 << 16) | (  0 << 8) | (  0),
-    (236 << 16) | (238 << 8) | (236),  ( 76 << 16) | (154 << 8) | (236),  (120 << 16) | (124 << 8) | (236),  (176 << 16) | ( 98 << 8) | (236), 
-    (228 << 16) | ( 84 << 8) | (236),  (236 << 16) | ( 88 << 8) | (180),  (236 << 16) | (106 << 8) | (100),  (212 << 16) | (136 << 8) | ( 32),
-    (160 << 16) | (170 << 8) | (  0),  (116 << 16) | (196 << 8) | (  0),  ( 76 << 16) | (208 << 8) | ( 32),  ( 56 << 16) | (204 << 8) | (108),
-    ( 56 << 16) | (180 << 8) | (204),  ( 60 << 16) | ( 60 << 8) | ( 60),  (  0 << 16) | (  0 << 8) | (  0),  (  0 << 16) | (  0 << 8) | (  0),
-    (236 << 16) | (238 << 8) | (236),  (168 << 16) | (204 << 8) | (236),  (188 << 16) | (188 << 8) | (236),  (212 << 16) | (178 << 8) | (236),
-    (236 << 16) | (174 << 8) | (236),  (236 << 16) | (174 << 8) | (212),  (236 << 16) | (180 << 8) | (176),  (228 << 16) | (196 << 8) | (144),
-    (204 << 16) | (210 << 8) | (120),  (180 << 16) | (222 << 8) | (120),  (168 << 16) | (226 << 8) | (144),  (152 << 16) | (226 << 8) | (180),
-    (160 << 16) | (214 << 8) | (228),  (160 << 16) | (162 << 8) | (160),  (  0 << 16) | (  0 << 8) | (  0),  (  0 << 16) | (  0 << 8) | (  0)
+    ( 84<<16)|( 84<<8)|( 84),(  0<<16)|( 30<<8)|(116),(  8<<16)|( 16<<8)|(144),( 48<<16)|(  0<<8)|(136),
+    ( 68<<16)|(  0<<8)|(100),( 92<<16)|(  0<<8)|( 48),( 84<<16)|(  4<<8)|(  0),( 60<<16)|( 24<<8)|(  0),
+    ( 32<<16)|( 42<<8)|(  0),(  8<<16)|( 58<<8)|(  0),(  0<<16)|( 64<<8)|(  0),(  0<<16)|( 60<<8)|(  0),
+    (  0<<16)|( 50<<8)|( 60),(  0<<16)|(  0<<8)|(  0),(  0<<16)|(  0<<8)|(  0),(  0<<16)|(  0<<8)|(  0),
+    (152<<16)|(150<<8)|(152),(  8<<16)|( 76<<8)|(196),( 48<<16)|( 50<<8)|(236),( 92<<16)|( 30<<8)|(228),
+    (136<<16)|( 20<<8)|(176),(160<<16)|( 20<<8)|(100),(152<<16)|( 34<<8)|( 32),(120<<16)|( 60<<8)|(  0),
+    ( 84<<16)|( 90<<8)|(  0),( 40<<16)|(114<<8)|(  0),(  8<<16)|(124<<8)|(  0),(  0<<16)|(118<<8)|( 40), 
+    (  0<<16)|(102<<8)|(120),(  0<<16)|(  0<<8)|(  0),(  0<<16)|(  0<<8)|(  0),(  0<<16)|(  0<<8)|(  0),
+    (236<<16)|(238<<8)|(236),( 76<<16)|(154<<8)|(236),(120<<16)|(124<<8)|(236),(176<<16)|( 98<<8)|(236), 
+    (228<<16)|( 84<<8)|(236),(236<<16)|( 88<<8)|(180),(236<<16)|(106<<8)|(100),(212<<16)|(136<<8)|( 32),
+    (160<<16)|(170<<8)|(  0),(116<<16)|(196<<8)|(  0),( 76<<16)|(208<<8)|( 32),( 56<<16)|(204<<8)|(108),
+    ( 56<<16)|(180<<8)|(204),( 60<<16)|( 60<<8)|( 60),(  0<<16)|(  0<<8)|(  0),(  0<<16)|(  0<<8)|(  0),
+    (236<<16)|(238<<8)|(236),(168<<16)|(204<<8)|(236),(188<<16)|(188<<8)|(236),(212<<16)|(178<<8)|(236),
+    (236<<16)|(174<<8)|(236),(236<<16)|(174<<8)|(212),(236<<16)|(180<<8)|(176),(228<<16)|(196<<8)|(144),
+    (204<<16)|(210<<8)|(120),(180<<16)|(222<<8)|(120),(168<<16)|(226<<8)|(144),(152<<16)|(226<<8)|(180),
+    (160<<16)|(214<<8)|(228),(160<<16)|(162<<8)|(160),(  0<<16)|(  0<<8)|(  0),(  0<<16)|(  0<<8)|(  0)
 };
 
 SDL_Window * window = NULL;     //SDL window
@@ -37,7 +37,7 @@ uint32_t localPixels[256 * 240];
 static bool initSDL(const char *);
 static void closeSDL();
 static void draw(uint8_t *);
-static bool processEvents(SDL_Event *, uint8_t *);
+static bool processEvents(SDL_Event *, uint8_t *, bool *);
 
 void loop(NES nesSystem, const char * fileLoc) {
 
@@ -46,51 +46,45 @@ void loop(NES nesSystem, const char * fileLoc) {
         return;
     }
 
-    for (int x = 0; x < 256 * 240; x++) {
-        localPixels[x] = 0;
-    }
-
+    //game loop variables
     double frequency = SDL_GetPerformanceFrequency();
     double startTime = SDL_GetPerformanceCounter();
-
     bool running = true;
-    
+    bool paused = false;
     SDL_Event event;
 
+    //first draw
+    for (int x = 0; x < 256 * 240; x++) localPixels[x] = 0;
     draw(nesSystem.nesCPU.nesPPU.pixels);
 
     while (running) {
 
         //1. process events
-        if (!processEvents(&event, &nesSystem.nesCPU.controllerByte)) {
+        if (!processEvents(&event, &nesSystem.nesCPU.controllerByte, &paused)) {
             running = false;
             break;
         }
 
-        do {
+        //2. logic
+        if (!paused) {
+            do {
+                //execute one cpu opcode
+                nesSystem.nesCPU.executeNextOpcode(false);
+                //ppu catches up
+                nesSystem.nesCPU.nesPPU.tick(&nesSystem.nesCPU.NMI, &nesSystem.nesCPU.cpuClock);
+            } while (!nesSystem.nesCPU.nesPPU.draw);
+        }
 
-            //2.1 logic (cpu)
-            int executeResult = nesSystem.nesCPU.executeNextOpcode(false);
-            if (executeResult == 0) {
-                std::cerr << "Error executing opcode" << std::endl;
-                running = false;
-                break;
-            }
-
-            //2.2. logic (ppu)
-            nesSystem.nesCPU.nesPPU.tick(&nesSystem.nesCPU.NMI, 3 * executeResult);
-
-        } while (!nesSystem.nesCPU.nesPPU.draw);
-
-        //3 draw
-        draw(nesSystem.nesCPU.nesPPU.pixels);
-        
-        //4 sync framerate
+        //3 sync framerate
         double delay = TICKS_PER_FRAME - (((SDL_GetPerformanceCounter() - startTime) / frequency) * 1000);
         if (delay > 0) {
             SDL_Delay(delay);
         }
         startTime = SDL_GetPerformanceCounter();
+
+        //4 draw
+        draw(nesSystem.nesCPU.nesPPU.pixels);
+        
     }
 
     closeSDL();
@@ -100,7 +94,7 @@ void loop(NES nesSystem, const char * fileLoc) {
 
 static bool initSDL(const char * fileLoc) {
 
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
         std::cerr << "Could not initialize SDL : " << SDL_GetError() << std::endl;
         return false;
     }
@@ -126,7 +120,7 @@ static bool initSDL(const char * fileLoc) {
         SDL_Quit();
         return false;
     }
-    
+
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
 
     if (renderer == NULL) {
@@ -191,12 +185,35 @@ static void draw(uint8_t * pixels) {
     return;
 }
 
-static bool processEvents(SDL_Event * event, uint8_t * controller) {
+static bool processEvents(SDL_Event * event, uint8_t * controller, bool * paused) {
 
     while (SDL_PollEvent(event)) {
         switch(event->type) {
+
             case SDL_QUIT:
             return false;
+
+            
+            case SDL_WINDOWEVENT: {
+                
+                switch(event->window.event) {
+
+                    case SDL_WINDOWEVENT_FOCUS_LOST:
+                    *paused = true;
+                    break;
+
+                    case SDL_WINDOWEVENT_FOCUS_GAINED:
+                    *paused = false;
+                    break;
+
+                    default:
+                    break;
+
+                }
+
+                break;
+            }
+            
 
             case SDL_KEYDOWN: {
                 switch(event->key.keysym.sym) {

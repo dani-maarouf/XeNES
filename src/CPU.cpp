@@ -6,20 +6,16 @@
 #include "mappers.hpp"
 
 
-#define getBit(num, bit)   (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) : \
-                            (bit == 2) ? (num & 0x4) : (bit == 3) ? (num & 0x8) : \
+#define getBit(num, bit)    (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) :   \
+                            (bit == 2) ? (num & 0x4) : (bit == 3) ? (num & 0x8) :   \
                             (bit == 4) ? (num & 0x10) : (bit == 5) ? (num & 0x20) : \
                             (bit == 6) ? (num & 0x40) : (num & 0x80)
 enum InstructionType {
     READ = 0,               //read from mem address
     WRITE = 1,              //write to mem address
     READ_MODIFY_WRITE = 2,  //read from mem address, modify byte, write byte
-    OTHER,                  //note: above 3 are not applicable to all
+    OTHER,                  //note: above 3 are not applicable to every opcode
 };
-
-                                   //0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F
-static const int opcodeLens[0x20] = {2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3,  //0 2 4 6 8 A C E
-                                     2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3,};//1 3 5 7 9 B D F
 
 
 static const enum AddressMode addressModes[] = {
@@ -42,7 +38,7 @@ static const enum AddressMode addressModes[] = {
     REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //F
 }; 
 
-//opcode mnemonics
+//opcode mnemonics for debugging
 static const char * opnames[] = {
     //0     1      2      3      4      5      6      7      8      9
     "$$$", "ADC", "AND", "ASL", "BCC", "BCS", "BEQ", "BIT", "BMI", "BNE", //0
@@ -54,7 +50,7 @@ static const char * opnames[] = {
     "STY", "TAX", "TAY", "TSX", "TXA", "TXS", "TYA"                       //6
 };                     
 
-//opcode mnemonic mapping
+//opcode mnemonic mapping for debugging
 static const int opnameMap[] = {
    //0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
     11,39, 0,56,38,39, 3,56,41,39, 3, 0,38,39, 3,56,  //0
@@ -75,11 +71,17 @@ static const int opnameMap[] = {
      6,52, 0,29,38,52,26,29,54,52,38,29,38,52,26,29,  //F
 };
 
+//cpu cycles taken for different address modes
 static const int cycles[] = {
     2,2,2,0,0,0,0,4,3,0,1,2,2,  //read
     2,3,3,0,0,0,0,4,4,0,1,2,2,  //write
     4,5,5,0,0,0,0,0,0,0,3,4,4,  //read modify write
 };
+
+//table of opcode lengths for advancing PC
+                                   //0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F
+static const int opcodeLens[0x20] = {2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3,  //0 2 4 6 8 A C E
+                                     2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3,};//1 3 5 7 9 B D F
 
 static inline uint8_t getPswByte(bool *);
 static inline void getPswFromByte(bool * PS, uint8_t byte);
@@ -126,103 +128,44 @@ void CPU::freePointers() {
     return;
 }
 
+bool CPU::returnControllerBit() {
+
+    if (currentControllerBit < 8) {
+        currentControllerBit++;
+        bool bit;
+        bit = getBit(storedControllerByte, currentControllerBit - 1);
+        return bit;
+    } else {
+        return true;
+    }
+
+}
+
 uint8_t CPU::getCpuByte(uint16_t memAddress) {
 
     if (memAddress < 0x2000) {
-
         return RAM[memAddress % 0x800];
-
     } else if (memAddress < 0x4000) {
-
         uint16_t address;
         address = (memAddress - 0x2000) % 8;
-
-        if (address == 0x4) {
-
-
-            nesPPU.registerReadFlags[address] = true;
-            nesPPU.flagSet = true;
-
-            return nesPPU.OAM[nesPPU.oamAddress];
-
-        } else if (address == 0x7) {
-            
-            //if screen off
-            if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x18) == 0) || true) {
-                if (nesPPU.m_t % 0x4000 < 0x3F00) {
-
-                    uint8_t ppuByte;
-                    ppuByte = nesPPU.readBuffer;
-                    nesPPU.readBuffer = nesPPU.getPpuByte( nesPPU.m_t );
-
-                    nesPPU.m_t += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
-                    nesPPU.m_v += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
-
-                    nesPPU.m_t &= 0x7FFF;
-                    nesPPU.m_v &= 0x7FFF;
-
-                    nesPPU.registerReadFlags[address] = true;
-                    nesPPU.flagSet = true;
-
-                    return ppuByte;
-                } else {
-
-                    uint8_t ppuByte;
-
-                    ppuByte = nesPPU.getPpuByte( nesPPU.m_t );
-
-                    nesPPU.readBuffer = nesPPU.getPpuByte( nesPPU.m_t - 0x1000);
-
-                    nesPPU.m_t += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
-                    nesPPU.m_v += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
-
-                    nesPPU.m_t &= 0x7FFF;
-                    nesPPU.m_v &= 0x7FFF;
-
-                    nesPPU.registerReadFlags[address] = true;
-                    nesPPU.flagSet = true;
-
-                    return ppuByte;
-
-                }
-            }
+        nesPPU.readFlag = address;
+        if (address == 0x7) {
+            return nesPPU.return2007();
         }
-
-        nesPPU.registerReadFlags[address] = true;
-        nesPPU.flagSet = true;
         return nesPPU.ppuRegisters[address];
-
     } else if (memAddress < 0x4020) {
-
         if (memAddress == 0x4016) {
             if (readController) {
-                if (currentControllerBit < 8) {
-                    currentControllerBit++;
-                    bool bit;
-                    bit = getBit(storedControllerByte, currentControllerBit - 1);
-                    return bit;
-                } else {
-                    return 1;
-                }
+                return returnControllerBit();
             }
         }
-
         return ioRegisters[ memAddress - 0x4000 ];
-
     } else if (memAddress < 0x6000) {
-
-
-
         return cpuMem[memAddress - 0x4000];
     } else if (memAddress < 0x8000) {
-
-
         /* Family Basic only: PRG RAM, mirrored as necessary to fill entire 8 KiB window, write protectable with an external switch */
         return PRG_RAM[memAddress - 0x6000];
-
-
     } else {
-
         if (cpuMapper == 0) {
             return getCpuMapper0(memAddress, numRomBanks, PRG_ROM);
         } else {
@@ -230,8 +173,6 @@ uint8_t CPU::getCpuByte(uint16_t memAddress) {
             exit(1);
             return 0;
         }
-        
-
     }
 }
 
@@ -245,8 +186,7 @@ void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
 
         uint16_t address;
         address = (memAddress - 0x2000) % 8;
-        nesPPU.registerWriteFlags[address] = true;
-        nesPPU.flagSet = true;
+        nesPPU.writeFlag = address;
         nesPPU.ppuRegisters[address] = byte;
 
     } else if (memAddress < 0x4020) { 
@@ -255,14 +195,10 @@ void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
 
             uint8_t OAMDMA;
             OAMDMA = getCpuByte(0x4014);
-            for (unsigned int x = 0; x < 256; x++) {
+            for (unsigned int x = 0; x < 0x100; x++) {
                 nesPPU.OAM[nesPPU.oamAddress] = getCpuByte( (OAMDMA << 8) + x );
                 nesPPU.oamAddress = (nesPPU.oamAddress + 1) & 0xFF;
             }
-
-            nesPPU.registerWriteFlags[8] = true;
-            nesPPU.flagSet = true;
-
 
         } else if (memAddress == 0x4016) {
             if ((byte & 0x1) == 0x1) {
@@ -353,8 +289,7 @@ uint16_t CPU::retrieveCpuAddress(enum AddressMode mode, bool * pagePass, uint8_t
     }
 }
 
-
-int CPU::executeNextOpcode(bool debug) {
+void CPU::executeNextOpcode(bool debug) {
 
     //CPU cycles taken during instruction
     int cyc;
@@ -386,7 +321,7 @@ int CPU::executeNextOpcode(bool debug) {
 
         NMI = false;
         cpuClock += cyc * 3;
-        return cyc;
+        return;
     }
 
     //get addressing mode for current opcode
@@ -1072,11 +1007,12 @@ int CPU::executeNextOpcode(bool debug) {
         
         default: 
         std:: cout << " Unrecognized opcode : " << std::hex << (int) opcode << std::endl;
-        return 0;
+        exit(1);
+        return;
     }
 
     cpuClock += cyc * 3;
-    return cyc;
+    return;
 }
 
 static inline uint8_t getPswByte(bool * PS) {

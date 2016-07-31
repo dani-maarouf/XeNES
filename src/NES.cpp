@@ -211,6 +211,3 @@ bool NES::openCartridge(const char * fileLoc) {
     romFile.close();
     return true;
 }
-
-
-

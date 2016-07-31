@@ -51,8 +51,8 @@ PPU::PPU() {
     for (int x = 0; x < 0x100; x++) OAM[x] = 0x0;
     for (int x = 0; x < (NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT); x++) pixels[x] = 63;    //black in palette
     for (int x = 0; x < 8; x++) secondaryOAM[x] = 0x0;
-    for (int x = 0; x < 0x9; x++) registerWriteFlags[x] = false;
-    for (int x = 0; x < 8; x++) registerReadFlags[x] = false;
+    //for (int x = 0; x < 0x9; x++) registerWriteFlags[x] = false;
+    //for (int x = 0; x < 8; x++) registerReadFlags[x] = false;
     
     evenFrame = true;
     draw = false;
@@ -65,7 +65,7 @@ PPU::PPU() {
     secondaryOamAddress = 0x0;
     CHR_ROM = NULL;
     readBuffer = 0;
-    flagSet = false;
+    //flagSet = false;
 
     //temp
     m_SpriteOld1 = 0;
@@ -79,6 +79,9 @@ PPU::PPU() {
     suppressVBL = false;
 
     ppuClock = 241 * 341;   //start at scanline 241
+
+    writeFlag = -1;
+    readFlag = -1;
 
     return;
 }
@@ -256,9 +259,34 @@ void PPU::setPpuByte(uint16_t address, uint8_t byte) {
     return;
 }
 
+uint8_t PPU::return2007() {
+
+    //if screen off
+    //if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x18) == 0) || true) {
+
+
+    uint8_t ppuByte;
+
+    if (m_t % 0x4000 < 0x3F00) {
+        ppuByte = readBuffer;
+        readBuffer = getPpuByte( m_t );
+    } else {
+        ppuByte = getPpuByte( m_t );
+        readBuffer = getPpuByte( m_t - 0x1000);
+    }
+
+    m_t += (ppuRegisters[0] & 0x04) ? 32 : 1;
+    m_v += (ppuRegisters[0] & 0x04) ? 32 : 1;
+
+    m_t &= 0x7FFF;
+    m_v &= 0x7FFF;
+
+    return ppuByte;
+}
+
 void PPU::ppuFlagUpdate(bool * NMI) {
 
-    if (registerWriteFlags[0]) {
+    if (writeFlag == 0) {
         m_t &= 0xF3FF;
         m_t |= ((ppuRegisters[0] & 0x03) << 10);
 
@@ -280,34 +308,21 @@ void PPU::ppuFlagUpdate(bool * NMI) {
         }
         */
 
-		
+	} else if (writeFlag == 1) {
 
-        ppuRegisters[0x2] &= ~0x1F;
-        ppuRegisters[0x2] |= (ppuRegisters[0x0] & 0x1F);
-    } else if (registerWriteFlags[1]) {
-        ppuRegisters[0x2] &= ~0x1F;
-        ppuRegisters[0x2] |= (ppuRegisters[0x1] & 0x1F);
+    } else if (writeFlag == 2) {
 
-    } else if (registerWriteFlags[2]) {
-        ppuRegisters[0x2] &= ~0x1F;
-        ppuRegisters[0x2] |= (ppuRegisters[0x2] & 0x1F);
 
-    } else if (registerWriteFlags[3]) {
+    } else if (writeFlag == 3) {
 
         oamAddress = ppuRegisters[0x3];
-        ppuRegisters[0x2] &= ~0x1F;
-        ppuRegisters[0x2] |= (ppuRegisters[0x3] & 0x1F);
 
-    } else if (registerWriteFlags[4]) {
+    } else if (writeFlag == 4) {
 
         OAM[oamAddress] = ppuRegisters[0x4];
         oamAddress = (oamAddress + 1) & 0xFF;
 
-        ppuRegisters[0x2] &= ~0x1F;
-        ppuRegisters[0x2] |= (ppuRegisters[0x4] & 0x1F);
-
-
-    } else if (registerWriteFlags[5]) {
+    } else if (writeFlag == 5) {
         if (addressLatch == true) {
             m_t &= 0x0C1F;
             m_t |= (ppuRegisters[0x5] & 0x7) << 12;
@@ -319,10 +334,8 @@ void PPU::ppuFlagUpdate(bool * NMI) {
             m_t |= (ppuRegisters[0x5] & 0xF8) >> 3;
             addressLatch = true;
         }
-        ppuRegisters[0x2] &= ~0x1F;
-        ppuRegisters[0x2] |= (ppuRegisters[0x5] & 0x1F);
 
-    } else if (registerWriteFlags[6]) {
+    } else if (writeFlag == 6) {
         if (addressLatch) {
             m_t &= 0xFF00;
             m_t |= ppuRegisters[6];
@@ -335,10 +348,8 @@ void PPU::ppuFlagUpdate(bool * NMI) {
             m_t |= (ppuRegisters[6] & 0x3F) << 8;
             addressLatch = true;
         }
-        ppuRegisters[0x2] &= ~0x1F;
-        ppuRegisters[0x2] |= (ppuRegisters[0x6] & 0x1F);
 
-    } else if (registerWriteFlags[7]) {
+    } else if (writeFlag == 7) {
         //read from 2007
 
         setPpuByte(vramAddress , ppuRegisters[7]);
@@ -347,23 +358,10 @@ void PPU::ppuFlagUpdate(bool * NMI) {
         vramAddress += (ppuRegisters[0] & 0x04) ? 32 : 1;
         vramAddress %= 0x4000;
 
-        ppuRegisters[0x2] &= ~0x1F;
-        ppuRegisters[0x2] |= (ppuRegisters[0x7] & 0x1F);
-
-    } else if (registerWriteFlags[8]) {
-
-        /* now done in cpu
-        uint8_t OAMDMA;
-        OAMDMA = nes->nesCPU.getCpuByte(0x4014);
-        for (unsigned int x = 0; x < 256; x++) {
-            OAM[oamAddress] = nes->nesCPU.getCpuByte( (OAMDMA << 8) + x );
-            oamAddress = (oamAddress + 1) & 0xFF;
-        }
-        */
     }
 
     //process state changes due to register read
-    if (registerReadFlags[2]) {
+    if (readFlag == 2) {
         addressLatch = false;
 
 
@@ -382,16 +380,17 @@ void PPU::ppuFlagUpdate(bool * NMI) {
 
 
 
-    } else if (registerReadFlags[4]) {
+    } else if (readFlag == 4) {
 
-    } else if (registerReadFlags[7]) {
+    } else if (readFlag == 7) {
         //todo: fix this
     }
 
-    //reset register access flags
-    for (int x = 0; x < 0x9; x++) registerWriteFlags[x] = false;
+    if (writeFlag != -1) {
+        ppuRegisters[0x2] &= ~0x1F;
+        ppuRegisters[0x2] |= (ppuRegisters[writeFlag] & 0x1F);
+    }
 
-    for (int x = 0; x < 8; x++) registerReadFlags[x] = false;
 
     return;
 
@@ -567,21 +566,23 @@ void PPU::updateSecondaryOAM(int line) {
     return;
 }
 
-void PPU::tick(bool * NMI, int numTicks) {
+void PPU::tick(bool * NMI, uint64_t * cpuClock) {
 
     draw = false; 
 
+    uint64_t ppuTime = *cpuClock;
+
     //process state changes due to register write
-    if (flagSet) {
+    if (readFlag != -1 || writeFlag != -1) {
         ppuFlagUpdate(NMI);
-        flagSet = false;
+        readFlag = -1;
+        writeFlag = -1;
     }  
 
-    for (int loop = 0; loop < numTicks; loop++, ppuClock++) {
+    for ( ; ppuClock < ppuTime; ppuClock++) {
 
         int cyc = ppuClock % 341;
         int line = (ppuClock % (341 * 262)) / 341;
-
 
         if (line < 240) {
 
@@ -591,6 +592,8 @@ void PPU::tick(bool * NMI, int numTicks) {
             //first frame tick skipped on odd frame when screen on
             if (line == 0 && cyc == 0 && !evenFrame && (ppuRegisters[1] & 0x18)) {
                 ppuClock++;
+                ppuTime++;
+                *cpuClock += 1;
             }
 
             if (cyc == 0) {
