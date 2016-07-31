@@ -59,12 +59,12 @@ void loop(NES nesSystem, const char * fileLoc) {
     
     SDL_Event event;
 
-    draw(nesSystem.nesPPU.pixels);
+    draw(nesSystem.nesCPU.nesPPU.pixels);
 
     while (running) {
 
         //1. process events
-        if (!processEvents(&event, &nesSystem.controllerByte)) {
+        if (!processEvents(&event, &nesSystem.nesCPU.controllerByte)) {
             running = false;
             break;
         }
@@ -72,7 +72,7 @@ void loop(NES nesSystem, const char * fileLoc) {
         do {
 
             //2.1 logic (cpu)
-            int executeResult = nesSystem.executeOpcode(false);
+            int executeResult = nesSystem.nesCPU.executeNextOpcode(false);
             if (executeResult == 0) {
                 std::cerr << "Error executing opcode" << std::endl;
                 running = false;
@@ -85,7 +85,7 @@ void loop(NES nesSystem, const char * fileLoc) {
         } while (!nesSystem.drawFlag());
 
         //3 draw
-        draw(nesSystem.nesPPU.pixels);
+        draw(nesSystem.nesCPU.nesPPU.pixels);
         
         //4 sync framerate
         double delay = TICKS_PER_FRAME - (((SDL_GetPerformanceCounter() - startTime) / frequency) * 1000);

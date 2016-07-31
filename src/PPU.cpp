@@ -54,8 +54,6 @@ PPU::PPU() {
     for (int x = 0; x < 0x9; x++) registerWriteFlags[x] = false;
     for (int x = 0; x < 8; x++) registerReadFlags[x] = false;
     
-    scanline = 241;
-    ppuCycle = 0;
     evenFrame = true;
     draw = false;
     spriteZeroFlag = false;
@@ -80,7 +78,7 @@ PPU::PPU() {
 
     suppressVBL = false;
 
-    ppuClock = 241 * 341;
+    ppuClock = 241 * 341;   //start at scanline 241
 
     return;
 }
@@ -89,6 +87,24 @@ void PPU::freePointers() {
     if (CHR_ROM != NULL) {
         delete [] CHR_ROM;
     }
+    return;
+}
+
+inline void PPU::loadNewTile() {
+
+    m_SpriteOld1 = m_SpriteNew1;
+    m_SpriteOld2 = m_SpriteNew2;
+    m_PaletteOld = m_PaletteNew;
+
+    m_PaletteNew = ((getPpuByte(0x23C0 | (m_v & 0x0C00) | ((m_v >> 4) & 0x38) | ((m_v >> 2) & 0x07))) >> (2 * ((((m_v & 0x1F) % 4) / 2) + ((((m_v & 0x370) >> 5) % 4) / 2) * 2))) & 0x3;
+
+    int spriteStart = getPpuByte(0x2000 | (m_v & 0x0FFF));
+    int spriteAddress = spriteStart * 16 + ((m_v & 0x7000) >> 12) + ((ppuRegisters[0] & 0x10) ? 0x1000 : 0x0);
+
+    //load sprite data
+    m_SpriteNew1 = getPpuByte(spriteAddress);
+    m_SpriteNew2 = getPpuByte(spriteAddress + 8);
+
     return;
 }
 
@@ -337,9 +353,9 @@ void PPU::ppuFlagUpdate(NES * nes) {
     } else if (registerWriteFlags[8]) {
 
         uint8_t OAMDMA;
-        OAMDMA = nes->getCpuByte(0x4014);
+        OAMDMA = nes->nesCPU.getCpuByte(0x4014);
         for (unsigned int x = 0; x < 256; x++) {
-            OAM[oamAddress] = nes->getCpuByte( (OAMDMA << 8) + x );
+            OAM[oamAddress] = nes->nesCPU.getCpuByte( (OAMDMA << 8) + x );
             oamAddress = (oamAddress + 1) & 0xFF;
         }
     }
@@ -352,7 +368,8 @@ void PPU::ppuFlagUpdate(NES * nes) {
         ppuRegisters[2] &= 0x7F;
 
         //does this need to be catched within some specific "tick window"?
-        if (scanline == 241 && ppuCycle == 1) {
+        if (ppuClock % (262 * 341) == (241 * 341) + 1) {
+            //scanline 241 ppu 1
 
             suppressVBL = true;
             //ppuRegisters[0] &= 0x7F;	breaks spelunker
@@ -376,24 +393,6 @@ void PPU::ppuFlagUpdate(NES * nes) {
 
     return;
 
-}
-
-inline void PPU::loadNewTile() {
-
-    m_SpriteOld1 = m_SpriteNew1;
-    m_SpriteOld2 = m_SpriteNew2;
-    m_PaletteOld = m_PaletteNew;
-
-    m_PaletteNew = ((getPpuByte(0x23C0 | (m_v & 0x0C00) | ((m_v >> 4) & 0x38) | ((m_v >> 2) & 0x07))) >> (2 * ((((m_v & 0x1F) % 4) / 2) + ((((m_v & 0x370) >> 5) % 4) / 2) * 2))) & 0x3;
-
-    int spriteStart = getPpuByte(0x2000 | (m_v & 0x0FFF));
-    int spriteAddress = spriteStart * 16 + ((m_v & 0x7000) >> 12) + ((ppuRegisters[0] & 0x10) ? 0x1000 : 0x0);
-
-    //load sprite data
-    m_SpriteNew1 = getPpuByte(spriteAddress);
-    m_SpriteNew2 = getPpuByte(spriteAddress + 8);
-
-    return;
 }
 
 void PPU::drawPixel(int cycle, int line) {
@@ -526,7 +525,7 @@ void PPU::drawPixel(int cycle, int line) {
     return;
 }
 
-void PPU::updateSecondaryOAM() {
+void PPU::updateSecondaryOAM(int line) {
 
     //prepare secondary OAM for next scanline
     for (int x = 0; x < 8; x++) {
@@ -541,8 +540,8 @@ void PPU::updateSecondaryOAM() {
 
 
         //determine whether sprite will appear on next scanline
-        if ((((scanline + 1) % 262) - yPos < 8 && ((scanline + 1) % 262) - yPos >= 0 && (yPos < 240) && (OAM[x * 4 + 3] < 255) && ((ppuRegisters[0x0] & 0x20) == 0)) ||     //8x8
-            (((scanline + 1) % 262) - yPos < 16 && ((scanline + 1) % 262) - yPos >= 0 && (yPos < 240) && (OAM[x * 4 + 3] < 255) && ((ppuRegisters[0x0] & 0x20))))            //16x8
+        if ((((line + 1) % 262) - yPos < 8 && ((line + 1) % 262) - yPos >= 0 && (yPos < 240) && (OAM[x * 4 + 3] < 255) && ((ppuRegisters[0x0] & 0x20) == 0)) ||     //8x8
+            (((line + 1) % 262) - yPos < 16 && ((line + 1) % 262) - yPos >= 0 && (yPos < 240) && (OAM[x * 4 + 3] < 255) && ((ppuRegisters[0x0] & 0x20))))            //16x8
             {
 
             if (secondaryOamAddress < 8) {
@@ -566,28 +565,6 @@ void PPU::updateSecondaryOAM() {
     return;
 }
 
-//increment ppuCycle and scanline, and set draw flag
-void PPU::incrementCycle() {
-    
-    ppuClock++;
-    ppuCycle++;
-    ppuCycle %= 341;
-
-    if (ppuCycle == 0) {
-        scanline++;
-        scanline %= 262;
-        if (spriteZeroFlag) {
-            ppuRegisters[2] |= 0x40;
-            spriteZeroFlag = false;
-        }
-        if (scanline == 0) {
-            draw = true;
-            evenFrame ^= true;
-        }
-    }
-    return;
-}
-
 void PPU::tick(NES * nes, int numTicks) {
 
     draw = false; 
@@ -598,13 +575,10 @@ void PPU::tick(NES * nes, int numTicks) {
         flagSet = false;
     }  
 
-    for (int loop = 0; loop < numTicks; loop++, incrementCycle()) {
+    for (int loop = 0; loop < numTicks; loop++, ppuClock++) {
 
-        int cyc;
-        cyc = ppuClock % 341;
-
-        int line;
-        line = (ppuClock % (341 * 262)) / 341;
+        int cyc = ppuClock % 341;
+        int line = (ppuClock % (341 * 262)) / 341;
 
 
         if (line < 240) {
@@ -613,9 +587,8 @@ void PPU::tick(NES * nes, int numTicks) {
             ppuRegisters[2] &= 0x7F;
 
             //first frame tick skipped on odd frame when screen on
-            if (line == 0 && ppuCycle == 0 && !evenFrame && (ppuRegisters[1] & 0x18)) {
+            if (line == 0 && cyc == 0 && !evenFrame && (ppuRegisters[1] & 0x18)) {
                 ppuClock++;
-                ppuCycle++;
             }
 
             if (cyc == 0) {
@@ -641,7 +614,13 @@ void PPU::tick(NES * nes, int numTicks) {
                 loadNewTile();
                 horizontalIncrement(m_v);
             } else if (cyc == 340) {
-                updateSecondaryOAM();
+                updateSecondaryOAM(line);
+
+                if (spriteZeroFlag) {
+                    ppuRegisters[2] |= 0x40;
+                    spriteZeroFlag = false;
+                }
+
             } 
         } else if (line == 240) {
             continue;
@@ -687,7 +666,15 @@ void PPU::tick(NES * nes, int numTicks) {
                 loadNewTile();
                 horizontalIncrement(m_v);
             } else if (cyc == 340) {
-                updateSecondaryOAM();
+                updateSecondaryOAM(line);
+
+                if (spriteZeroFlag) {
+                    ppuRegisters[2] |= 0x40;
+                    spriteZeroFlag = false;
+                }
+
+                draw = true;
+                evenFrame ^= true;
             } 
         }
     }

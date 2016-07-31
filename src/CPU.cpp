@@ -3,6 +3,8 @@
 #include <iomanip>
 
 #include "NES.hpp"
+#include "mappers.hpp"
+
 
 #define getBit(num, bit)   (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) : \
                             (bit == 2) ? (num & 0x4) : (bit == 3) ? (num & 0x8) : \
@@ -84,11 +86,12 @@ static inline void getPswFromByte(bool * PS, uint8_t byte);
 static void printByte(uint8_t);
 static int debugPrintVal(enum AddressMode, int, int);
 static void printDebugLine(uint16_t, uint8_t, uint8_t, uint8_t, enum AddressMode, 
-    uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, bool *, int, int);
+    uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, bool *, int);
 
 CPU::CPU() {
 
-    for (int x = 0; x < 0x10000; x++) cpuMem[x] = 0x0;
+    for (int x = 0; x < 0x20; x++) ioRegisters[x] = 0;
+    for (int x = 0; x < 0x2000; x++) cpuMem[x] = 0x0;
     for (int x = 0; x < 0x800; x++) RAM[x] = 0x0;
     for (int x = 0; x < 8; x++) PS[x] = false;
 
@@ -103,6 +106,12 @@ CPU::CPU() {
     NMI = false;    
 
     PS[I] = true;
+    cpuClock = 241 * 341;
+
+    controllerByte = 0;
+    storedControllerByte = 0;
+    currentControllerBit = 0;
+    readController = false;
 
     return;
 }
@@ -117,7 +126,225 @@ void CPU::freePointers() {
     return;
 }
 
-int CPU::executeNextOpcode(NES * nes, bool debug) {
+uint8_t CPU::getCpuByte(uint16_t memAddress) {
+
+    if (memAddress < 0x2000) {
+
+        return RAM[memAddress % 0x800];
+
+    } else if (memAddress < 0x4000) {
+
+        uint16_t address;
+        address = (memAddress - 0x2000) % 8;
+
+        if (address == 0x4) {
+
+
+            nesPPU.registerReadFlags[address] = true;
+            nesPPU.flagSet = true;
+
+            return nesPPU.OAM[nesPPU.oamAddress];
+
+        } else if (address == 0x7) {
+            
+            //if screen off
+            if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x18) == 0) || true) {
+                if (nesPPU.m_t % 0x4000 < 0x3F00) {
+
+                    uint8_t ppuByte;
+                    ppuByte = nesPPU.readBuffer;
+                    nesPPU.readBuffer = nesPPU.getPpuByte( nesPPU.m_t );
+
+                    nesPPU.m_t += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
+                    nesPPU.m_v += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
+
+                    nesPPU.m_t &= 0x7FFF;
+                    nesPPU.m_v &= 0x7FFF;
+
+                    nesPPU.registerReadFlags[address] = true;
+                    nesPPU.flagSet = true;
+
+                    return ppuByte;
+                } else {
+
+                    uint8_t ppuByte;
+
+                    ppuByte = nesPPU.getPpuByte( nesPPU.m_t );
+
+                    nesPPU.readBuffer = nesPPU.getPpuByte( nesPPU.m_t - 0x1000);
+
+                    nesPPU.m_t += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
+                    nesPPU.m_v += (nesPPU.ppuRegisters[0] & 0x04) ? 32 : 1;
+
+                    nesPPU.m_t &= 0x7FFF;
+                    nesPPU.m_v &= 0x7FFF;
+
+                    nesPPU.registerReadFlags[address] = true;
+                    nesPPU.flagSet = true;
+
+                    return ppuByte;
+
+                }
+            }
+        }
+
+        nesPPU.registerReadFlags[address] = true;
+        nesPPU.flagSet = true;
+        return nesPPU.ppuRegisters[address];
+
+    } else if (memAddress < 0x4020) {
+
+        if (memAddress == 0x4016) {
+            if (readController) {
+                if (currentControllerBit < 8) {
+                    currentControllerBit++;
+                    bool bit;
+                    bit = getBit(storedControllerByte, currentControllerBit - 1);
+                    return bit;
+                } else {
+                    return 1;
+                }
+            }
+        }
+
+        return ioRegisters[ memAddress - 0x4000 ];
+
+    } else if (memAddress < 0x6000) {
+
+
+
+        return cpuMem[memAddress - 0x4000];
+    } else if (memAddress < 0x8000) {
+
+
+        /* Family Basic only: PRG RAM, mirrored as necessary to fill entire 8 KiB window, write protectable with an external switch */
+        return PRG_RAM[memAddress - 0x6000];
+
+
+    } else {
+
+        if (cpuMapper == 0) {
+            return getCpuMapper0(memAddress, numRomBanks, PRG_ROM);
+        } else {
+            std::cerr << "Fatal error, mapper not recognized in getCpuByte()" << std::endl;
+            exit(1);
+            return 0;
+        }
+        
+
+    }
+}
+
+void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
+
+    if (memAddress < 0x2000) {
+
+        RAM[memAddress % 0x800] = byte;
+
+    } else if (memAddress < 0x4000) {
+
+        uint16_t address;
+        address = (memAddress - 0x2000) % 8;
+        nesPPU.registerWriteFlags[address] = true;
+        nesPPU.flagSet = true;
+        nesPPU.ppuRegisters[address] = byte;
+
+    } else if (memAddress < 0x4020) { 
+
+        if (memAddress == 0x4014) {
+            nesPPU.registerWriteFlags[8] = true;
+            nesPPU.flagSet = true;
+        } else if (memAddress == 0x4016) {
+            if ((byte & 0x1) == 0x1) {
+                storedControllerByte = controllerByte;
+                readController = false;
+            } else {
+                currentControllerBit = 0;
+                readController = true;
+            }
+        }
+        ioRegisters[memAddress - 0x4000] = byte;
+
+    } else if (memAddress < 0x6000) {
+
+        cpuMem[memAddress - 0x4000] = byte;
+
+    } else if (memAddress < 0x8000) {
+
+        PRG_RAM[memAddress - 0x6000] = byte;
+
+    } else {
+        /* memAddress >= 0x8000 && memAddress <= 0xFFFF */
+        std::cerr << "Segmentation fault! Can't write to 0x" << std::hex << memAddress << std::endl;
+    }
+
+    return;
+}
+
+uint16_t CPU::retrieveCpuAddress(enum AddressMode mode, bool * pagePass, uint8_t firstByte, uint8_t secondByte) {
+
+    *pagePass = false;
+
+    switch (mode) {
+
+        case ZRP:
+        return firstByte;
+
+        case ZRPX:
+        return ((firstByte + X) & 0xFF);
+
+        case ZRPY:
+        return ((firstByte + Y) & 0xFF);
+
+        case ABS:
+        return (firstByte | (secondByte << 8));
+
+        case ABSX:
+
+        if (((firstByte | (secondByte << 8)) / 256) != ((((firstByte | (secondByte << 8)) + X) & 0xFFFF)/256)) {
+            *pagePass = true;
+        }
+
+        return (((firstByte | (secondByte << 8)) + X) & 0xFFFF);
+
+        case ABSY:
+
+        if (((firstByte | (secondByte << 8)) / 256) != ((((firstByte | (secondByte << 8)) + Y) & 0xFFFF)/256)) {
+            *pagePass = true;
+        }
+
+        return (((firstByte | (secondByte << 8)) + Y) & 0xFFFF);
+
+        case IND: {
+            uint16_t low, high;
+            low = getCpuByte((firstByte | (secondByte << 8)));
+            high = getCpuByte(((firstByte + 1) & 0xFF) | (secondByte << 8));
+            return ((high << 8) | low);
+        }
+
+        case INDX: {
+            uint8_t low, high;
+            low = getCpuByte((firstByte + X) & 0xFF);
+            high = getCpuByte((firstByte + 1 + X) & 0xFF);
+            return ((high << 8) | low);
+        }
+        
+        case INDY: 
+
+        if ((((getCpuByte(firstByte)) | (getCpuByte((firstByte + 1) & 0xFF)) << 8) / 256) != (((((getCpuByte(firstByte)) | (getCpuByte((firstByte + 1) & 0xFF)) << 8) + Y) & 0xFFFF)/256)) {
+            *pagePass = true;
+        }
+
+        return ((((getCpuByte(firstByte)) | (getCpuByte((firstByte + 1) & 0xFF)) << 8) + Y) & 0xFFFF);
+        
+        default:
+        exit(1);
+        return 0;
+    }
+}
+
+
+int CPU::executeNextOpcode(bool debug) {
 
     //CPU cycles taken during instruction
     int cyc;
@@ -131,36 +358,36 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         store = PC;
 
         uint8_t high = (store & 0xFF00) >> 8;
-        nes->setCpuByte(SP + 0x100, high);
+        setCpuByte(SP + 0x100, high);
         SP--;
         cyc++;
 
         uint8_t low = store & 0xFF;;
-        nes->setCpuByte(SP + 0x100, low);
+        setCpuByte(SP + 0x100, low);
         SP--;
         cyc++;
 
-        nes->setCpuByte(0x100 + SP, getPswByte(PS) | 0x10);
+        setCpuByte(0x100 + SP, getPswByte(PS) | 0x10);
         SP--;
         cyc++;
 
-        PC = nes->getCpuByte(0xFFFA) | (nes->getCpuByte(0xFFFB) << 8);
+        PC = getCpuByte(0xFFFA) | (getCpuByte(0xFFFB) << 8);
         cyc++;
 
         NMI = false;
-        cpuCycle = (cpuCycle + 3 * cyc) % 341;
+        cpuClock += cyc * 3;
         return cyc;
     }
 
     //get addressing mode for current opcode
     enum AddressMode opAddressMode;
-    opAddressMode = addressModes[nes->getCpuByte(PC)];
+    opAddressMode = addressModes[getCpuByte(PC)];
 
     //fetch instruction bytes
     uint8_t opcode, iByte2, iByte3;
-    opcode = nes->getCpuByte(PC);
-    iByte2 = nes->getCpuByte(PC + 1);
-    iByte3 = nes->getCpuByte(PC + 2);
+    opcode = getCpuByte(PC);
+    iByte2 = getCpuByte(PC + 1);
+    iByte3 = getCpuByte(PC + 2);
 
     //page boundy cross?
     bool pass;
@@ -169,7 +396,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
     //get address if applicable to instruction
     uint16_t address = 0;
     if (opAddressMode != ACC && opAddressMode != IMM && opAddressMode != REL && opAddressMode != IMP) {
-        address = nes->retrieveCpuAddress(opAddressMode, &pass, iByte2, iByte3);
+        address = retrieveCpuAddress(opAddressMode, &pass, iByte2, iByte3);
     }
 
     //get byte from memory if applicable to address mode
@@ -177,11 +404,11 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
     if (opAddressMode == IMM) {
         memoryByte = iByte2;
     } else {
-        memoryByte = nes->getCpuByte(address);
+        memoryByte = getCpuByte(address);
     }
 
     if (debug) {
-        printDebugLine(address, opcode, iByte2, iByte3, opAddressMode, PC, memoryByte, A, X, Y, SP, PS, cpuCycle, nes->nesPPU.scanline);
+        printDebugLine(address, opcode, iByte2, iByte3, opAddressMode, PC, memoryByte, A, X, Y, SP, PS, nesPPU.ppuClock);
         std::cout << std::endl;
     }
 
@@ -224,10 +451,10 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
                 PS[N] = getBit(A, 7);
                 PS[Z] = (A == 0) ? true : false;
             } else {
-                PS[C] = getBit(nes->getCpuByte(address), 7);
-                nes->setCpuByte(address, ((nes->getCpuByte(address) << 1) & 0xFE));
-                PS[N] = getBit(nes->getCpuByte(address), 7);
-                PS[Z] = (nes->getCpuByte(address) == 0) ? true : false;
+                PS[C] = getBit(getCpuByte(address), 7);
+                setCpuByte(address, ((getCpuByte(address) << 1) & 0xFE));
+                PS[N] = getBit(getCpuByte(address), 7);
+                PS[Z] = (getCpuByte(address) == 0) ? true : false;
             }
             break;
         }
@@ -306,24 +533,24 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         
         case 0x00: {            //BRK
             uint8_t high = (PC & 0xFF00) >> 8;
-            nes->setCpuByte(0x100 + SP, high);
+            setCpuByte(0x100 + SP, high);
             SP--;
             cyc++;
 
             uint8_t low = PC & 0xFF;
-            nes->setCpuByte(0x100 + SP, low);
+            setCpuByte(0x100 + SP, low);
             SP--;
             cyc++;
 
             uint8_t memByte = getPswByte(PS);
-            nes->setCpuByte(0x100 + SP, memByte | 0x10);
+            setCpuByte(0x100 + SP, memByte | 0x10);
             SP--;
             cyc++;
 
-            low = nes->getCpuByte(0xFFFE);
+            low = getCpuByte(0xFFFE);
             cyc++;
 
-            high = nes->getCpuByte(0xFFFF);
+            high = getCpuByte(0xFFFF);
             cyc++;
 
             PC = (high << 8) | low;
@@ -411,8 +638,8 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         //DCP
         case 0xC3: case 0xD3: case 0xC7: case 0xD7: case 0xCF: case 0xDF: case 0xDB: {
             cyc += cycles[WRITE * 13 + opAddressMode] + 2;;
-            nes->setCpuByte(address, (nes->getCpuByte(address) - 1) & 0xFF);
-            memoryByte = nes->getCpuByte(address);
+            setCpuByte(address, (getCpuByte(address) - 1) & 0xFF);
+            memoryByte = getCpuByte(address);
             int num;
             num = A - memoryByte;
             PS[N] = getBit(num, 7);
@@ -424,9 +651,9 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         //DEC
         case 0xC6: case 0xD6: case 0xCE: case 0xDE: 
         cyc += cycles[READ_MODIFY_WRITE * 13 + opAddressMode];
-        nes->setCpuByte(address, ((nes->getCpuByte(address) - 1) & 0xFF));
-        PS[N] = getBit(nes->getCpuByte(address), 7);
-        PS[Z] = (nes->getCpuByte(address) == 0) ? true : false;
+        setCpuByte(address, ((getCpuByte(address) - 1) & 0xFF));
+        PS[N] = getBit(getCpuByte(address), 7);
+        PS[Z] = (getCpuByte(address) == 0) ? true : false;
         break;
         
         case 0xCA:          //DEX
@@ -453,9 +680,9 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         //INC
         case 0xE6: case 0xF6: case 0xEE: case 0xFE: 
         cyc += cycles[READ_MODIFY_WRITE * 13 + opAddressMode];
-        nes->setCpuByte(address, ((nes->getCpuByte(address) + 1) & 0xFF));
-        PS[N] = getBit(nes->getCpuByte(address), 7);
-        PS[Z] = (nes->getCpuByte(address) == 0) ? true : false;
+        setCpuByte(address, ((getCpuByte(address) + 1) & 0xFF));
+        PS[N] = getBit(getCpuByte(address), 7);
+        PS[Z] = (getCpuByte(address) == 0) ? true : false;
         break;
         
         case 0xE8:              //INX           
@@ -473,8 +700,8 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         //ISB
         case 0xE3: case 0xE7: case 0xF7: case 0xFB: case 0xEF: case 0xFF: case 0xF3: {     
             cyc += cycles[WRITE * 13 + opAddressMode] + 2;;   
-            nes->setCpuByte(address, (nes->getCpuByte(address) + 1) & 0xFF);
-            memoryByte = nes->getCpuByte(address);
+            setCpuByte(address, (getCpuByte(address) + 1) & 0xFF);
+            memoryByte = getCpuByte(address);
             int total;
             total = A - memoryByte - (!PS[C]);
             PS[V] = (((int8_t) A) - ((int8_t) memoryByte) - (!PS[C]) < -128 || ((int8_t) A) - ((int8_t) memoryByte) - (!PS[C]) > 127);
@@ -498,12 +725,12 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
             store = PC;
             
             uint8_t high = (store & 0xFF00) >> 8;
-            nes->setCpuByte(SP + 0x100, high);
+            setCpuByte(SP + 0x100, high);
             SP--;
             cyc++;
 
             uint8_t low = store & 0xFF;;
-            nes->setCpuByte(SP + 0x100, low);
+            setCpuByte(SP + 0x100, low);
             SP--;
             cyc++;
 
@@ -558,9 +785,9 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
                 A = (A >> 1) & 0x7F;
                 PS[Z] = (A == 0) ? true : false;
             } else {
-                PS[C] = getBit(nes->getCpuByte(address), 0);
-                nes->setCpuByte(address, (nes->getCpuByte(address) >> 1) & 0x7F);
-                PS[Z] = (nes->getCpuByte(address) == 0) ? true : false;
+                PS[C] = getBit(getCpuByte(address), 0);
+                setCpuByte(address, (getCpuByte(address) >> 1) & 0x7F);
+                PS[Z] = (getCpuByte(address) == 0) ? true : false;
             }
             break;
         }
@@ -583,13 +810,13 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         break;
         
         case 0x48:              //PHA
-        nes->setCpuByte(SP + 0x100, A);
+        setCpuByte(SP + 0x100, A);
         SP--;
         cyc++;
         break;
 
         case 0x08:                 //PHP
-        nes->setCpuByte(SP + 0x100, (getPswByte(PS) | 0x10));
+        setCpuByte(SP + 0x100, (getPswByte(PS) | 0x10));
         SP--;
         cyc++;
         break;
@@ -598,7 +825,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         SP++;
         cyc++;
 
-        A = nes->getCpuByte(SP + 0x100);
+        A = getCpuByte(SP + 0x100);
         cyc++;
 
         PS[N] = getBit(A, 7);
@@ -609,7 +836,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         SP++;
         cyc++;
 
-        getPswFromByte(PS, nes->getCpuByte(SP + 0x100));
+        getPswFromByte(PS, getCpuByte(SP + 0x100));
         cyc++;
         break;
         
@@ -617,11 +844,11 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         case 0x23: case 0x27: case 0x2F: case 0x33: case 0x37: case 0x3B: case 0x3F: {
             cyc += cycles[WRITE * 13 + opAddressMode] + 2;;
             bool store;
-            store = getBit(nes->getCpuByte(address), 7);
-            nes->setCpuByte(address, (nes->getCpuByte(address) << 1) & 0xFE);
-            nes->setCpuByte(address, nes->getCpuByte(address) | PS[C]);
+            store = getBit(getCpuByte(address), 7);
+            setCpuByte(address, (getCpuByte(address) << 1) & 0xFE);
+            setCpuByte(address, getCpuByte(address) | PS[C]);
             PS[C] = store;
-            A &= nes->getCpuByte(address);
+            A &= getCpuByte(address);
             PS[Z] = (A == 0) ? true : false;
             PS[N] = getBit(A, 7);
             break;
@@ -638,11 +865,11 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
                 PS[Z] = (A == 0) ? true : false;
                 PS[N] = getBit(A, 7);
             } else {
-                store = getBit(nes->getCpuByte(address), 7);
-                nes->setCpuByte(address, (nes->getCpuByte(address) << 1) & 0xFE);
-                nes->setCpuByte(address, nes->getCpuByte(address) | PS[C]);
-                PS[Z] = (nes->getCpuByte(address) == 0) ? true : false;
-                PS[N] = getBit(nes->getCpuByte(address), 7);
+                store = getBit(getCpuByte(address), 7);
+                setCpuByte(address, (getCpuByte(address) << 1) & 0xFE);
+                setCpuByte(address, getCpuByte(address) | PS[C]);
+                PS[Z] = (getCpuByte(address) == 0) ? true : false;
+                PS[N] = getBit(getCpuByte(address), 7);
             }
             PS[C] = store;
             break;
@@ -659,11 +886,11 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
                 PS[Z] = (A == 0) ? true : false;
                 PS[N] = getBit(A, 7);
             } else {
-                store = getBit(nes->getCpuByte(address), 0);
-                nes->setCpuByte(address, (nes->getCpuByte(address) >> 1) & 0x7F);
-                nes->setCpuByte(address, nes->getCpuByte(address) | (PS[C] ? 0x80 : 0x0));
-                PS[Z] = (nes->getCpuByte(address) == 0) ? true : false;
-                PS[N] = getBit(nes->getCpuByte(address), 7);
+                store = getBit(getCpuByte(address), 0);
+                setCpuByte(address, (getCpuByte(address) >> 1) & 0x7F);
+                setCpuByte(address, getCpuByte(address) | (PS[C] ? 0x80 : 0x0));
+                PS[Z] = (getCpuByte(address) == 0) ? true : false;
+                PS[N] = getBit(getCpuByte(address), 7);
             }
             PS[C] = store;
             break;
@@ -673,12 +900,12 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         case 0x63: case 0x67: case 0x6F: case 0x73: case 0x77: case 0x7B: case 0x7F: {
             cyc += cycles[WRITE * 13 + opAddressMode] + 2;;
             bool store;
-            store = getBit(nes->getCpuByte(address), 0);
-            nes->setCpuByte(address, (nes->getCpuByte(address) >> 1) & 0x7F);
-            nes->setCpuByte(address, nes->getCpuByte(address) | (PS[C] ? 0x80 : 0x0));
+            store = getBit(getCpuByte(address), 0);
+            setCpuByte(address, (getCpuByte(address) >> 1) & 0x7F);
+            setCpuByte(address, getCpuByte(address) | (PS[C] ? 0x80 : 0x0));
             PS[C] = store;
             uint8_t memByte;
-            memByte = nes->getCpuByte(address);
+            memByte = getCpuByte(address);
             uint16_t total;
             total = A + memByte + PS[C];
             PS[V] = (((int8_t) A) + ((int8_t) memByte) + PS[C] < -128 
@@ -695,16 +922,16 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
             cyc++;
 
             uint8_t memByte;
-            memByte = nes->getCpuByte(SP + 0x100);
+            memByte = getCpuByte(SP + 0x100);
             getPswFromByte(PS, memByte);
 
             SP++;
             cyc++;
-            uint16_t low = nes->getCpuByte(SP + 0x100);
+            uint16_t low = getCpuByte(SP + 0x100);
 
             SP++;
             cyc++;
-            uint16_t high = nes->getCpuByte(SP + 0x100) << 8;
+            uint16_t high = getCpuByte(SP + 0x100) << 8;
             cyc++;
 
             PC = high | low;
@@ -715,11 +942,11 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
             SP++;
             cyc++;
 
-            uint16_t low = nes->getCpuByte(SP + 0x100);
+            uint16_t low = getCpuByte(SP + 0x100);
             SP++;
             cyc++;
 
-            uint16_t high = nes->getCpuByte(SP + 0x100) << 8;
+            uint16_t high = getCpuByte(SP + 0x100) << 8;
             cyc++;
             PC = (high | low);
 
@@ -758,15 +985,15 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         //SAX
         case 0x83: case 0x87: case 0x97: case 0x8F:
         cyc += cycles[WRITE * 13 + opAddressMode];          
-        nes->setCpuByte(address, A & X);
+        setCpuByte(address, A & X);
         break;
         
         //*SLO
         case 0x03: case 0x07: case 0x0F: case 0x13: case 0x17: case 0x1B: case 0x1F: 
         cyc += cycles[WRITE * 13 + opAddressMode] + 2;;
-        PS[C] = getBit(nes->getCpuByte(address), 7);
-        nes->setCpuByte(address, ((nes->getCpuByte(address) << 1) & 0xFE));
-        A |= nes->getCpuByte(address);
+        PS[C] = getBit(getCpuByte(address), 7);
+        setCpuByte(address, ((getCpuByte(address) << 1) & 0xFE));
+        A |= getCpuByte(address);
         PS[N] = getBit(A, 7);
         PS[Z] = (A == 0) ? true : false;
         break;
@@ -774,9 +1001,9 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         //SRE
         case 0x43: case 0x47: case 0x4F: case 0x53: case 0x57: case 0x5B: case 0x5F: 
         cyc += cycles[WRITE * 13 + opAddressMode] + 2;;
-        PS[C] = getBit(nes->getCpuByte(address), 0);
-        nes->setCpuByte(address, (nes->getCpuByte(address) >> 1) & 0x7F);
-        A ^= nes->getCpuByte(address);
+        PS[C] = getBit(getCpuByte(address), 0);
+        setCpuByte(address, (getCpuByte(address) >> 1) & 0x7F);
+        A ^= getCpuByte(address);
         PS[N] = getBit(A, 7);
         PS[Z] = (A == 0) ? true : false;
         break;
@@ -784,19 +1011,19 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         //STA
         case 0x85: case 0x95: case 0x8D: case 0x9D: case 0x99: case 0x81: case 0x91: 
         cyc += cycles[WRITE * 13 + opAddressMode];
-        nes->setCpuByte(address, A);
+        setCpuByte(address, A);
         break;
         
         //STX
         case 0x86: case 0x96: case 0x8E: 
         cyc += cycles[WRITE * 13 + opAddressMode];
-        nes->setCpuByte(address, X);
+        setCpuByte(address, X);
         break;
 
         //STY
         case 0x84: case 0x94: case 0x8C: 
         cyc += cycles[WRITE * 13 + opAddressMode];
-        nes->setCpuByte(address, Y);
+        setCpuByte(address, Y);
         break;
 
         case 0xAA:              //TAX           
@@ -838,7 +1065,7 @@ int CPU::executeNextOpcode(NES * nes, bool debug) {
         return 0;
     }
 
-    cpuCycle = (cpuCycle + 3 * cyc) % 341;
+    cpuClock += cyc * 3;
     return cyc;
 }
 
@@ -932,7 +1159,7 @@ static int debugPrintVal(enum AddressMode mode, int firstByte, int secondByte) {
 
 //note:ugly, for debugging, matches nintendulator log
 static void printDebugLine(uint16_t address, uint8_t opcode, uint8_t iByte2, uint8_t iByte3, enum AddressMode opAddressMode,
-    uint16_t PC, uint8_t memByte, uint8_t A, uint8_t X, uint8_t Y, uint8_t SP, bool * PS, int count, int scanLines) {
+    uint16_t PC, uint8_t memByte, uint8_t A, uint8_t X, uint8_t Y, uint8_t SP, bool * PS, int ppuClock) {
 
     std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << (int) PC << "  ";
 
@@ -1040,6 +1267,9 @@ static void printDebugLine(uint16_t address, uint8_t opcode, uint8_t iByte2, uin
     std::cout << "SP:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) SP << ' ';
 
     std::cout << "CYC:";
+    
+    int count = ppuClock % 341;
+    int scanLines = (ppuClock % (341 * 262)) / 341; 
 
     if (count < 10) {
         std::cout << "  ";

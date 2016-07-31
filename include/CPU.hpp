@@ -1,7 +1,8 @@
 #ifndef __NES_CPU__
 #define __NES_CPU__
 
-#include <cstdint>  //TODO: make this multiplatorm
+#include <cstdint>
+#include "PPU.hpp"
 
 enum ProcessorStatusIndex {
     C = 0,       //carry flag
@@ -29,8 +30,6 @@ enum AddressMode {
     NONE,
 };
 
-class NES;      //forward decleration of outer NES class to allow pointer to be passed to executeNextOpcode()
-
 class CPU {
 
 private:
@@ -38,9 +37,22 @@ private:
     uint8_t SP;         //stack pointer
     uint8_t A;          //accumulator
     bool PS[8];         //processor status word
-    int cpuCycle;       //current cpu cycle in PPU ticks
 
 public:
+
+    /* controller 1 */
+    bool readController;
+    uint8_t storedControllerByte;
+    int currentControllerBit;
+    uint8_t controllerByte;
+
+    int cpuMapper;
+
+    uint8_t ioRegisters[0x20];          //joystick and apu registers
+
+
+    PPU nesPPU;                         //PPU
+    uint64_t cpuClock;
 
     bool NMI;           //non maskable interupt
     uint16_t PC;        //program counter
@@ -59,11 +71,17 @@ public:
     executeNextOpcode:
     execute instruction located at PC in CPU address space
     */
-    int executeNextOpcode(NES *, bool);
+    int executeNextOpcode(bool);
+
+    uint8_t getCpuByte(uint16_t);       //get byte from CPU address space
 
     CPU();                  //stage 1 initialize, stage 2 when ROM loading occurs
     void freePointers();    //deinitialize
     
+
+    void setCpuByte(uint16_t, uint8_t); //set byte in CPU address space
+    uint16_t retrieveCpuAddress(enum AddressMode, bool *, uint8_t, uint8_t);  //get address basedon address mode
+
 
 };
 

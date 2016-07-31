@@ -31,12 +31,14 @@ private:
     uint8_t m_PaletteNew;
 
     //info
-    int ppuCycle;                           //0-341 per scanline
     bool evenFrame;                         //tracks even and odd frames
 
     //registers
     uint8_t secondaryOamAddress;        
     bool spriteZeroFlag;                    //set PPUSTATUS at end of line
+    uint8_t m_x;                            //fine x scroll
+    bool addressLatch;                      //w register
+
 
     //hardware
     uint8_t secondaryOAM[8];                //OAM for sprites on line
@@ -48,15 +50,12 @@ private:
     void setPpuByte(uint16_t, uint8_t);     //set byte in PPU address space
     void ppuFlagUpdate(NES *);
     void drawPixel(int, int);
-    void updateSecondaryOAM();
-    void incrementCycle();
+    void updateSecondaryOAM(int);
 
 public:
 
     uint64_t ppuClock;
-
     int numRomBanks;
-
     int ppuMapper;
 
     //temp
@@ -70,14 +69,10 @@ public:
     //registers
     uint16_t m_v;           //current vram address
     uint16_t m_t;           //temporary vram address
-    uint8_t m_x;            //fine x scroll
-    bool addressLatch;      //w register
-    uint8_t readBuffer;
-    uint8_t oamAddress;                     //current OAM address
-
+    uint8_t readBuffer;     //$2007 buffer
+    uint8_t oamAddress;     //current OAM address
 
     //info
-    int scanline;               //current scanline
     bool draw;                  //draw frame?
 
     //configuration
