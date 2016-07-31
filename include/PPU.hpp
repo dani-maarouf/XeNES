@@ -29,7 +29,6 @@ private:
     bool evenFrame;                     //tracks even and odd frames
 
     //registers
-    uint8_t secondaryOamAddress;        
     bool spriteZeroFlag;                //set PPUSTATUS at end of line
     uint8_t m_x;                        //fine x scroll
     uint16_t m_v;                       //current vram address
@@ -40,9 +39,9 @@ private:
     uint8_t readBuffer;                 //$2007 buffer
 
     //hardware
-    uint8_t secondaryOAM[8];            //OAM for sprites on line
     uint8_t palette[0x20];
     uint8_t VRAM[0x1000];               //4kB PPU internal VRAM
+    uint8_t lineOAM[6 * 8];             //secondary oam, not faithful to hardware
 
     void loadNewTile();
     void setPpuByte(uint16_t, uint8_t); //set byte in PPU address space

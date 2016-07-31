@@ -1,7 +1,7 @@
 SRC_FILES    = src/main.cpp src/NES.cpp src/gameLoop.cpp src/CPU.cpp src/PPU.cpp src/mappers.cpp
 HEADER_FILES = include/NES.hpp include/PPU.hpp include/CPU.hpp include/gameLoop.hpp include/mappers.hpp
 
-CXXFLAGS     = -Wall -Iinclude -pedantic -fno-exceptions -Ofast -std=c++14 -march=native -fomit-frame-pointer
+CXXFLAGS     = -Wall -Iinclude -pedantic -fno-exceptions -Ofast -std=c++14 -march=native -funroll-loops -ffast-math -frename-registers
 LINK_FLAGS   = -lSDL2 -lstdc++
 
 
@@ -10,7 +10,7 @@ all: linux
 linux: $(SRC_FILES) $(HEADER_FILES)
 	g++ $(SRC_FILES) $(CXXFLAGS) -o XeNES $(LINK_FLAGS)
 
-# requires SDL2.dll
+# binary will require SDL2.dll to run
 windows: $(SRC_FILES) $(HEADER_FILES)
 	x86_64-w64-mingw32-g++ $(SRC_FILES) $(CXXFLAGS) -o XeNES.exe -lmingw32 -lSDL2main -lSDL2 -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic
 
@@ -18,8 +18,12 @@ mac: $(SRC_FILES) $(HEADER_FILES)
 	g++ $(SRC_FILES) -Iinclude -I/usr/local/include -o XeNES -L/usr/local/lib -lSDL2 -lstdc++ -fno-exceptions -Ofast -std=c++14 -march=native -fomit-frame-pointer
 
 profile: $(SRC_FILES) $(HEADER_FILES)
-	g++ $(SRC_FILES) -Iinclude -o XeNES -lSDL2 -pg
+	g++ $(SRC_FILES) -Wall -Werror -Iinclude -o XeNES -lSDL2 -pg
 
 fastProfile: $(SRC_FILES) $(HEADER_FILES)
-	g++ $(SRC_FILES) -Iinclude -Ofast -o XeNES -lSDL2 -pg
+	g++ $(SRC_FILES) -Wall -Werror -Iinclude -Ofast -o XeNES -lSDL2 -pg
+
+debug: $(SRC_FILES) $(HEADER_FILES)
+	g++ $(SRC_FILES) -Wall -Werror -Iinclude -g -o XeNES $(LINK_FLAGS)
+	
 

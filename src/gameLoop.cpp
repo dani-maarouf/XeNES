@@ -57,7 +57,7 @@ void loop(NES nesSystem, const char * fileLoc) {
     for (int x = 0; x < 256 * 240; x++) localPixels[x] = 0;
     draw(nesSystem.nesCPU.nesPPU.pixels);
 
-
+    
 
     while (running) {
 
@@ -70,6 +70,8 @@ void loop(NES nesSystem, const char * fileLoc) {
         //2. logic
         if (!paused) {
             do {
+
+                
                 //execute one cpu opcode
                 nesSystem.nesCPU.executeNextOpcode(false);
                 //ppu catches up
