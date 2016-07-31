@@ -16,13 +16,9 @@ int main(int argc, char ** argv) {
     /*
     todo:
 
-    read/write PPUDATA fix
-    oamdata read/write
-    clean up code
-    automated testing where test programs are run, pixel buffer is hashed and compared to known good result
-    add 8x16 sprites
+    automated testing with pixel buffer hashing
+    8x16 sprites
     pass NEStress ppu
-
     nes_instr_test 2 and 6
 
     */

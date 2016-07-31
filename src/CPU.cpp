@@ -5,7 +5,6 @@
 #include "CPU.hpp"
 #include "mappers.hpp"
 
-
 #define getBit(num, bit)    (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) :   \
                             (bit == 2) ? (num & 0x4) : (bit == 3) ? (num & 0x8) :   \
                             (bit == 4) ? (num & 0x10) : (bit == 5) ? (num & 0x20) : \
@@ -16,7 +15,6 @@ enum InstructionType {
     READ_MODIFY_WRITE = 2,  //read from mem address, modify byte, write byte
     OTHER,                  //note: above 3 are not applicable to every opcode
 };
-
 
 static const enum AddressMode addressModes[] = {
   //0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
@@ -105,7 +103,8 @@ CPU::CPU() {
     X  = 0x0;
     Y  = 0x0;
 
-    NMI = false;    
+    NMI = false;
+    IRQ = false;
 
     PS[I] = true;
     cpuClock = 241 * 341;
@@ -128,7 +127,7 @@ void CPU::freePointers() {
     return;
 }
 
-bool CPU::returnControllerBit() {
+inline bool CPU::returnControllerBit() {
 
     if (currentControllerBit < 8) {
         currentControllerBit++;
@@ -141,7 +140,7 @@ bool CPU::returnControllerBit() {
 
 }
 
-uint8_t CPU::getCpuByte(uint16_t memAddress) {
+inline uint8_t CPU::getCpuByte(uint16_t memAddress) {
 
     if (memAddress < 0x2000) {
         return RAM[memAddress % 0x800];
@@ -176,7 +175,7 @@ uint8_t CPU::getCpuByte(uint16_t memAddress) {
     }
 }
 
-void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
+inline void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
 
     if (memAddress < 0x2000) {
 
@@ -222,12 +221,13 @@ void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
     } else {
         /* memAddress >= 0x8000 && memAddress <= 0xFFFF */
         std::cerr << "Segmentation fault! Can't write to 0x" << std::hex << memAddress << std::endl;
+        exit(1);
     }
 
     return;
 }
 
-uint16_t CPU::retrieveCpuAddress(enum AddressMode mode, bool * pagePass, uint8_t firstByte, uint8_t secondByte) {
+inline uint16_t CPU::retrieveCpuAddress(enum AddressMode mode, bool * pagePass, uint8_t firstByte, uint8_t secondByte) {
 
     *pagePass = false;
 
@@ -291,54 +291,39 @@ uint16_t CPU::retrieveCpuAddress(enum AddressMode mode, bool * pagePass, uint8_t
 
 void CPU::executeNextOpcode(bool debug) {
 
-    //CPU cycles taken during instruction
-    int cyc;
-    cyc = 2;        //always spend 2 cycles fetching opcode and next byte
-
     if (NMI) {
-
-        cyc++;
-
         uint16_t store;
         store = PC;
 
         uint8_t high = (store & 0xFF00) >> 8;
         setCpuByte(SP + 0x100, high);
         SP--;
-        cyc++;
 
         uint8_t low = store & 0xFF;;
         setCpuByte(SP + 0x100, low);
         SP--;
-        cyc++;
 
         setCpuByte(0x100 + SP, getPswByte(PS) | 0x10);
         SP--;
-        cyc++;
 
-        PC = getCpuByte(0xFFFA) | (getCpuByte(0xFFFB) << 8);
-        cyc++;
+        PC = getCpuByte(0xFFFA) | (getCpuByte(0xFFFB) << 8);    //nmi handler
 
         NMI = false;
-        cpuClock += cyc * 3;
+        cpuClock += 21;
+
         return;
+    } else if (IRQ) {
+
+
     }
 
-    //get addressing mode for current opcode
-    enum AddressMode opAddressMode;
-    opAddressMode = addressModes[getCpuByte(PC)];
+    int cyc = 2;        //always spend 2 cycles fetching opcode and next byte
+    enum AddressMode opAddressMode = addressModes[getCpuByte(PC)];
+    uint8_t opcode = getCpuByte(PC);
+    uint8_t iByte2 = getCpuByte(PC + 1);
+    uint8_t iByte3 = getCpuByte(PC + 2);
+    bool pass = false;    //page boundy cross?
 
-    //fetch instruction bytes
-    uint8_t opcode, iByte2, iByte3;
-    opcode = getCpuByte(PC);
-    iByte2 = getCpuByte(PC + 1);
-    iByte3 = getCpuByte(PC + 2);
-
-    //page boundy cross?
-    bool pass;
-    pass = false;
-
-    //get address if applicable to instruction
     uint16_t address = 0;
     if (opAddressMode != ACC && opAddressMode != IMM && opAddressMode != REL && opAddressMode != IMP) {
         address = retrieveCpuAddress(opAddressMode, &pass, iByte2, iByte3);

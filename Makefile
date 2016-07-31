@@ -20,3 +20,6 @@ mac: $(SRC_FILES) $(HEADER_FILES)
 profile: $(SRC_FILES) $(HEADER_FILES)
 	g++ $(SRC_FILES) -Iinclude -o XeNES -lSDL2 -pg
 
+fastProfile: $(SRC_FILES) $(HEADER_FILES)
+	g++ $(SRC_FILES) -Iinclude -Ofast -o XeNES -lSDL2 -pg
+

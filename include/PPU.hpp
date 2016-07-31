@@ -44,8 +44,7 @@ private:
     uint8_t palette[0x20];
     uint8_t VRAM[0x1000];               //4kB PPU internal VRAM
 
-    inline void loadNewTile();
-
+    void loadNewTile();
     void setPpuByte(uint16_t, uint8_t); //set byte in PPU address space
     uint8_t getPpuByte(uint16_t);       //get byte from PPU address space
     void ppuFlagUpdate(bool *);

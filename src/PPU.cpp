@@ -111,7 +111,7 @@ inline void PPU::loadNewTile() {
     return;
 }
 
-uint8_t PPU::getPpuByte(uint16_t address) {
+inline uint8_t PPU::getPpuByte(uint16_t address) {
     address %= 0x4000;
 
 	if (address < 0x2000) {
@@ -187,7 +187,7 @@ uint8_t PPU::getPpuByte(uint16_t address) {
     }
 }
 
-void PPU::setPpuByte(uint16_t address, uint8_t byte) {
+inline void PPU::setPpuByte(uint16_t address, uint8_t byte) {
     address %= 0x4000;
 
     if (address < 0x1000) {
@@ -284,7 +284,7 @@ uint8_t PPU::return2007() {
     return ppuByte;
 }
 
-void PPU::ppuFlagUpdate(bool * NMI) {
+inline void PPU::ppuFlagUpdate(bool * NMI) {
 
     if (writeFlag == 0) {
         m_t &= 0xF3FF;
@@ -396,32 +396,27 @@ void PPU::ppuFlagUpdate(bool * NMI) {
 
 }
 
-void PPU::drawPixel(int cycle, int line) {
+inline void PPU::drawPixel(int cycle, int line) {
 
     //think about how chunks of similar operations can be grouped together for caching
     //decode palette to rgb all at once at end of frame?
 
-    int pixelLocation;
-    pixelLocation = (cycle - 1) + NES_SCREEN_WIDTH * line;  //current pixel being rendered
+    int pixelLocation = (cycle - 1) + NES_SCREEN_WIDTH * line;  //current pixel being rendered
+    uint8_t backgroundColour = 0;
 
-    uint8_t backgroundColour;
-    backgroundColour = 0;                
-
+    //render background pixel
     if (((ppuRegisters[1] & 0x2) && cycle - 1 < 8 && (ppuRegisters[1] & 0x8)) || ((ppuRegisters[1] & 0x8) && cycle - 1 >= 8)) {    //is background rendering enabled?
 
         bool passBound;
-
         if (((cycle - 1) % 8) + m_x > 7) {
             passBound = true;
         } else {
             passBound = false;
         }
 
-        int interTilePixelLoc;
-        interTilePixelLoc = (((cycle - 1) % 8 + (m_x)) % 8 );
+        int interTilePixelLoc = (((cycle - 1) % 8 + (m_x)) % 8 );
 
         int pal;
-
         if (passBound) {
             //mux select bit
             if (getBit(m_SpriteNew1, 7 - interTilePixelLoc)) {
@@ -442,9 +437,6 @@ void PPU::drawPixel(int cycle, int line) {
             pal = m_PaletteOld;
         }
 
-
-
-        //draw rgb pixel based on palette
         if (backgroundColour == 0) {
             pixels[pixelLocation] = getPpuByte(0x3F00);
         } else { 
@@ -452,8 +444,9 @@ void PPU::drawPixel(int cycle, int line) {
         }
     }
 
+    //render sprite pixel if applicable
     if (((ppuRegisters[1] & 0x4) && cycle - 1 < 8 && (ppuRegisters[1] & 0x10)) || ((ppuRegisters[1] & 0x10) && cycle - 1 >= 8)) {    
-        for (int i = 0; i < secondaryOamAddress; i++) {
+        for (int i = 0; i < secondaryOamAddress && i < 8; i++) {
 
             int xPosition;
             xPosition = OAM[secondaryOAM[i] + 3];
@@ -497,7 +490,7 @@ void PPU::drawPixel(int cycle, int line) {
             }
 
             //sprite zero hit detection
-            if ((spriteColour != 0x0)) {
+            if ((spriteColour != 0)) {
                 if (secondaryOAM[i] == 0) {
                     if (((ppuRegisters[1] & 0x8)) && ((ppuRegisters[1] & 0x10))) {
 
@@ -509,16 +502,14 @@ void PPU::drawPixel(int cycle, int line) {
                         
                     }
                 }
-            }
-
-            //pixel is transparent
-            if (spriteColour == 0x0) {
+                //priority
+                if (((spriteAttributes & 0x20) == 0) || backgroundColour == 0) {
+                    pixels[pixelLocation] = getPpuByte(0x3F10 + spriteColour + (spriteAttributes & 0x3) * 4);
+                    break;
+                }
+            } else {
+                //pixel is transparent
                 continue;
-            }    
-
-            //priority
-            if (((spriteAttributes & 0x20) == 0) || backgroundColour == 0) {
-                pixels[pixelLocation] = getPpuByte(0x3F10 + spriteColour + (spriteAttributes & 0x3) * 4);
             }
         }
     }
@@ -526,7 +517,7 @@ void PPU::drawPixel(int cycle, int line) {
     return;
 }
 
-void PPU::updateSecondaryOAM(int line) {
+inline void PPU::updateSecondaryOAM(int line) {
 
     //prepare secondary OAM for next scanline
     for (int x = 0; x < 8; x++) {
@@ -569,7 +560,6 @@ void PPU::updateSecondaryOAM(int line) {
 void PPU::tick(bool * NMI, uint64_t * cpuClock) {
 
     draw = false; 
-
     uint64_t ppuTime = *cpuClock;
 
     //process state changes due to register write

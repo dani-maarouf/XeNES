@@ -57,6 +57,8 @@ void loop(NES nesSystem, const char * fileLoc) {
     for (int x = 0; x < 256 * 240; x++) localPixels[x] = 0;
     draw(nesSystem.nesCPU.nesPPU.pixels);
 
+
+
     while (running) {
 
         //1. process events
