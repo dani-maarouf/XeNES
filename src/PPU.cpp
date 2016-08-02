@@ -94,6 +94,22 @@ PPU::PPU() {
     return;
 }
 
+void PPU::setVblank(bool on) {
+
+    if (on) {
+        if (!suppressVBL) {
+            ppuRegisters[2] |= 0x80;
+        } else {
+            ppuRegisters[2] &= 0x7F;
+            suppressVBL = false;
+        }
+    } else {
+        ppuRegisters[2] &= 0x7F;
+    }
+
+    return;
+}
+
 void PPU::freePointers() {
     if (CHR_ROM != NULL) {
         delete [] CHR_ROM;
@@ -103,18 +119,20 @@ void PPU::freePointers() {
 
 inline void PPU::loadNewTile() {
 
-    m_SpriteOld1 = m_SpriteNew1;
-    m_SpriteOld2 = m_SpriteNew2;
-    m_PaletteOld = m_PaletteNew;
+    if (ppuRegisters[1] & 0x18) {
+        m_SpriteOld1 = m_SpriteNew1;
+        m_SpriteOld2 = m_SpriteNew2;
+        m_PaletteOld = m_PaletteNew;
 
-    m_PaletteNew = ((getPpuByte(0x23C0 | (m_v & 0x0C00) | ((m_v >> 4) & 0x38) | ((m_v >> 2) & 0x07))) >> (2 * ((((m_v & 0x1F) % 4) / 2) + ((((m_v & 0x370) >> 5) % 4) / 2) * 2))) & 0x3;
+        m_PaletteNew = ((getPpuByte(0x23C0 | (m_v & 0x0C00) | ((m_v >> 4) & 0x38) | ((m_v >> 2) & 0x07))) >> (2 * ((((m_v & 0x1F) % 4) / 2) + ((((m_v & 0x370) >> 5) % 4) / 2) * 2))) & 0x3;
 
-    int spriteStart = getPpuByte(0x2000 | (m_v & 0x0FFF));
-    int spriteAddress = spriteStart * 16 + ((m_v & 0x7000) >> 12) + ((ppuRegisters[0] & 0x10) ? 0x1000 : 0x0);
+        int spriteStart = getPpuByte(0x2000 | (m_v & 0x0FFF));
+        int spriteAddress = spriteStart * 16 + ((m_v & 0x7000) >> 12) + ((ppuRegisters[0] & 0x10) ? 0x1000 : 0x0);
 
-    //load sprite data
-    m_SpriteNew1 = getPpuByte(spriteAddress);
-    m_SpriteNew2 = getPpuByte(spriteAddress + 8);
+        //load sprite data
+        m_SpriteNew1 = getPpuByte(spriteAddress);
+        m_SpriteNew2 = getPpuByte(spriteAddress + 8);
+    }
 
     return;
 }
@@ -355,7 +373,7 @@ inline void PPU::ppuFlagUpdate(bool * NMI) {
         if (ppuClock % (262 * 341) == (241 * 341) + 1) {
             //scanline 241 ppu 1
 
-            suppressVBL = true;
+            //suppressVBL = true;
             //ppuRegisters[0] &= 0x7F;	//breaks spelunker
             //*NMI = false;
 
@@ -619,8 +637,9 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                 continue;
             } else if (cyc > 0 && cyc < 256) {
 
-
-                drawPixel(cyc, line);
+                if (ppuRegisters[1] & 0x18) {
+                    drawPixel(cyc, line);
+                }
 
                 if (((cyc - 1) % 8 == 7)) {
                     loadNewTile();
@@ -642,7 +661,9 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                 loadNewTile();
                 horizontalIncrement(m_v);
             } else if (cyc == 340) {
-                updateSecondaryOAM(line);
+                if (ppuRegisters[1] & 0x18) {
+                    updateSecondaryOAM(line);
+                }
 
                 if (spriteZeroFlag) {
                     ppuRegisters[2] |= 0x40;
@@ -657,12 +678,10 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
             if (cyc == 1) {
                 //set vblank in PPUSTATUS
 
-                if (!suppressVBL) {
-                    ppuRegisters[2] |= 0x80;
-                } else {
-                    ppuRegisters[2] &= 0x7F;
-                    suppressVBL = false;
+                if ((ppuRegisters[2] & 0x80) == 0) {
+                    setVblank(true);
                 }
+                
                 
                 //throw NMI
                 if ((ppuRegisters[0] & 0x80) && (ppuRegisters[2] & 0x80)) {
@@ -674,8 +693,10 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
         } else if (line == 261) {
             if (cyc > 0 && cyc < 256) {
                 if (cyc == 1) {
+
                     //clear vblank, sprite 0 and overflow
                     ppuRegisters[2] &= 0x1F;
+                    
                     //*NMI = false;
                     //ppuRegisters[0] &= 0x7F;	//breaks spelunker
                 } else if (((cyc - 1) % 8 == 7)) {
@@ -686,17 +707,9 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                 horizontalIncrement(m_v);
                 verticalIncrement(m_v);
             } else if (cyc == 257) {
-                if (ppuRegisters[1] & 0x18) {
-                    copyHorizontalBits(m_v, m_t);
-                }
-                
+                copyHorizontalBits(m_v, m_t);
             } else if (cyc == 304) {
-
-                if (ppuRegisters[1] & 0x18) {
-                    copyVerticalBits(m_v, m_t);
-                }
-                
-
+                copyVerticalBits(m_v, m_t);
             } else if (cyc == 328) {
                 loadNewTile();
                 horizontalIncrement(m_v);
@@ -704,8 +717,10 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                 loadNewTile();
                 horizontalIncrement(m_v);
             } else if (cyc == 340) {
-                updateSecondaryOAM(line);
-
+                if (ppuRegisters[1] & 0x18) {
+                    updateSecondaryOAM(line);
+                }
+                
                 if (spriteZeroFlag) {
                     ppuRegisters[2] |= 0x40;
                     spriteZeroFlag = false;

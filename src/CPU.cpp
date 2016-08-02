@@ -216,7 +216,13 @@ inline void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
                 nesPPU.OAM[nesPPU.oamAddress] = getCpuByte( (OAMDMA << 8) + x , false);
                 nesPPU.oamAddress = (nesPPU.oamAddress + 1) & 0xFF;
             }
-            cpuClock += 513;    //sometimes 514
+
+            if (!nesPPU.evenFrame) {
+                cpuClock += 514 * 3; 
+            } else {
+                cpuClock += 514 * 3; 
+            }
+            
 
         } else if (memAddress == 0x4016) {
             if ((byte & 0x1) == 0x1) {
@@ -1246,12 +1252,6 @@ static void printDebugLine(uint16_t address, uint8_t opcode, uint8_t iByte2, uin
 
     
     std::cout << " SL:";
-
-    if (scanLines < 10) {
-        std::cout << "  ";
-    } else if (scanLines < 100) {
-        std::cout << " ";
-    }
     std::cout << std::dec << scanLines;
     
 

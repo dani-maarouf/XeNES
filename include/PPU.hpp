@@ -23,10 +23,7 @@ private:
     uint8_t m_PaletteOld;
     uint8_t m_SpriteNew1;
     uint8_t m_SpriteNew2;
-    uint8_t m_PaletteNew;
-
-    //info
-    bool evenFrame;                     //tracks even and odd frames
+    uint8_t m_PaletteNew;    
 
     //registers
     bool spriteZeroFlag;                //set PPUSTATUS at end of line
@@ -62,6 +59,7 @@ public:
 
     //info/configuration
     bool draw;                          //draw frame?
+    bool evenFrame;                     //tracks even and odd frames
     uint64_t ppuClock;
     int numRomBanks;
     int ppuMapper;
@@ -75,6 +73,7 @@ public:
     uint8_t pixels[256 * 240];
 
     PPU();
+    void setVblank(bool);
     void tick(bool *, uint64_t *);             //one PPU tick is executed
     void freePointers();                //free memory
     uint8_t return2007();               //return $2007

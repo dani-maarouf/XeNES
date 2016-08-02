@@ -5,7 +5,7 @@
 
 const double MILLISECONDS_PER_FRAME = 1000.0/60.0; //60FPS
 const int SCALE_FACTOR = 2;                  //size of each NES display pixel in real pixels
-const bool REMOVE_OVERSCAN = false;
+const bool REMOVE_OVERSCAN = true;
 const bool DEBUG = false;
 
 //obtained from blargg's Full Palette demo
@@ -26,7 +26,7 @@ const uint32_t paletteTable [] =
     (236<<16)|(238<<8)|(236),(168<<16)|(204<<8)|(236),(188<<16)|(188<<8)|(236),(212<<16)|(178<<8)|(236),
     (236<<16)|(174<<8)|(236),(236<<16)|(174<<8)|(212),(236<<16)|(180<<8)|(176),(228<<16)|(196<<8)|(144),
     (204<<16)|(210<<8)|(120),(180<<16)|(222<<8)|(120),(168<<16)|(226<<8)|(144),(152<<16)|(226<<8)|(180),
-    (160<<16)|(214<<8)|(228),(160<<16)|(162<<8)|(160),(  0<<16)|(  0<<8)|(  0),(  0<<16)|(  0<<8)|(  0)
+    (160<<16)|(214<<8)|(228),(160<<16)|(162<<8)|(160),(  0<<16)|(  0<<8)|(  0),(  0<<16)|(  0<<8)|(  0),
 };
 
 SDL_Window * window = NULL;     //SDL window
