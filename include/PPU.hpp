@@ -33,7 +33,6 @@ private:
     uint8_t m_x;                        //fine x scroll
     uint16_t m_v;                       //current vram address
     uint16_t m_t;                       //temporary vram address
-    uint16_t vramAddress;               //hack
     bool addressLatch;                  //w register
     bool suppressVBL;
     uint8_t readBuffer;                 //$2007 buffer
@@ -51,6 +50,8 @@ private:
     void updateSecondaryOAM(int);
 
 public:
+
+
 
     //0-7 = $2000 - $2007
     int writeFlag;

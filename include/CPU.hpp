@@ -78,7 +78,7 @@ public:
     CPU();                  //stage 1 initialize, stage 2 when ROM loading occurs
     void freePointers();    //deinitialize
     void executeNextOpcode(bool);
-    uint8_t getCpuByte(uint16_t);       //get byte from CPU address space
+    uint8_t getCpuByte(uint16_t, bool);       //get byte from CPU address space
 
 };
 

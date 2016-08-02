@@ -3,6 +3,8 @@
 #include "mappers.hpp"
 #include "PPU.hpp"
 
+const bool DEBUG = false;
+
 
 /* Begin macro functions */
 #define getBit(num, bit)    (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) : \
@@ -10,36 +12,45 @@
     (bit == 4) ? (num & 0x10) : (bit == 5) ? (num & 0x20) : \
     (bit == 6) ? (num & 0x40) : (num & 0x80)
 
-#define horizontalIncrement(loopyv)  if ((loopyv & 0x001F) == 31) {     \
-    loopyv &= ~0x001F;              \
-    loopyv ^= 0x400;                \
-} else {                            \
-    loopyv += 1;                    \
-}                                   
-
-#define verticalIncrement(loopyv) if ((loopyv & 0x7000) != 0x7000) {  \
-    loopyv += 0x1000;                               \
-} else {                                            \
-    loopyv &= ~0x7000;                              \
-    int yVal;                                       \
-    yVal = (loopyv & 0x03E0) >> 5;                  \
-    if (yVal == 29) {                               \
-        yVal = 0;                                   \
-        loopyv ^= 0x800;                            \
-    } else if (yVal == 31) {                        \
-        yVal = 0;                                   \
-    } else {                                        \
-        yVal += 1;                                  \
-    }                                               \
-    loopyv = ((loopyv & ~0x03E0) | (yVal << 5));    \
+#define horizontalIncrement(loopyv) if (ppuRegisters[1] & 0x18) {\
+    if ((loopyv & 0x001F) == 31) {      \
+        loopyv &= ~0x001F;              \
+        loopyv ^= 0x400;                \
+    } else {                            \
+        loopyv += 1;                    \
+    }                                   \
 }
 
-#define copyHorizontalBits(loopyv, loopyt) loopyv &= ~0x041F;  \
-                loopyv |= (loopyt & 0x041F);
+
+#define verticalIncrement(loopyv) if (ppuRegisters[1] & 0x18) {\
+    if ((loopyv & 0x7000) != 0x7000) {  \
+        loopyv += 0x1000;                               \
+    } else {                                            \
+        loopyv &= ~0x7000;                              \
+        int yVal;                                       \
+        yVal = (loopyv & 0x03E0) >> 5;                  \
+        if (yVal == 29) {                               \
+            yVal = 0;                                   \
+            loopyv ^= 0x800;                            \
+        } else if (yVal == 31) {                        \
+            yVal = 0;                                   \
+        } else {                                        \
+            yVal += 1;                                  \
+        }                                               \
+        loopyv = ((loopyv & ~0x03E0) | (yVal << 5));    \
+    }                                                   \
+}
+
+#define copyHorizontalBits(loopyv, loopyt) if (ppuRegisters[1] & 0x18) {\
+loopyv &= ~0x041F;  \
+loopyv |= (loopyt & 0x041F);   \
+}
 
 
-#define copyVerticalBits(loopyv, loopyt) loopyv &= 0x041F;  \
-                loopyv |= (loopyt & (~0x041F));
+#define copyVerticalBits(loopyv, loopyt) if (ppuRegisters[1] & 0x18) {\
+loopyv &= 0x041F;  \
+                loopyv |= (loopyt & (~0x041F)); \
+            }
 /* End macro functions */
 
 /* Begin PPU class functions */
@@ -72,11 +83,10 @@ PPU::PPU() {
     m_PaletteNew = 0;
 
 
-    vramAddress = 0;
-
     suppressVBL = false;
 
-    ppuClock = 241 * 341;   //start at scanline 241
+    //ppuClock = 241 * 341;   //start at scanline 241
+    ppuClock = 0;
 
     writeFlag = -1;
     readFlag = -1;
@@ -109,7 +119,7 @@ inline void PPU::loadNewTile() {
     return;
 }
 
-__attribute__((hot)) inline uint8_t PPU::getPpuByte(uint16_t address) {
+inline uint8_t PPU::getPpuByte(uint16_t address) {
     address %= 0x4000;
 
 	if (address < 0x2000) {
@@ -189,11 +199,15 @@ inline void PPU::setPpuByte(uint16_t address, uint8_t byte) {
     address %= 0x4000;
 
     if (address < 0x1000) {
-        CHR_ROM[address] = byte;
-        //std::cout << "Illegal write to PPU: $" << std::hex << address << std::endl;
+        CHR_ROM[address] = byte;    //needed for vbl_nmi_timing test roms
+        if (DEBUG) {
+            std::cout << "Illegal write attempt to PPU: $" << std::hex << address << std::endl;
+        }
     } else if (address < 0x2000) {
-        CHR_ROM[address] = byte;
-        //std::cout << "Illegal write to PPU: $" << std::hex << address << std::endl;
+        CHR_ROM[address] = byte;    //needed for vbl_nmi_timing test roms
+        if (DEBUG) {
+            std::cout << "Illegal write attempt to PPU: $" << std::hex << address << std::endl;
+        }
     } else if (address < 0x2400) {
         VRAM[address - 0x2000] = byte;
     } else if (address < 0x2800) {
@@ -257,35 +271,10 @@ inline void PPU::setPpuByte(uint16_t address, uint8_t byte) {
     return;
 }
 
-uint8_t PPU::return2007() {
-
-    //if screen off
-    //if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x18) == 0) || true) {
-
-
-    uint8_t ppuByte;
-
-    if (m_t % 0x4000 < 0x3F00) {
-        ppuByte = readBuffer;
-        readBuffer = getPpuByte( m_t );
-    } else {
-        ppuByte = getPpuByte( m_t );
-        readBuffer = getPpuByte( m_t - 0x1000);
-    }
-
-    m_t += (ppuRegisters[0] & 0x04) ? 32 : 1;
-    m_v += (ppuRegisters[0] & 0x04) ? 32 : 1;
-
-    m_t &= 0x7FFF;
-    m_v &= 0x7FFF;
-
-    return ppuByte;
-}
-
 inline void PPU::ppuFlagUpdate(bool * NMI) {
 
     if (writeFlag == 0) {
-        m_t &= 0xF3FF;
+        m_t &= ~0x0C00;
         m_t |= ((ppuRegisters[0] & 0x03) << 10);
 
         //extendedSprites = (ppuRegisters[0] & 0x20) ? true : false;
@@ -305,6 +294,8 @@ inline void PPU::ppuFlagUpdate(bool * NMI) {
             }
         }
         */
+        
+
 
 	} else if (writeFlag == 1) {
 
@@ -325,52 +316,47 @@ inline void PPU::ppuFlagUpdate(bool * NMI) {
             m_t &= 0x0C1F;
             m_t |= (ppuRegisters[0x5] & 0x7) << 12;
             m_t |= (ppuRegisters[0x5] & 0xF8) << 2;
-            addressLatch = false;
         } else {
             m_x = (ppuRegisters[0x5] & 0x7);
-            m_t &= 0xFFE0;
+            m_t &= ~0x001F;
             m_t |= (ppuRegisters[0x5] & 0xF8) >> 3;
-            addressLatch = true;
         }
+        addressLatch = !addressLatch;
 
     } else if (writeFlag == 6) {
         if (addressLatch) {
             m_t &= 0xFF00;
             m_t |= ppuRegisters[6];
-            m_t &= 0x7FFF;
             m_v = m_t;
-            vramAddress = m_t;
-            addressLatch = false;
         } else {
             m_t &= 0x00FF;
+
             m_t |= (ppuRegisters[6] & 0x3F) << 8;
-            addressLatch = true;
+            m_t &= 0x3FFF;
         }
+        addressLatch = !addressLatch;
 
     } else if (writeFlag == 7) {
         //read from 2007
-
-        setPpuByte(vramAddress , ppuRegisters[7]);
-
+        m_v &= 0x3FFF;
+        setPpuByte(m_v , ppuRegisters[7]);
         //increment vram address
-        vramAddress += (ppuRegisters[0] & 0x04) ? 32 : 1;
-        vramAddress %= 0x4000;
-
+        m_v += (ppuRegisters[0] & 0x04) ? 32 : 1;
     }
 
     //process state changes due to register read
     if (readFlag == 2) {
         addressLatch = false;
 
-
         ppuRegisters[2] &= 0x7F;
+        *NMI = false;
 
         //does this need to be catched within some specific "tick window"?
         if (ppuClock % (262 * 341) == (241 * 341) + 1) {
             //scanline 241 ppu 1
 
             suppressVBL = true;
-            //ppuRegisters[0] &= 0x7F;	breaks spelunker
+            //ppuRegisters[0] &= 0x7F;	//breaks spelunker
             //*NMI = false;
 
 
@@ -394,7 +380,34 @@ inline void PPU::ppuFlagUpdate(bool * NMI) {
 
 }
 
-__attribute__((hot)) inline void PPU::drawPixel(int cycle, int line) {
+uint8_t PPU::return2007() {
+
+    //if screen off
+    //if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x18) == 0) || true) {
+
+    uint8_t ppuByte;
+
+    m_v &= 0x3FFF;
+
+
+    if (m_v % 0x4000 < 0x3F00) {
+        ppuByte = readBuffer;
+        readBuffer = getPpuByte( m_v );
+    } else {
+        ppuByte = getPpuByte( m_v );
+        readBuffer = getPpuByte( m_v - 0x1000);
+    }
+
+    m_v += (ppuRegisters[0] & 0x04) ? 32 : 1;
+
+    m_v &= 0x7FFF;
+
+
+
+    return ppuByte;
+}
+
+inline void PPU::drawPixel(int cycle, int line) {
 
     //think about how chunks of similar operations can be grouped together for caching
     //decode palette to rgb all at once at end of frame?
@@ -569,7 +582,7 @@ inline void PPU::updateSecondaryOAM(int line) {
     return;
 }
 
-__attribute__((hot)) void PPU::tick(bool * NMI, uint64_t * cpuClock) {
+void PPU::tick(bool * NMI, uint64_t * cpuClock) {
 
     draw = false; 
     uint64_t ppuTime = *cpuClock;
@@ -582,6 +595,10 @@ __attribute__((hot)) void PPU::tick(bool * NMI, uint64_t * cpuClock) {
     }  
 
     for ( ; ppuClock < ppuTime; ppuClock++) {
+
+        if (*NMI) {
+            //return;
+        }
 
         int cyc = ppuClock % 341;
         int line = (ppuClock % (341 * 262)) / 341;
@@ -602,6 +619,7 @@ __attribute__((hot)) void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                 continue;
             } else if (cyc > 0 && cyc < 256) {
 
+
                 drawPixel(cyc, line);
 
                 if (((cyc - 1) % 8 == 7)) {
@@ -613,7 +631,10 @@ __attribute__((hot)) void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                 horizontalIncrement(m_v);
                 verticalIncrement(m_v);
             } else if (cyc == 257) {
-                copyHorizontalBits(m_v, m_t);
+                if (ppuRegisters[1] & 0x18) {
+                    copyHorizontalBits(m_v, m_t);
+                }
+                
             } else if (cyc == 328) {
                 loadNewTile();
                 horizontalIncrement(m_v);
@@ -648,6 +669,8 @@ __attribute__((hot)) void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                     *NMI = true;
                 }
             }
+
+
         } else if (line == 261) {
             if (cyc > 0 && cyc < 256) {
                 if (cyc == 1) {
@@ -663,9 +686,17 @@ __attribute__((hot)) void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                 horizontalIncrement(m_v);
                 verticalIncrement(m_v);
             } else if (cyc == 257) {
-                copyHorizontalBits(m_v, m_t);
+                if (ppuRegisters[1] & 0x18) {
+                    copyHorizontalBits(m_v, m_t);
+                }
+                
             } else if (cyc == 304) {
-                copyVerticalBits(m_v, m_t);
+
+                if (ppuRegisters[1] & 0x18) {
+                    copyVerticalBits(m_v, m_t);
+                }
+                
+
             } else if (cyc == 328) {
                 loadNewTile();
                 horizontalIncrement(m_v);
