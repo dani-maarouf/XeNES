@@ -5,6 +5,7 @@
 
 NES::NES() {
 
+    nesCPU = CPU();
 
     return;
 }
@@ -148,7 +149,7 @@ bool NES::openCartridge(const char * fileLoc) {
                     return false;
                 }
                 if ((flags[7] & 0x2) == 0x2) {
-                    std::cout << "Playchoice-10" << std::endl;
+                    std::cout << "Playchoice-10 detected. Quitting." << std::endl;
                     romFile.close();
                     return false;
                 }
@@ -183,6 +184,7 @@ bool NES::openCartridge(const char * fileLoc) {
             }
 
             if (trainer) {
+                std::cout << "Trainer detected. Quitting." << std::endl;
                 romFile.close();
                 return false;
             }

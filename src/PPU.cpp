@@ -5,7 +5,6 @@
 
 const bool DEBUG = false;
 
-
 /* Begin macro functions */
 #define getBit(num, bit)    (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) : \
     (bit == 2) ? (num & 0x4) : (bit == 3) ? (num & 0x8) :   \
@@ -17,17 +16,16 @@ const bool DEBUG = false;
         loopyv &= ~0x001F;              \
         loopyv ^= 0x400;                \
     } else {                            \
-        loopyv += 1;                    \
+        loopyv++;                       \
     }                                   \
 }
 
-
 #define verticalIncrement(loopyv) if (ppuRegisters[1] & 0x18) {\
-    if ((loopyv & 0x7000) != 0x7000) {  \
+    if ((loopyv & 0x7000) != 0x7000) {                  \
         loopyv += 0x1000;                               \
     } else {                                            \
         loopyv &= ~0x7000;                              \
-        int yVal;                                       \
+        uint16_t yVal;                                  \
         yVal = (loopyv & 0x03E0) >> 5;                  \
         if (yVal == 29) {                               \
             yVal = 0;                                   \
@@ -35,22 +33,22 @@ const bool DEBUG = false;
         } else if (yVal == 31) {                        \
             yVal = 0;                                   \
         } else {                                        \
-            yVal += 1;                                  \
+            yVal++;                                     \
         }                                               \
         loopyv = ((loopyv & ~0x03E0) | (yVal << 5));    \
     }                                                   \
 }
 
 #define copyHorizontalBits(loopyv, loopyt) if (ppuRegisters[1] & 0x18) {\
-loopyv &= ~0x041F;  \
-loopyv |= (loopyt & 0x041F);   \
+    loopyv &= ~0x041F;              \
+    loopyv |= (loopyt & 0x041F);    \
 }
 
 
 #define copyVerticalBits(loopyv, loopyt) if (ppuRegisters[1] & 0x18) {\
-loopyv &= 0x041F;  \
-                loopyv |= (loopyt & (~0x041F)); \
-            }
+    loopyv &= 0x041F;               \
+    loopyv |= (loopyt & (~0x041F)); \
+}
 /* End macro functions */
 
 /* Begin PPU class functions */
@@ -82,30 +80,12 @@ PPU::PPU() {
     m_SpriteNew2 = 0;
     m_PaletteNew = 0;
 
-
     suppressVBL = false;
 
-    //ppuClock = 241 * 341;   //start at scanline 241
     ppuClock = 0;
 
     writeFlag = -1;
     readFlag = -1;
-
-    return;
-}
-
-void PPU::setVblank(bool on) {
-
-    if (on) {
-        if (!suppressVBL) {
-            ppuRegisters[2] |= 0x80;
-        } else {
-            ppuRegisters[2] &= 0x7F;
-            suppressVBL = false;
-        }
-    } else {
-        ppuRegisters[2] &= 0x7F;
-    }
 
     return;
 }
@@ -207,7 +187,7 @@ inline uint8_t PPU::getPpuByte(uint16_t address) {
         uint8_t newAddress;
         newAddress = (address - 0x3F00) % 0x20;
         if (newAddress == 0x10 || newAddress == 0x14 || newAddress == 0x18 || newAddress == 0x1C) {
-            newAddress -= 0x10;
+            newAddress -= (uint8_t) 0x10;
         }
         return palette[newAddress];
     }
@@ -366,10 +346,10 @@ inline void PPU::ppuFlagUpdate(bool * NMI) {
     if (readFlag == 2) {
         addressLatch = false;
 
-        setVblank(false);
+        ppuRegisters[2] &= 0x7F;
         *NMI = false;
 
-        //does this need to be catched within some specific "tick window"?
+        //does this need to be catched within a tick window?
         if (ppuClock % (262 * 341) == (241 * 341) + 1) {
             //scanline 241 ppu 1
 
@@ -434,7 +414,7 @@ inline void PPU::drawPixel(int cycle, int line) {
     uint8_t backgroundColour = 0;
 
     //render background pixel
-    if (((ppuRegisters[1] & 0x2) && cycle - 1 < 8 && (ppuRegisters[1] & 0x8)) || ((ppuRegisters[1] & 0x8) && cycle - 1 >= 8)) {    //is background rendering enabled?
+    if (((ppuRegisters[1] & 0x2) && cycle  < 9 && (ppuRegisters[1] & 0x8)) || ((ppuRegisters[1] & 0x8) && cycle >= 9)) {    //is background rendering enabled?
 
         bool passBound;
         if (((cycle - 1) % 8) + m_x > 7) {
@@ -474,7 +454,7 @@ inline void PPU::drawPixel(int cycle, int line) {
     }
 
     //render sprite pixel if applicable
-    if (((ppuRegisters[1] & 0x4) && cycle - 1 < 8 && (ppuRegisters[1] & 0x10)) || ((ppuRegisters[1] & 0x10) && cycle - 1 >= 8)) {    
+    if (((ppuRegisters[1] & 0x4) && (cycle) < 9 && (ppuRegisters[1] & 0x10)) || ((ppuRegisters[1] & 0x10) && (cycle) >= 9)) {    
         for (int i = 0; i < 8; i++) {
 
             uint8_t spriteLayer1 = lineOAM[i * 6 + 4];
@@ -548,7 +528,7 @@ inline void PPU::updateSecondaryOAM(int line) {
     }
 
     for (int x = 0; x < 64; x++) {
-        int yPos;
+        uint8_t yPos;
         yPos = OAM[x * 4];
 
         //determine whether sprite will appear on next scanline
@@ -590,7 +570,7 @@ inline void PPU::updateSecondaryOAM(int line) {
             if (secondaryOamAddress == 9) {
 
                 if (((ppuRegisters[1] & 0x10)) || ((ppuRegisters[1] & 0x8))) {
-                    ppuRegisters[2] |= 0x20;
+                    ppuRegisters[2] |= 0x20;    //sprite overflow
                     break;
                 }   
             }
@@ -603,7 +583,7 @@ inline void PPU::updateSecondaryOAM(int line) {
 void PPU::tick(bool * NMI, uint64_t * cpuClock) {
 
     draw = false; 
-    uint64_t ppuTime = *cpuClock;
+    uint64_t ppuEnd = *cpuClock;
 
     //process state changes due to register write
     if (readFlag != -1 || writeFlag != -1) {
@@ -612,11 +592,7 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
         writeFlag = -1;
     }  
 
-    for ( ; ppuClock < ppuTime; ppuClock++) {
-
-        if (*NMI) {
-            //return;
-        }
+    for ( ; ppuClock < ppuEnd; ppuClock++) {
 
         int cyc = ppuClock % 341;
         int line = (ppuClock % (341 * 262)) / 341;
@@ -627,9 +603,9 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
             ppuRegisters[2] &= 0x7F;
 
             //first frame tick skipped on odd frame when screen on
-            if (line == 0 && cyc == 0 && !evenFrame && (ppuRegisters[1] & 0x18)) {
+            if (line == 0 && cyc == 0 && !evenFrame && (ppuRegisters[1] & 0x8)) {
                 ppuClock++;
-                ppuTime++;
+                ppuEnd++;
                 *cpuClock += 1;
             }
 
@@ -676,13 +652,11 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
             //idle scanline
         } else if (line == 241) {
             if (cyc == 1) {
-                //set vblank in PPUSTATUS
 
-                
-                if ((ppuRegisters[2] & 0x80) == 0) {
-                    setVblank(true);
+                //set vblank in PPUSTATUS
+                if (!suppressVBL) {
+                    ppuRegisters[2] |= 0x80;
                 }
-                
                 
                 //throw NMI
                 if ((ppuRegisters[0] & 0x80) && (ppuRegisters[2] & 0x80)) {
@@ -694,10 +668,9 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
         } else if (line == 261) {
             if (cyc > 0 && cyc < 256) {
                 if (cyc == 1) {
-
                     //clear vblank, sprite 0 and overflow
                     ppuRegisters[2] &= 0x1F;
-
+                    suppressVBL = false;
                     //*NMI = false;
                     //ppuRegisters[0] &= 0x7F;	//breaks spelunker
                 } else if (((cyc - 1) % 8 == 7)) {

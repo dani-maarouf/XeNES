@@ -104,6 +104,8 @@ static void printDebugLine(uint16_t, uint8_t, uint8_t, uint8_t, enum AddressMode
 
 CPU::CPU() {
 
+    nesPPU = PPU();
+
     for (int x = 0; x < 0x20; x++) ioRegisters[x] = 0;
     for (int x = 0; x < 0x2000; x++) cpuMem[x] = 0x0;
     for (int x = 0; x < 0x800; x++) RAM[x] = 0x0;
@@ -118,17 +120,16 @@ CPU::CPU() {
     Y  = 0x0;
 
     NMI = false;
-    IRQ = false;
-
     PS[I] = true;
 
-    //cpuClock = 241 * 341;
     cpuClock = 0;
 
     controllerByte = 0;
     storedControllerByte = 0;
     currentControllerBit = 0;
     readController = false;
+
+
 
     return;
 }
@@ -167,7 +168,20 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
         if (!silent) {
             nesPPU.readFlag = address;
 
-            if (address == 0x4) {
+            if (address == 0x2) {
+
+                if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 241 + 2) && (cpuClock % (262 * 341)) >= (341 * 241 + 2) ) {
+                    nesPPU.ppuRegisters[2] |= 0x80;
+                    nesPPU.suppressVBL = true;
+                } else if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 241 + 1) && (cpuClock % (262 * 341)) >= (341 * 241 + 1) ) {
+                    nesPPU.suppressVBL = true;
+                } else if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 261 + 2) && (cpuClock % (262 * 341)) >= (341 * 261 + 2) ) {
+
+                    nesPPU.ppuRegisters[2] &= 0x1F;
+
+                }
+
+            } else if (address == 0x4) {
 
                 if ((nesPPU.ppuRegisters[2] & 0x80) || ((nesPPU.ppuRegisters[1] & 0x18) == 0)) {
                     return nesPPU.OAM[nesPPU.oamAddress];
@@ -182,15 +196,16 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
 
         }
 
-        
-
         return nesPPU.ppuRegisters[address];
     } else if (memAddress < 0x4020) {
 
         if (memAddress == 0x4016) {
             if (readController) {
-                return returnControllerBit();
+                //0x40 to match nintendulator log
+                return returnControllerBit() | 0x40;
             }
+        } else if (memAddress == 0x4017) {
+            return 0x40;
         }
         return ioRegisters[ memAddress - 0x4000 ];
     } else if (memAddress < 0x6000) {
@@ -233,11 +248,12 @@ inline void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
                 nesPPU.oamAddress = (nesPPU.oamAddress + 1) & 0xFF;
             }
 
-            if (!nesPPU.evenFrame) {
+            if (cpuClock % 2) {
                 cpuClock += 514 * 3; 
             } else {
-                cpuClock += 514 * 3; 
+                cpuClock += 513 * 3; 
             }
+
             
 
         } else if (memAddress == 0x4016) {
@@ -286,47 +302,43 @@ inline uint16_t CPU::retrieveCpuAddress(enum AddressMode mode, bool * pagePass, 
         case ABS:
         return (firstByte | (secondByte << 8));
 
-        case ABSX:
-
-        if (((firstByte | (secondByte << 8)) / 256) != ((((firstByte | (secondByte << 8)) + X) & 0xFFFF)/256)) {
-            *pagePass = true;
+        case ABSX: {
+            uint16_t before = (firstByte | (secondByte << 8));
+            uint16_t after = ((before + X) & 0xFFFF);
+            if ((before / 256) != (after/256)) *pagePass = true;
+            return after;
         }
 
-        return (((firstByte | (secondByte << 8)) + X) & 0xFFFF);
-
-        case ABSY:
-
-        if (((firstByte | (secondByte << 8)) / 256) != ((((firstByte | (secondByte << 8)) + Y) & 0xFFFF)/256)) {
-            *pagePass = true;
+        case ABSY: {
+            uint16_t before = (firstByte | (secondByte << 8));
+            uint16_t after = ((before + Y) & 0xFFFF);
+            if ((before / 256) != (after/256)) *pagePass = true;
+            return after;
         }
-
-        return (((firstByte | (secondByte << 8)) + Y) & 0xFFFF);
 
         case IND: {
-            uint16_t low, high;
-            low = getCpuByte((firstByte | (secondByte << 8)), false);
-            high = getCpuByte(((firstByte + 1) & 0xFF) | (secondByte << 8), false);
+            uint8_t low = getCpuByte((firstByte | (secondByte << 8)), false);
+            uint8_t high = getCpuByte(((firstByte + 1) & 0xFF) | (secondByte << 8), false);
             return ((high << 8) | low);
         }
 
         case INDX: {
-            uint8_t low, high;
-            low = getCpuByte((firstByte + X) & 0xFF, false);
-            high = getCpuByte((firstByte + 1 + X) & 0xFF, false);
+            uint8_t low = getCpuByte((firstByte + X) & 0xFF, false);
+            uint8_t high = getCpuByte((firstByte + 1 + X) & 0xFF, false);
             return ((high << 8) | low);
         }
         
-        case INDY: 
-
-        if ((((getCpuByte(firstByte, false)) | (getCpuByte((firstByte + 1) & 0xFF, false)) << 8) / 256) != (((((getCpuByte(firstByte, false)) | (getCpuByte((firstByte + 1) & 0xFF, false)) << 8) + Y) & 0xFFFF)/256)) {
-            *pagePass = true;
+        case INDY: {
+            uint8_t low = (getCpuByte(firstByte, false));
+            uint8_t high = (getCpuByte((firstByte + 1) & 0xFF, false));
+            uint16_t before = (low | (high << 8));
+            uint16_t after = ((before + Y) & 0xFFFF);
+            if (( before/ 256) != (after/256)) *pagePass = true;
+            return after;
         }
 
-        return ((((getCpuByte(firstByte, false)) | (getCpuByte((firstByte + 1) & 0xFF, false)) << 8) + Y) & 0xFFFF);
-        
         default:
         exit(1);
-        return 0;
     }
 }
 
@@ -353,12 +365,9 @@ void CPU::executeNextOpcode(bool debug) {
         cpuClock += 21;
 
         return;
-    } else if (IRQ) {
-
-
     }
 
-    cpuClock += 2*3;        //always spend 2 cycles fetching opcode and next byte
+    cpuClock += 6;        //always spend 2 cycles fetching opcode and next byte
     uint8_t opcode = getCpuByte(PC, false);
     uint8_t iByte2 = getCpuByte(PC + 1, false);
     uint8_t iByte3 = getCpuByte(PC + 2, false);
@@ -379,10 +388,10 @@ void CPU::executeNextOpcode(bool debug) {
     }
 
     uint8_t memoryByte;
-
     if (opAddressMode == IMM) {
         memoryByte = iByte2;
-    } else if (opAddressMode == NONE || opAddressMode == ACC || opAddressMode == IMP || opAddressMode == REL) {
+    } else if (opAddressMode == NONE || opAddressMode == ACC
+        || opAddressMode == IMP || opAddressMode == REL) {
         memoryByte = 0;
     } else {
 
@@ -401,7 +410,8 @@ void CPU::executeNextOpcode(bool debug) {
     }
 
     if (debug) {
-        printDebugLine(address, opcode, iByte2, iByte3, opAddressMode, PC, memoryByte, A, X, Y, SP, PS, nesPPU.ppuClock);
+        printDebugLine(address, opcode, iByte2, iByte3, opAddressMode, 
+            PC, memoryByte, A, X, Y, SP, PS, nesPPU.ppuClock);
         std::cout << std::endl;
     }
 
@@ -656,7 +666,8 @@ void CPU::executeNextOpcode(bool debug) {
             memoryByte = getCpuByte(address, true);
             int total;
             total = A - memoryByte - (!PS[C]);
-            PS[V] = (((int8_t) A) - ((int8_t) memoryByte) - (!PS[C]) < -128 || ((int8_t) A) - ((int8_t) memoryByte) - (!PS[C]) > 127);
+            PS[V] = (((int8_t) A) - ((int8_t) memoryByte) - (!PS[C]) < -128 
+                || ((int8_t) A) - ((int8_t) memoryByte) - (!PS[C]) > 127);
             A = total & 0xFF;
             PS[C] = (total >= 0) ? true : false;
             PS[N] = getBit(total, 7);
@@ -667,7 +678,7 @@ void CPU::executeNextOpcode(bool debug) {
         //JMP
         case 0x4C: case 0x6C: 
         PC = address;
-        cpuClock += ((opAddressMode == ABS) ? 1 : 3) * 3;
+        cpuClock += (opAddressMode == ABS) ? 3 : 9;
         break;
 
         case 0x20: {            //JSR
@@ -1084,8 +1095,9 @@ static int debugPrintVal(enum AddressMode mode, int firstByte, int secondByte) {
 }
 
 //note:ugly, for debugging, matches nintendulator log
-static void printDebugLine(uint16_t address, uint8_t opcode, uint8_t iByte2, uint8_t iByte3, enum AddressMode opAddressMode,
-    uint16_t PC, uint8_t memByte, uint8_t A, uint8_t X, uint8_t Y, uint8_t SP, bool * PS, int ppuClock) {
+static void printDebugLine(uint16_t address, uint8_t opcode, uint8_t iByte2,
+ uint8_t iByte3, enum AddressMode opAddressMode, uint16_t PC, uint8_t memByte, 
+ uint8_t A, uint8_t X, uint8_t Y, uint8_t SP, bool * PS, int ppuClock) {
 
     std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << (int) PC << "  ";
 
@@ -1099,7 +1111,8 @@ static void printDebugLine(uint16_t address, uint8_t opcode, uint8_t iByte2, uin
         std::cout << ' ';
         printByte(iByte2);
         std::cout << "    ";
-    } else if (opAddressMode == ABS || opAddressMode == ABSX || opAddressMode == ABSY || opAddressMode == IND) {
+    } else if (opAddressMode == ABS || opAddressMode == ABSX
+        || opAddressMode == ABSY || opAddressMode == IND) {
         printByte(opcode);
         std::cout << ' ';
         printByte(iByte2);

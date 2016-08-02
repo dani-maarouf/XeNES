@@ -6,10 +6,10 @@
 const double MILLISECONDS_PER_FRAME = 1000.0/60.0; //60FPS
 const int SCALE_FACTOR = 2;                  //size of each NES display pixel in real pixels
 const bool REMOVE_OVERSCAN = true;
-const bool DEBUG = false;
+const bool DEBUG = true;
 
 //obtained from blargg's Full Palette demo
-const uint32_t paletteTable [] = {  
+const uint32_t paletteTable [] = {
     ( 84<<16)|( 84<<8)|( 84),(  0<<16)|( 30<<8)|(116),(  8<<16)|( 16<<8)|(144),( 48<<16)|(  0<<8)|(136),
     ( 68<<16)|(  0<<8)|(100),( 92<<16)|(  0<<8)|( 48),( 84<<16)|(  4<<8)|(  0),( 60<<16)|( 24<<8)|(  0),
     ( 32<<16)|( 42<<8)|(  0),(  8<<16)|( 58<<8)|(  0),(  0<<16)|( 64<<8)|(  0),(  0<<16)|( 60<<8)|(  0),
@@ -33,11 +33,11 @@ SDL_Renderer * renderer = NULL; //SDL renderer
 SDL_Texture * texture = NULL;   //SDL texture
 uint32_t localPixels[256 * 240];
 
+static int getRefreshRate(SDL_Window * win);
 static bool initSDL(const char *);
 static void closeSDL();
 static void draw(uint8_t *);
 static bool processEvents(SDL_Event *, uint8_t *, bool *);
-static int getRefreshRate(SDL_Window * win);
 
 void loop(NES nesSystem, const char * fileLoc) {
 
@@ -48,8 +48,7 @@ void loop(NES nesSystem, const char * fileLoc) {
 
     //game loop variables
     double frequency = SDL_GetPerformanceFrequency();
-    double startTime = SDL_GetPerformanceCounter();
-    bool running = true;
+    uint64_t startTime = SDL_GetPerformanceCounter();
     bool paused = false;
     SDL_Event event;
 
@@ -57,15 +56,14 @@ void loop(NES nesSystem, const char * fileLoc) {
     for (int x = 0; x < 256 * 240; x++) localPixels[x] = 0;
     draw(nesSystem.nesCPU.nesPPU.pixels);
 
-    while (running) {
+    for (;;) {
 
-        //1. process events
+        //1 process events
         if (!processEvents(&event, &nesSystem.nesCPU.controllerByte, &paused)) {
-            running = false;
             break;
         }
 
-        //2. logic
+        //2 logic
         if (!paused) {
             do {
                 //execute one cpu opcode
@@ -75,21 +73,33 @@ void loop(NES nesSystem, const char * fileLoc) {
             } while (!nesSystem.nesCPU.nesPPU.draw);
         }
 
-        //3 sync framerate
+        //3 draw
+        draw(nesSystem.nesCPU.nesPPU.pixels);
+
+        //4 sync framerate
         double delay = MILLISECONDS_PER_FRAME - (((SDL_GetPerformanceCounter() - startTime) / frequency) * 1000) - 0.5;
         if (delay > 0) {
             SDL_Delay(delay);
         }
         startTime = SDL_GetPerformanceCounter();
-
-        //4 draw
-        draw(nesSystem.nesCPU.nesPPU.pixels);
         
     }
 
     closeSDL();
 
     return;
+}
+
+static int getRefreshRate(SDL_Window * win) {
+
+	SDL_DisplayMode mode;
+	int displayIndex = SDL_GetWindowDisplayIndex(win);
+
+	if (SDL_GetDesktopDisplayMode(displayIndex, &mode) != 0 ) {
+        return 0;
+    } else {
+    	return mode.refresh_rate;
+    }
 }
 
 static bool initSDL(const char * fileLoc) {
@@ -121,6 +131,7 @@ static bool initSDL(const char * fileLoc) {
         return false;
     }
 
+    //SDL_RENDERER_PRESENTVSYNC
     if (getRefreshRate(window) == 60) {
     	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
     	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
@@ -311,17 +322,4 @@ static bool processEvents(SDL_Event * event, uint8_t * controller, bool * paused
         }
     }
     return true;
-}
-
-static int getRefreshRate(SDL_Window * win) {
-
-	SDL_DisplayMode mode;
-	int displayIndex = SDL_GetWindowDisplayIndex(win);
-
-	if (SDL_GetDesktopDisplayMode(displayIndex, &mode) != 0 ) {
-        return 0;
-    } else {
-    	return mode.refresh_rate;
-    }
-
 }

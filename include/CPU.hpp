@@ -66,7 +66,6 @@ public:
 
     //registers
     bool NMI;                   //non maskable interupt
-    bool IRQ;                   //interupt request
     uint16_t PC;                //program counter
     uint8_t controllerByte;     //controller 1
 
