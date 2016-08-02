@@ -9,8 +9,7 @@ const bool REMOVE_OVERSCAN = true;
 const bool DEBUG = false;
 
 //obtained from blargg's Full Palette demo
-const uint32_t paletteTable [] =
- {  
+const uint32_t paletteTable [] = {  
     ( 84<<16)|( 84<<8)|( 84),(  0<<16)|( 30<<8)|(116),(  8<<16)|( 16<<8)|(144),( 48<<16)|(  0<<8)|(136),
     ( 68<<16)|(  0<<8)|(100),( 92<<16)|(  0<<8)|( 48),( 84<<16)|(  4<<8)|(  0),( 60<<16)|( 24<<8)|(  0),
     ( 32<<16)|( 42<<8)|(  0),(  8<<16)|( 58<<8)|(  0),(  0<<16)|( 64<<8)|(  0),(  0<<16)|( 60<<8)|(  0),
@@ -32,7 +31,6 @@ const uint32_t paletteTable [] =
 SDL_Window * window = NULL;     //SDL window
 SDL_Renderer * renderer = NULL; //SDL renderer
 SDL_Texture * texture = NULL;   //SDL texture
-
 uint32_t localPixels[256 * 240];
 
 static bool initSDL(const char *);

@@ -10,10 +10,11 @@
                             (bit == 4) ? (num & 0x10) : (bit == 5) ? (num & 0x20) : \
                             (bit == 6) ? (num & 0x40) : (num & 0x80)
 enum InstructionType {
-    READ = 0,               //read from mem address
-    WRITE = 1,              //write to mem address
-    READ_MODIFY_WRITE = 2,  //read from mem address, modify byte, write byte
-    OTHER,                  //note: above 3 are not applicable to every opcode
+    READ   = 0,     //read from mem address
+    WRITE  = 1,     //write to mem address
+    R_M_W  = 2,     //read from mem address, modify byte, write byte (read modify write)
+    WRITE2 = 3,     //illegal opcodes
+    OTHER  = 4,     //note: above 4 are not applicable to every opcode
 };
 
 static const enum AddressMode addressModes[] = {
@@ -46,7 +47,18 @@ static const char * opnames[] = {
     "PHA", "PHP", "PLA", "PLP","*RLA", "ROL", "ROR","*RRA", "RTI", "RTS", //4
    "*SAX","*SBC", "SBC", "SEC", "SED", "SEI","*SLO","*SRE", "STA", "STX", //5
     "STY", "TAX", "TAY", "TSX", "TXA", "TXS", "TYA"                       //6
-};                     
+};      
+
+static const enum InstructionType opInstrTypes[] = {
+    //0    1      2      3      4      5      6      7      8      9   
+    OTHER, READ,  READ,  R_M_W, OTHER, OTHER, OTHER, READ,  OTHER, OTHER, //0
+    OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, READ,  READ,  //1
+    READ,  WRITE2,R_M_W, OTHER, OTHER, READ,  R_M_W, OTHER, OTHER, WRITE2,//2
+    OTHER, OTHER, READ,  READ,  READ,  READ,  R_M_W, READ,  READ,  READ,  //3
+    OTHER, OTHER, OTHER, OTHER, WRITE2,R_M_W, R_M_W, WRITE2,OTHER, OTHER, //4
+    WRITE, READ,  READ,  OTHER, OTHER, OTHER, WRITE2,WRITE2,WRITE, WRITE, //5
+    WRITE, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER                       //6
+};         
 
 //opcode mnemonic mapping for debugging
 static const int opnameMap[] = {
@@ -74,6 +86,8 @@ static const int cycles[] = {
     2,2,2,0,0,0,0,4,3,0,1,2,2,  //read
     2,3,3,0,0,0,0,4,4,0,1,2,2,  //write
     4,5,5,0,0,0,0,0,0,0,3,4,4,  //read modify write
+    4,5,5,2,2,2,2,6,6,2,3,4,4,  //write2
+    0,0,0,0,0,0,0,0,0,0,0,0,0,  //other
 };
 
 //table of opcode lengths for advancing PC
@@ -167,6 +181,8 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
             }
 
         }
+
+        
 
         return nesPPU.ppuRegisters[address];
     } else if (memAddress < 0x4020) {
@@ -342,7 +358,7 @@ void CPU::executeNextOpcode(bool debug) {
 
     }
 
-    int cyc = 2;        //always spend 2 cycles fetching opcode and next byte
+    cpuClock += 2*3;        //always spend 2 cycles fetching opcode and next byte
     uint8_t opcode = getCpuByte(PC, false);
     uint8_t iByte2 = getCpuByte(PC + 1, false);
     uint8_t iByte3 = getCpuByte(PC + 2, false);
@@ -354,9 +370,15 @@ void CPU::executeNextOpcode(bool debug) {
         address = retrieveCpuAddress(opAddressMode, &pass, iByte2, iByte3);
     }
 
+    enum InstructionType instrType = opInstrTypes[opnameMap[opcode]];
+    cpuClock += cycles[instrType * 13 + opAddressMode] * 3;
+    if (instrType == READ) {
+        if (pass) {
+            cpuClock += 3;
+        }
+    }
+
     uint8_t memoryByte;
-
-
 
     if (opAddressMode == IMM) {
         memoryByte = iByte2;
@@ -391,8 +413,6 @@ void CPU::executeNextOpcode(bool debug) {
 
         //ADC
         case 0x69: case 0x65: case 0x75: case 0x6D: case 0x7D: case 0x79: case 0x61: case 0x71: {
-            cyc += cycles[READ * 13 + opAddressMode];
-            if (pass) cyc++;
             uint16_t total;
             total = A + memoryByte + PS[C];
             PS[V] = (((int8_t) A) + ((int8_t) memoryByte) + PS[C] < -128
@@ -406,8 +426,6 @@ void CPU::executeNextOpcode(bool debug) {
 
         //AND
         case 0x29: case 0x25: case 0x35: case 0x2D: case 0x3D: case 0x39: case 0x21: case 0x31: 
-        cyc += cycles[READ * 13 + opAddressMode];
-        if (pass) cyc++;
         A = A & memoryByte;
         PS[N] = getBit(A, 7);
         PS[Z] = (A == 0) ? true : false;
@@ -415,7 +433,6 @@ void CPU::executeNextOpcode(bool debug) {
 
         //ASL
         case 0x0A: case 0x06: case 0x16: case 0x0E: case 0x1E: {
-            cyc += cycles[READ_MODIFY_WRITE * 13 + opAddressMode];
             if (opcode == 0x0A) {
                 PS[C] = getBit(A, 7);
                 A = ((A << 1) & 0xFE);
@@ -432,38 +449,30 @@ void CPU::executeNextOpcode(bool debug) {
 
         case 0x90:             //BCC
         if (PS[C] == 0) {
-            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) {
-                cyc++;
-            }
+            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) cpuClock += 3;
             PC += (int8_t) iByte2;
-            cyc++;
+            cpuClock += 3;
         }
         break;
         
         case 0xB0:            //BCS
         if (PS[C]) {
-            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) {
-                cyc++;
-            }
+            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) cpuClock += 3;
             PC += (int8_t) iByte2;
-            cyc++;
+            cpuClock += 3;
         }
         break;
         
         case 0xF0:             //BEQ
         if (PS[Z]) {
-            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) {
-                cyc++;
-            }
+            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) cpuClock += 3;
             PC += (int8_t) iByte2;
-            cyc++;
+            cpuClock += 3;
         }
         break;
         
         //BIT
         case 0x24: case 0x2C: {
-            cyc += cycles[READ * 13 + opAddressMode];
-            if (pass) cyc++;
             uint8_t num;
             num = A & memoryByte;
             PS[N] = getBit(memoryByte, 7);
@@ -474,31 +483,25 @@ void CPU::executeNextOpcode(bool debug) {
 
         case 0x30:             //BMI
         if (PS[N]) {
-            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) {
-                cyc++;
-            }
+            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) cpuClock += 3;
             PC += (int8_t) iByte2;
-            cyc++;
+            cpuClock += 3;
         }
         break;
         
         case 0xD0:             //BNE
         if (PS[Z] == 0) {
-            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) {
-                cyc++;
-            }
+            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) cpuClock += 3;
             PC += (int8_t) iByte2;
-            cyc++;
+            cpuClock += 3;
         }
         break;
         
         case 0x10:             //BPL
         if (PS[N] == 0) {
-            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) {
-                cyc++;
-            }
+            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) cpuClock += 3;
             PC += (int8_t) iByte2;
-            cyc++;
+            cpuClock += 3;
         }
         break;
         
@@ -506,23 +509,23 @@ void CPU::executeNextOpcode(bool debug) {
             uint8_t high = (PC & 0xFF00) >> 8;
             setCpuByte(0x100 + SP, high);
             SP--;
-            cyc++;
+            cpuClock += 3;
 
             uint8_t low = PC & 0xFF;
             setCpuByte(0x100 + SP, low);
             SP--;
-            cyc++;
+            cpuClock += 3;
 
             uint8_t memByte = getPswByte(PS);
             setCpuByte(0x100 + SP, memByte | 0x10);
             SP--;
-            cyc++;
+            cpuClock += 3;
 
             low = getCpuByte(0xFFFE, false);
-            cyc++;
+            cpuClock += 3;
 
             high = getCpuByte(0xFFFF, false);
-            cyc++;
+            cpuClock += 3;
 
             PC = (high << 8) | low;
             break;
@@ -530,21 +533,17 @@ void CPU::executeNextOpcode(bool debug) {
 
         case 0x50:          //BVC
         if (PS[V] == 0) {
-            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) {
-                cyc++;
-            }
+            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) cpuClock += 3;
             PC += (int8_t) iByte2;
-            cyc++;
+            cpuClock += 3;
         }
         break;
         
         case 0x70:          //BVS
         if (PS[V]) {
-            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) {
-                cyc++;
-            }
+            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) cpuClock += 3;
             PC += (int8_t) iByte2;
-            cyc++;
+            cpuClock += 3;
         }
         break;
         
@@ -566,8 +565,6 @@ void CPU::executeNextOpcode(bool debug) {
 
         //CMP
         case 0xC9: case 0xC5: case 0xD5: case 0xCD: case 0xDD: case 0xD9: case 0xC1: case 0xD1: {
-            cyc += cycles[READ * 13 + opAddressMode];
-            if (pass) cyc++;
             int num;
             num = A - memoryByte;
             PS[N] = getBit(num, 7);
@@ -578,11 +575,6 @@ void CPU::executeNextOpcode(bool debug) {
 
         //CPX
         case 0xE0: case 0xE4: case 0xEC: {
-            if (opAddressMode == ZRP) {
-                cyc++;
-            } else if (opAddressMode == ABS) {
-                cyc += 2;
-            }
             int total;
             total = X - memoryByte;
             PS[N] = (total & 0x80) ? true : false;
@@ -593,11 +585,6 @@ void CPU::executeNextOpcode(bool debug) {
 
         //CPY
         case 0xC0: case 0xC4: case 0xCC: {
-            if (opAddressMode == ZRP) {
-                cyc++;
-            } else if (opAddressMode == ABS) {
-                cyc += 2;
-            }
             int total;
             total = Y - memoryByte;
             PS[N] = (total & 0x80) ? true : false;
@@ -608,7 +595,6 @@ void CPU::executeNextOpcode(bool debug) {
 
         //DCP
         case 0xC3: case 0xD3: case 0xC7: case 0xD7: case 0xCF: case 0xDF: case 0xDB: {
-            cyc += cycles[WRITE * 13 + opAddressMode] + 2;;
             setCpuByte(address, (getCpuByte(address, true) - 1) & 0xFF);
             memoryByte = getCpuByte(address, true);
             int num;
@@ -621,7 +607,6 @@ void CPU::executeNextOpcode(bool debug) {
 
         //DEC
         case 0xC6: case 0xD6: case 0xCE: case 0xDE: 
-        cyc += cycles[READ_MODIFY_WRITE * 13 + opAddressMode];
         setCpuByte(address, ((getCpuByte(address, true) - 1) & 0xFF));
         PS[N] = getBit(getCpuByte(address, true), 7);
         PS[Z] = (getCpuByte(address, true) == 0) ? true : false;
@@ -641,8 +626,6 @@ void CPU::executeNextOpcode(bool debug) {
         
         //EOR
         case 0x49: case 0x45: case 0x55: case 0x4D: case 0x5D: case 0x59: case 0x41: case 0x51: 
-        cyc += cycles[READ * 13 + opAddressMode];
-        if (pass) cyc++;
         A = A ^ memoryByte;
         PS[N] = getBit(A, 7);
         PS[Z] = (A == 0) ? true : false;
@@ -650,7 +633,6 @@ void CPU::executeNextOpcode(bool debug) {
         
         //INC
         case 0xE6: case 0xF6: case 0xEE: case 0xFE: 
-        cyc += cycles[READ_MODIFY_WRITE * 13 + opAddressMode];
         setCpuByte(address, ((getCpuByte(address, true) + 1) & 0xFF));
         PS[N] = getBit(getCpuByte(address, true), 7);
         PS[Z] = (getCpuByte(address, true) == 0) ? true : false;
@@ -670,7 +652,6 @@ void CPU::executeNextOpcode(bool debug) {
 
         //ISB
         case 0xE3: case 0xE7: case 0xF7: case 0xFB: case 0xEF: case 0xFF: case 0xF3: {     
-            cyc += cycles[WRITE * 13 + opAddressMode] + 2;;   
             setCpuByte(address, (getCpuByte(address, true) + 1) & 0xFF);
             memoryByte = getCpuByte(address, true);
             int total;
@@ -686,11 +667,11 @@ void CPU::executeNextOpcode(bool debug) {
         //JMP
         case 0x4C: case 0x6C: 
         PC = address;
-        cyc += (opAddressMode == ABS) ? 1 : 3;
+        cpuClock += ((opAddressMode == ABS) ? 1 : 3) * 3;
         break;
 
         case 0x20: {            //JSR
-            cyc++;
+            cpuClock += 3;
 
             uint16_t store;
             store = PC;
@@ -698,22 +679,20 @@ void CPU::executeNextOpcode(bool debug) {
             uint8_t high = (store & 0xFF00) >> 8;
             setCpuByte(SP + 0x100, high);
             SP--;
-            cyc++;
+            cpuClock += 3;
 
             uint8_t low = store & 0xFF;;
             setCpuByte(SP + 0x100, low);
             SP--;
-            cyc++;
+            cpuClock += 3;
 
             PC = (iByte2 | (iByte3 << 8));
-            cyc++;
+            cpuClock += 3;
             break;
         }
 
         //LAX
         case 0xA3: case 0xA7: case 0xAF: case 0xB3: case 0xB7: case 0xBF:  
-        cyc += cycles[READ * 13 + opAddressMode];
-        if (pass) cyc++;    
         A = memoryByte;
         X = memoryByte;
         PS[N] = getBit(A, 7);
@@ -722,8 +701,6 @@ void CPU::executeNextOpcode(bool debug) {
         
         //LDA
         case 0xA9: case 0xA5: case 0xB5: case 0xAD: case 0xBD: case 0xB9: case 0xA1: case 0xB1: 
-        cyc += cycles[READ * 13 + opAddressMode];
-        if (pass) cyc++;
         A = memoryByte;
         PS[N] = getBit(A, 7);
         PS[Z] = (A == 0) ? true : false;
@@ -731,8 +708,6 @@ void CPU::executeNextOpcode(bool debug) {
         
         //LDX
         case 0xA2: case 0xA6: case 0xB6: case 0xAE: case 0xBE: 
-        cyc += cycles[READ * 13 + opAddressMode];
-        if (pass) cyc++;
         X = memoryByte;
         PS[N] = getBit(X, 7);
         PS[Z] = (X == 0) ? true : false;
@@ -740,8 +715,6 @@ void CPU::executeNextOpcode(bool debug) {
         
         //LDY
         case 0xA0: case 0xA4: case 0xB4: case 0xAC: case 0xBC: 
-        cyc += cycles[READ * 13 + opAddressMode];
-        if (pass) cyc++;
         Y = memoryByte;
         PS[N] = getBit(Y, 7);
         PS[Z] = (Y == 0) ? true : false;
@@ -749,7 +722,6 @@ void CPU::executeNextOpcode(bool debug) {
 
         //LSR
         case 0x4A: case 0x46: case 0x56: case 0x4E: case 0x5E: {
-            cyc += cycles[READ_MODIFY_WRITE * 13 + opAddressMode];
             PS[N] = 0;
             if (opcode == 0x4A) {
                 PS[C] = getBit(A, 0);
@@ -767,14 +739,10 @@ void CPU::executeNextOpcode(bool debug) {
         case 0x04: case 0x44: case 0x64: case 0x0C: case 0x14: case 0x34: case 0x54: case 0x74:
         case 0xD4: case 0xF4: case 0x1A: case 0x3A: case 0x5A: case 0x7A: case 0xDA: case 0xFA:
         case 0x80: case 0x1C: case 0x3C: case 0x5C: case 0x7C: case 0xDC: case 0xFC: case 0xEA:  
-        cyc += cycles[READ * 13 + opAddressMode];
-        if (pass) cyc++;               
         break;
         
         //ORA
         case 0x09: case 0x05: case 0x15: case 0x0D: case 0x1D: case 0x19: case 0x01: case 0x11: 
-        cyc += cycles[READ * 13 + opAddressMode];
-        if (pass) cyc++;
         A = (A | memoryByte);
         PS[N] = getBit(A, 7);
         PS[Z] = (A == 0) ? true : false;
@@ -783,21 +751,21 @@ void CPU::executeNextOpcode(bool debug) {
         case 0x48:              //PHA
         setCpuByte(SP + 0x100, A);
         SP--;
-        cyc++;
+        cpuClock += 3;
         break;
 
         case 0x08:                 //PHP
         setCpuByte(SP + 0x100, (getPswByte(PS) | 0x10));
         SP--;
-        cyc++;
+        cpuClock += 3;
         break;
         
         case 0x68:              //PLA
         SP++;
-        cyc++;
+        cpuClock += 3;
 
         A = getCpuByte(SP + 0x100, true);
-        cyc++;
+        cpuClock += 3;
 
         PS[N] = getBit(A, 7);
         PS[Z] = (A == 0) ? true : false;
@@ -805,15 +773,14 @@ void CPU::executeNextOpcode(bool debug) {
         
         case 0x28:                 //PLP
         SP++;
-        cyc++;
+        cpuClock += 3;
 
         getPswFromByte(PS, getCpuByte(SP + 0x100, true));
-        cyc++;
+        cpuClock += 3;
         break;
         
         //RLA
         case 0x23: case 0x27: case 0x2F: case 0x33: case 0x37: case 0x3B: case 0x3F: {
-            cyc += cycles[WRITE * 13 + opAddressMode] + 2;;
             bool store;
             store = getBit(getCpuByte(address, true), 7);
             setCpuByte(address, (getCpuByte(address, true) << 1) & 0xFE);
@@ -827,7 +794,6 @@ void CPU::executeNextOpcode(bool debug) {
 
         //ROL
         case 0x2A: case 0x26: case 0x36: case 0x2E: case 0x3E: {
-            cyc += cycles[READ_MODIFY_WRITE * 13 + opAddressMode];
             bool store;
             if (opcode == 0x2A) {
                 store = getBit(A, 7);
@@ -848,7 +814,6 @@ void CPU::executeNextOpcode(bool debug) {
 
         //ROR
         case 0x6A: case 0x66: case 0x76: case 0x6E: case 0x7E: {
-            cyc += cycles[READ_MODIFY_WRITE * 13 + opAddressMode];
             bool store;
             if (opcode == 0x6A) {
                 store = getBit(A, 0);
@@ -869,7 +834,6 @@ void CPU::executeNextOpcode(bool debug) {
 
         //RRA
         case 0x63: case 0x67: case 0x6F: case 0x73: case 0x77: case 0x7B: case 0x7F: {
-            cyc += cycles[WRITE * 13 + opAddressMode] + 2;;
             bool store;
             store = getBit(getCpuByte(address, true), 0);
             setCpuByte(address, (getCpuByte(address, true) >> 1) & 0x7F);
@@ -890,20 +854,20 @@ void CPU::executeNextOpcode(bool debug) {
 
         case 0x40: {                //RTI
             SP++;
-            cyc++;
+            cpuClock += 3;
 
             uint8_t memByte;
             memByte = getCpuByte(SP + 0x100, true);
             getPswFromByte(PS, memByte);
 
             SP++;
-            cyc++;
+            cpuClock += 3;
             uint16_t low = getCpuByte(SP + 0x100, true);
 
             SP++;
-            cyc++;
+            cpuClock += 3;
             uint16_t high = getCpuByte(SP + 0x100, true) << 8;
-            cyc++;
+            cpuClock += 3;
 
             PC = high | low;
             break;
@@ -911,25 +875,23 @@ void CPU::executeNextOpcode(bool debug) {
 
         case 0x60: {                //RTS
             SP++;
-            cyc++;
+            cpuClock += 3;
 
             uint16_t low = getCpuByte(SP + 0x100, true);
             SP++;
-            cyc++;
+            cpuClock += 3;
 
             uint16_t high = getCpuByte(SP + 0x100, true) << 8;
-            cyc++;
+            cpuClock += 3;
             PC = (high | low);
 
             PC++;
-            cyc++;
+            cpuClock += 3;
             break;
         }
 
         //SBC
         case 0xE9: case 0xE5: case 0xF5: case 0xED: case 0xFD: case 0xF9: case 0xE1: case 0xF1: case 0xEB: {
-            cyc += cycles[READ * 13 + opAddressMode];
-            if (pass) cyc++;
             int total;
             total = A - memoryByte - (!PS[C]);
             PS[V] = (((int8_t) A) - ((int8_t) memoryByte) - (!PS[C]) < -128 
@@ -955,13 +917,11 @@ void CPU::executeNextOpcode(bool debug) {
         
         //SAX
         case 0x83: case 0x87: case 0x97: case 0x8F:
-        cyc += cycles[WRITE * 13 + opAddressMode];          
         setCpuByte(address, A & X);
         break;
         
         //*SLO
         case 0x03: case 0x07: case 0x0F: case 0x13: case 0x17: case 0x1B: case 0x1F: 
-        cyc += cycles[WRITE * 13 + opAddressMode] + 2;;
         PS[C] = getBit(getCpuByte(address, true), 7);
         setCpuByte(address, ((getCpuByte(address, true) << 1) & 0xFE));
         A |= getCpuByte(address, true);
@@ -971,7 +931,6 @@ void CPU::executeNextOpcode(bool debug) {
 
         //SRE
         case 0x43: case 0x47: case 0x4F: case 0x53: case 0x57: case 0x5B: case 0x5F: 
-        cyc += cycles[WRITE * 13 + opAddressMode] + 2;;
         PS[C] = getBit(getCpuByte(address, true), 0);
         setCpuByte(address, (getCpuByte(address, true) >> 1) & 0x7F);
         A ^= getCpuByte(address, true);
@@ -981,19 +940,16 @@ void CPU::executeNextOpcode(bool debug) {
 
         //STA
         case 0x85: case 0x95: case 0x8D: case 0x9D: case 0x99: case 0x81: case 0x91: 
-        cyc += cycles[WRITE * 13 + opAddressMode];
         setCpuByte(address, A);
         break;
         
         //STX
         case 0x86: case 0x96: case 0x8E: 
-        cyc += cycles[WRITE * 13 + opAddressMode];
         setCpuByte(address, X);
         break;
 
         //STY
         case 0x84: case 0x94: case 0x8C: 
-        cyc += cycles[WRITE * 13 + opAddressMode];
         setCpuByte(address, Y);
         break;
 
@@ -1034,10 +990,8 @@ void CPU::executeNextOpcode(bool debug) {
         default: 
         std:: cout << " Unrecognized opcode : " << std::hex << (int) opcode << std::endl;
         exit(1);
-        return;
     }
 
-    cpuClock += cyc * 3;
     return;
 }
 

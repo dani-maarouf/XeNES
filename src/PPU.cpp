@@ -366,7 +366,7 @@ inline void PPU::ppuFlagUpdate(bool * NMI) {
     if (readFlag == 2) {
         addressLatch = false;
 
-        ppuRegisters[2] &= 0x7F;
+        setVblank(false);
         *NMI = false;
 
         //does this need to be catched within some specific "tick window"?
@@ -678,6 +678,7 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
             if (cyc == 1) {
                 //set vblank in PPUSTATUS
 
+                
                 if ((ppuRegisters[2] & 0x80) == 0) {
                     setVblank(true);
                 }
@@ -696,7 +697,7 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
 
                     //clear vblank, sprite 0 and overflow
                     ppuRegisters[2] &= 0x1F;
-                    
+
                     //*NMI = false;
                     //ppuRegisters[0] &= 0x7F;	//breaks spelunker
                 } else if (((cyc - 1) % 8 == 7)) {

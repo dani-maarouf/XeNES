@@ -31,7 +31,6 @@ private:
     uint16_t m_v;                       //current vram address
     uint16_t m_t;                       //temporary vram address
     bool addressLatch;                  //w register
-    bool suppressVBL;
     uint8_t readBuffer;                 //$2007 buffer
 
     //hardware
@@ -56,6 +55,8 @@ public:
 
     //registers
     uint8_t oamAddress;                 //current OAM address
+    bool suppressVBL;
+
 
     //info/configuration
     bool draw;                          //draw frame?
