@@ -26,7 +26,6 @@ private:
     uint8_t m_PaletteNew;    
 
     //registers
-    bool spriteZeroFlag;                //set PPUSTATUS at end of line
     uint8_t m_x;                        //fine x scroll
     uint16_t m_v;                       //current vram address
     uint16_t m_t;                       //temporary vram address
@@ -47,8 +46,6 @@ private:
 
 public:
 
-
-
     //0-7 = $2000 - $2007
     int writeFlag;
     int readFlag;
@@ -56,11 +53,11 @@ public:
     //registers
     uint8_t oamAddress;                 //current OAM address
     bool suppressVBL;
+    bool suppressCpuTickSkip;
 
 
     //info/configuration
     bool draw;                          //draw frame?
-    bool evenFrame;                     //tracks even and odd frames
     uint64_t ppuClock;
     int numRomBanks;
     int ppuMapper;

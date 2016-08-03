@@ -16,10 +16,8 @@ int main(int argc, char ** argv) {
     /*
     todo:
 
-    automated testing with pixel buffer hashing
-    8x16 sprites
-    pass NEStress ppu
-    nes_instr_test 2 and 6
+    fix sprite rendering, output pixel alignment, sprite 0 hits and ppu even and odd frame timing
+
 
     */
 

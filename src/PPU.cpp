@@ -61,9 +61,7 @@ PPU::PPU() {
     for (int x = 0; x < (NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT); x++) pixels[x] = 63;    //black in palette
     for (int x = 0; x < 6 * 8; x++) lineOAM[x] = 0x0;
     
-    evenFrame = true;
     draw = false;
-    spriteZeroFlag = false;
     addressLatch = false;
     m_v = 0;
     m_t = 0;
@@ -80,8 +78,11 @@ PPU::PPU() {
     m_SpriteNew2 = 0;
     m_PaletteNew = 0;
 
-    suppressVBL = false;
 
+    suppressVBL = false;
+    suppressCpuTickSkip = false;
+
+    //ppuClock = 241 * 341;   //start at scanline 241
     ppuClock = 0;
 
     writeFlag = -1;
@@ -349,18 +350,6 @@ inline void PPU::ppuFlagUpdate(bool * NMI) {
         ppuRegisters[2] &= 0x7F;
         *NMI = false;
 
-        //does this need to be catched within a tick window?
-        if (ppuClock % (262 * 341) == (241 * 341) + 1) {
-            //scanline 241 ppu 1
-
-            //suppressVBL = true;
-            //ppuRegisters[0] &= 0x7F;	//breaks spelunker
-            //*NMI = false;
-
-
-        }
-
-
 
     } else if (readFlag == 4) {
 
@@ -494,12 +483,11 @@ inline void PPU::drawPixel(int cycle, int line) {
             //sprite zero hit detection
             if ((spriteColour != 0)) {
                 if (lineOAM[i * 6] == 1) {
-                    if (((ppuRegisters[1] & 0x8)) && ((ppuRegisters[1] & 0x10))) {
+                    if (((ppuRegisters[1] & 0x18) == 0x18)) {
 
                         if (backgroundColour != 0) {
-                            spriteZeroFlag = true;	//this alone makes NEStress flicker
+                            ppuRegisters[2] |= 0x40;
                         }
-                        spriteZeroFlag = true;
 
                         
                     }
@@ -602,12 +590,20 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
             //not in vblank
             ppuRegisters[2] &= 0x7F;
 
+            
             //first frame tick skipped on odd frame when screen on
-            if (line == 0 && cyc == 0 && !evenFrame && (ppuRegisters[1] & 0x8)) {
-                ppuClock++;
-                ppuEnd++;
-                *cpuClock += 1;
+            if (ppuRegisters[1] & 0x8) {
+                if ((ppuClock % (262 * 341 * 2) == 0)) {
+                    ppuClock++;
+                    if (!suppressCpuTickSkip) {
+                        ppuEnd++;
+                        *cpuClock += 1;
+                    }
+                    suppressCpuTickSkip = false;
+                    
+                }
             }
+            
 
             if (cyc == 0) {
                 continue;
@@ -641,11 +637,6 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                     updateSecondaryOAM(line);
                 }
 
-                if (spriteZeroFlag) {
-                    ppuRegisters[2] |= 0x40;
-                    spriteZeroFlag = false;
-                }
-
             } 
         } else if (line == 240) {
             continue;
@@ -653,15 +644,21 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
         } else if (line == 241) {
             if (cyc == 1) {
 
+                ppuRegisters[2] &= 0x7F;
+
                 //set vblank in PPUSTATUS
                 if (!suppressVBL) {
                     ppuRegisters[2] |= 0x80;
                 }
                 
-                //throw NMI
+
+            } else if (cyc == 2) {
+
+                //throw NMI (should this be cyc == 1)? this matched nintendulator apparently
                 if ((ppuRegisters[0] & 0x80) && (ppuRegisters[2] & 0x80)) {
                     *NMI = true;
                 }
+
             }
 
 
@@ -671,7 +668,7 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                     //clear vblank, sprite 0 and overflow
                     ppuRegisters[2] &= 0x1F;
                     suppressVBL = false;
-                    //*NMI = false;
+                    *NMI = false;
                     //ppuRegisters[0] &= 0x7F;	//breaks spelunker
                 } else if (((cyc - 1) % 8 == 7)) {
                     loadNewTile();
@@ -694,14 +691,8 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                 if (ppuRegisters[1] & 0x18) {
                     updateSecondaryOAM(line);
                 }
-                
-                if (spriteZeroFlag) {
-                    ppuRegisters[2] |= 0x40;
-                    spriteZeroFlag = false;
-                }
 
                 draw = true;
-                evenFrame ^= true;
             } 
         }
     }

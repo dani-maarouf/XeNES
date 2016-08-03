@@ -169,17 +169,23 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
             nesPPU.readFlag = address;
 
             if (address == 0x2) {
-
+        
+                
+                //ppu/cpu synchronization hack
                 if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 241 + 2) && (cpuClock % (262 * 341)) >= (341 * 241 + 2) ) {
                     nesPPU.ppuRegisters[2] |= 0x80;
                     nesPPU.suppressVBL = true;
+                    NMI = false;
                 } else if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 241 + 1) && (cpuClock % (262 * 341)) >= (341 * 241 + 1) ) {
                     nesPPU.suppressVBL = true;
+                    NMI = false;
                 } else if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 261 + 2) && (cpuClock % (262 * 341)) >= (341 * 261 + 2) ) {
-
+                    NMI = false;
                     nesPPU.ppuRegisters[2] &= 0x1F;
 
                 }
+                
+                
 
             } else if (address == 0x4) {
 
@@ -386,6 +392,16 @@ void CPU::executeNextOpcode(bool debug) {
             cpuClock += 3;
         }
     }
+
+    
+    if (nesPPU.ppuRegisters[1] & 0x8) {
+        if (nesPPU.ppuClock % (262 * 341 * 2) > cpuClock % (262 * 341 * 2)) {
+            cpuClock++;
+            nesPPU.suppressCpuTickSkip = true;
+        }
+    }
+    
+
 
     uint8_t memoryByte;
     if (opAddressMode == IMM) {

@@ -6,7 +6,7 @@
 const double MILLISECONDS_PER_FRAME = 1000.0/60.0; //60FPS
 const int SCALE_FACTOR = 2;                  //size of each NES display pixel in real pixels
 const bool REMOVE_OVERSCAN = true;
-const bool DEBUG = true;
+const bool DEBUG = false;
 
 //obtained from blargg's Full Palette demo
 const uint32_t paletteTable [] = {
