@@ -494,7 +494,7 @@ inline void PPU::drawPixel(int cycle, int line) {
             //sprite zero hit detection
             if ((spriteColour != 0)) {
                 if (lineOAM[i * 6] == 1) {
-                    if (((ppuRegisters[1] & 0x8)) && ((ppuRegisters[1] & 0x10))) {
+                    if ((ppuRegisters[1] & 0x18) == 0x18) {
 
                         if (backgroundColour != 0) {
                             spriteZeroFlag = true;	//this alone makes NEStress flicker
@@ -658,7 +658,7 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                     ppuRegisters[2] |= 0x80;
                 }
                 
-                //throw NMI
+                //throw NMI (set on tick 2?)
                 if ((ppuRegisters[0] & 0x80) && (ppuRegisters[2] & 0x80)) {
                     *NMI = true;
                 }
@@ -671,7 +671,7 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                     //clear vblank, sprite 0 and overflow
                     ppuRegisters[2] &= 0x1F;
                     suppressVBL = false;
-                    //*NMI = false;
+                    *NMI = false;
                     //ppuRegisters[0] &= 0x7F;	//breaks spelunker
                 } else if (((cyc - 1) % 8 == 7)) {
                     loadNewTile();

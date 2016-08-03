@@ -173,12 +173,14 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
                 if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 241 + 2) && (cpuClock % (262 * 341)) >= (341 * 241 + 2) ) {
                     nesPPU.ppuRegisters[2] |= 0x80;
                     nesPPU.suppressVBL = true;
+                    NMI = false;
                 } else if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 241 + 1) && (cpuClock % (262 * 341)) >= (341 * 241 + 1) ) {
                     nesPPU.suppressVBL = true;
+                    NMI = false;
                 } else if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 261 + 2) && (cpuClock % (262 * 341)) >= (341 * 261 + 2) ) {
 
                     nesPPU.ppuRegisters[2] &= 0x1F;
-
+                    NMI = false;
                 }
 
             } else if (address == 0x4) {

@@ -26,7 +26,7 @@ private:
     uint8_t m_PaletteNew;    
 
     //registers
-    bool spriteZeroFlag;                //set PPUSTATUS at end of line
+    bool spriteZeroFlag;                //hack to make sprite 0 work on smb
     uint8_t m_x;                        //fine x scroll
     uint16_t m_v;                       //current vram address
     uint16_t m_t;                       //temporary vram address
