@@ -61,41 +61,17 @@ PPU::PPU() {
     for (int x = 0; x < (NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT); x++) pixels[x] = 63;    //black in palette
     for (int x = 0; x < 6 * 8; x++) lineOAM[x] = 0x0;
     
-<<<<<<< HEAD
-    draw = false;
-    addressLatch = false;
-    m_v = 0;
-    m_t = 0;
-    m_x = 0;
-    oamAddress = 0x0;
-=======
-    evenFrame = true;
+
     draw = addressLatch = suppressVBL = false;
 
     m_v = m_t = m_x = 0;
 
     oamAddress = 0;
->>>>>>> beedd57fb5371382c1742866fde1acc0000e213d
+
     CHR_ROM = NULL;
     readBuffer = 0;
 
-    //render
-<<<<<<< HEAD
-    m_SpriteOld1 = 0;
-    m_SpriteOld2 = 0;
-    m_PaletteOld = 0;
-    m_SpriteNew1 = 0;
-    m_SpriteNew2 = 0;
-    m_PaletteNew = 0;
-
-
-    suppressVBL = false;
-    suppressCpuTickSkip = false;
-
-    //ppuClock = 241 * 341;   //start at scanline 241
-=======
     m_SpriteOld1 = m_SpriteOld2 = m_PaletteOld = m_SpriteNew1 = m_SpriteNew2 = m_PaletteNew = 0;
->>>>>>> beedd57fb5371382c1742866fde1acc0000e213d
     ppuClock = 0;
     writeFlag = readFlag = -1;
 
@@ -494,14 +470,6 @@ inline void PPU::drawPixel(int cycle, int line) {
             //sprite zero hit detection
             if ((spriteColour != 0)) {
                 if (lineOAM[i * 6] == 1) {
-<<<<<<< HEAD
-                    if (((ppuRegisters[1] & 0x18) == 0x18)) {
-
-                        if (backgroundColour != 0) {
-                            ppuRegisters[2] |= 0x40;
-                        }
-
-=======
                     if ((ppuRegisters[1] & 0x18) == 0x18) {
 
                         if (backgroundColour != 0) {
@@ -509,7 +477,6 @@ inline void PPU::drawPixel(int cycle, int line) {
                                 ppuRegisters[2] |= 0x40;    //this alone makes NEStress flicker
                             }
                         }
->>>>>>> beedd57fb5371382c1742866fde1acc0000e213d
                         
                     }
                 }
@@ -658,16 +625,6 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                     updateSecondaryOAM(line);
                 }
 
-<<<<<<< HEAD
-=======
-                /*
-                if (spriteZeroFlag) {
-                    ppuRegisters[2] |= 0x40;
-                    spriteZeroFlag = false;
-                }
-                */
-
->>>>>>> beedd57fb5371382c1742866fde1acc0000e213d
             } 
         } else if (line == 240) {
             continue;
@@ -682,14 +639,9 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                     ppuRegisters[2] |= 0x80;
                 }
                 
-<<<<<<< HEAD
-
             } else if (cyc == 2) {
 
                 //throw NMI (should this be cyc == 1)? this matched nintendulator apparently
-=======
-                //throw NMI (set on tick 2?)
->>>>>>> beedd57fb5371382c1742866fde1acc0000e213d
                 if ((ppuRegisters[0] & 0x80) && (ppuRegisters[2] & 0x80)) {
                     *NMI = true;
                 }
@@ -726,16 +678,6 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                 if (ppuRegisters[1] & 0x18) {
                     updateSecondaryOAM(line);
                 }
-<<<<<<< HEAD
-=======
-                
-                /*
-                if (spriteZeroFlag) {
-                    ppuRegisters[2] |= 0x40;
-                    spriteZeroFlag = false;
-                }
-                */
->>>>>>> beedd57fb5371382c1742866fde1acc0000e213d
 
                 draw = true;
             } 

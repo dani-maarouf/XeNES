@@ -199,6 +199,8 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
                 //0x40 to match nintendulator log
                 return returnControllerBit() | 0x40;
             }
+        } else if (memAddress == 0x4017) {
+            return 0x40;    //to match nintendulator
         }
         return ioRegisters[ memAddress - 0x4000 ];
     } else if (memAddress < 0x6000) {
