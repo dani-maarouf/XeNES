@@ -106,7 +106,6 @@ CPU::CPU() {
 
     nesPPU = PPU();
 
-    for (int x = 0; x < 0x20; x++) ioRegisters[x] = 0;
     for (int x = 0; x < 0x2000; x++) cpuMem[x] = 0x0;
     for (int x = 0; x < 0x800; x++) RAM[x] = 0x0;
     for (int x = 0; x < 8; x++) PS[x] = false;
@@ -159,20 +158,21 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
 
             if (address == 0x2) {
         
-                
+                /*
                 //ppu/cpu synchronization hack
-                if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 241 + 2) && (cpuClock % (262 * 341)) >= (341 * 241 + 2) ) {
+                if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 241 + 1) && (cpuClock % (262 * 341)) >= (341 * 241 + 1) ) {
                     nesPPU.ppuRegisters[2] |= 0x80;
                     nesPPU.suppressVBL = true;
                     NMI = false;
-                } else if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 241 + 1) && (cpuClock % (262 * 341)) >= (341 * 241 + 1) ) {
+                } else if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 241 + 0 ) && (cpuClock % (262 * 341)) >= (341 * 241 + 0) ) {
                     nesPPU.suppressVBL = true;
                     NMI = false;
-                } else if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 261 + 2) && (cpuClock % (262 * 341)) >= (341 * 261 + 2) ) {
+                } else if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 261 + 1) && (cpuClock % (262 * 341)) >= (341 * 261 + 1) ) {
                     NMI = false;
                     nesPPU.ppuRegisters[2] &= 0x1F;
                     NMI = false;
                 }
+                */
                 
                 
 
@@ -197,12 +197,11 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
         if (memAddress == 0x4016) {
             if (readController) {
                 //0x40 to match nintendulator log
-                return returnControllerBit() | 0x40;
+                return returnControllerBit();
             }
-        } else if (memAddress == 0x4017) {
-            return 0x40;    //to match nintendulator
         }
-        return ioRegisters[ memAddress - 0x4000 ];
+        
+        return nesAPU.registers[ memAddress - 0x4000 ];
     } else if (memAddress < 0x6000) {
         return cpuMem[memAddress - 0x4000];
     } else if (memAddress < 0x8000) {
@@ -258,7 +257,7 @@ inline void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
                 readController = true;
             }
         }
-        ioRegisters[memAddress - 0x4000] = byte;
+        nesAPU.registers[memAddress - 0x4000] = byte;
 
     } else if (memAddress < 0x6000) {
 
@@ -375,19 +374,21 @@ void CPU::executeNextOpcode(bool debug) {
 
     enum InstructionType instrType = opInstrTypes[opnameMap[opcode]];
     cpuClock += cycles[instrType * 13 + opAddressMode] * 3;
+
     if (instrType == READ) {
         if (pass) {
             cpuClock += 3;
         }
     }
 
-    
+    /*
     if (nesPPU.ppuRegisters[1] & 0x8) {
         if (nesPPU.ppuClock % (262 * 341 * 2) > cpuClock % (262 * 341 * 2)) {
             cpuClock++;
             nesPPU.suppressCpuTickSkip = true;
         }
     }
+    */
     
 
 

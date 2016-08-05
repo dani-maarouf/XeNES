@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include "PPU.hpp"
+#include "APU.hpp"
 
 enum ProcessorStatusIndex {
     C = 0,       //carry flag
@@ -57,6 +58,8 @@ private:
 public:
 
     PPU nesPPU;
+    APU nesAPU;
+    
     uint64_t cpuClock;          //time in ppu ticks
 
     //info
@@ -70,7 +73,6 @@ public:
     uint8_t controllerByte;     //controller 1
 
     //hardware
-    uint8_t ioRegisters[0x20];          //joystick and apu registers
     uint8_t * PRG_ROM;          //cartridge program ROM
     uint8_t * PRG_RAM;          //cartridge program RAM
 
