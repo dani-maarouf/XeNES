@@ -26,7 +26,7 @@ private:
     uint8_t m_PaletteNew;    
 
     //registers
-    bool spriteZeroFlag;                //hack to make sprite 0 work on smb
+    //bool spriteZeroFlag;                //hack to make sprite 0 work on smb
     uint8_t m_x;                        //fine x scroll
     uint16_t m_v;                       //current vram address
     uint16_t m_t;                       //temporary vram address
@@ -46,8 +46,6 @@ private:
     void updateSecondaryOAM(int);
 
 public:
-
-
 
     //0-7 = $2000 - $2007
     int writeFlag;

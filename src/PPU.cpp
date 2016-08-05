@@ -62,30 +62,18 @@ PPU::PPU() {
     for (int x = 0; x < 6 * 8; x++) lineOAM[x] = 0x0;
     
     evenFrame = true;
-    draw = false;
-    spriteZeroFlag = false;
-    addressLatch = false;
-    m_v = 0;
-    m_t = 0;
-    m_x = 0;
-    oamAddress = 0x0;
+    draw = addressLatch = suppressVBL = false;
+
+    m_v = m_t = m_x = 0;
+
+    oamAddress = 0;
     CHR_ROM = NULL;
     readBuffer = 0;
 
     //render
-    m_SpriteOld1 = 0;
-    m_SpriteOld2 = 0;
-    m_PaletteOld = 0;
-    m_SpriteNew1 = 0;
-    m_SpriteNew2 = 0;
-    m_PaletteNew = 0;
-
-    suppressVBL = false;
-
+    m_SpriteOld1 = m_SpriteOld2 = m_PaletteOld = m_SpriteNew1 = m_SpriteNew2 = m_PaletteNew = 0;
     ppuClock = 0;
-
-    writeFlag = -1;
-    readFlag = -1;
+    writeFlag = readFlag = -1;
 
     return;
 }
@@ -118,7 +106,7 @@ inline void PPU::loadNewTile() {
 }
 
 inline uint8_t PPU::getPpuByte(uint16_t address) {
-    address %= 0x4000;
+    address &= 0x3FFF;
 
 	if (address < 0x2000) {
 		
@@ -497,10 +485,10 @@ inline void PPU::drawPixel(int cycle, int line) {
                     if ((ppuRegisters[1] & 0x18) == 0x18) {
 
                         if (backgroundColour != 0) {
-                            spriteZeroFlag = true;	//this alone makes NEStress flicker
+                            if (cycle < 256) {
+                                ppuRegisters[2] |= 0x40;    //this alone makes NEStress flicker
+                            }
                         }
-                        spriteZeroFlag = true;
-
                         
                     }
                 }
@@ -532,8 +520,8 @@ inline void PPU::updateSecondaryOAM(int line) {
         yPos = OAM[x * 4];
 
         //determine whether sprite will appear on next scanline
-        if ((((line + 1) % 262) - yPos < 8 && ((line + 1) % 262) - yPos >= 0 && (yPos < 240) && (OAM[x * 4 + 3] < 255) && ((ppuRegisters[0x0] & 0x20) == 0)) ||     //8x8
-            (((line + 1) % 262) - yPos < 16 && ((line + 1) % 262) - yPos >= 0 && (yPos < 240) && (OAM[x * 4 + 3] < 255) && ((ppuRegisters[0x0] & 0x20))))            //16x8
+        if ((((line) % 262) - yPos < 8 && ((line) % 262) - yPos >= 0 && (yPos < 240) && (OAM[x * 4 + 3] < 255) && ((ppuRegisters[0x0] & 0x20) == 0)) ||     //8x8
+            (((line) % 262) - yPos < 16 && ((line) % 262) - yPos >= 0 && (yPos < 240) && (OAM[x * 4 + 3] < 255) && ((ppuRegisters[0x0] & 0x20))))            //16x8
             {
 
             //load sprite to sOAM if in range of next scanline
@@ -554,9 +542,9 @@ inline void PPU::updateSecondaryOAM(int line) {
                 //row location of pixel in sprite data
                 int spriteRowNumber;
                 if (OAM[x * 4 + 2] & 0x80) {
-                    spriteRowNumber = 7 -(line + 1 - yPos);
+                    spriteRowNumber = 7 -(line - yPos);
                 } else {
-                    spriteRowNumber = (line + 1- yPos);
+                    spriteRowNumber = (line- yPos);
                 }
 
                 //pattern data for sprite
@@ -641,10 +629,12 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                     updateSecondaryOAM(line);
                 }
 
+                /*
                 if (spriteZeroFlag) {
                     ppuRegisters[2] |= 0x40;
                     spriteZeroFlag = false;
                 }
+                */
 
             } 
         } else if (line == 240) {
@@ -695,10 +685,12 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
                     updateSecondaryOAM(line);
                 }
                 
+                /*
                 if (spriteZeroFlag) {
                     ppuRegisters[2] |= 0x40;
                     spriteZeroFlag = false;
                 }
+                */
 
                 draw = true;
                 evenFrame ^= true;
