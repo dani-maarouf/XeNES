@@ -17,7 +17,10 @@ int main(int argc, char ** argv) {
     todo:
 
     fix sprite rendering, output pixel alignment, sprite 0 hits and ppu even and odd frame timing
+<<<<<<< HEAD
 
+=======
+>>>>>>> beedd57fb5371382c1742866fde1acc0000e213d
 
     */
 

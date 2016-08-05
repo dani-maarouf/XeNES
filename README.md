@@ -1,5 +1,7 @@
 # XeNES
 
+Cross platform NES emulator. Works with Linux, Mac, Windows, Wine and more.
+
 ## Input
 | NES  | Keyboard |
 |------|----------|
@@ -16,11 +18,20 @@
 
 #### Linux:
 	
-Requires SDL2
+Requires SDL2 development libraries to be installed
 
 Run `make` to compile program
 
 Use program by running `./XeNES ROM.nes` 
+
+#### Mac:
+	
+Requires SDL2 development libraries to be installed (brew recommended)
+
+Run `make mac` to compile program
+
+Use program by running `./XeNES ROM.nes` 
+
 
 ## Playable games
 

@@ -26,6 +26,10 @@ private:
     uint8_t m_PaletteNew;    
 
     //registers
+<<<<<<< HEAD
+=======
+    //bool spriteZeroFlag;                //hack to make sprite 0 work on smb
+>>>>>>> beedd57fb5371382c1742866fde1acc0000e213d
     uint8_t m_x;                        //fine x scroll
     uint16_t m_v;                       //current vram address
     uint16_t m_t;                       //temporary vram address

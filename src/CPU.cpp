@@ -93,7 +93,7 @@ static const int cycles[] = {
 //table of opcode lengths for advancing PC
                                    //0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F
 static const int opcodeLens[0x20] = {2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3,  //0 2 4 6 8 A C E
-                                     2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3,};//1 3 5 7 9 B D F
+                                     2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3}; //1 3 5 7 9 B D F
 
 static inline uint8_t getPswByte(bool *);
 static inline void getPswFromByte(bool * PS, uint8_t byte);
@@ -111,25 +111,14 @@ CPU::CPU() {
     for (int x = 0; x < 0x800; x++) RAM[x] = 0x0;
     for (int x = 0; x < 8; x++) PS[x] = false;
 
-    PRG_ROM = NULL;
-    PRG_RAM = NULL;
-
+    PRG_ROM = PRG_RAM = NULL;
     SP = 0xFD;
-    A  = 0x0;
-    X  = 0x0;
-    Y  = 0x0;
-
+    A = X = Y = 0x0;
     NMI = false;
     PS[I] = true;
-
     cpuClock = 0;
-
-    controllerByte = 0;
-    storedControllerByte = 0;
-    currentControllerBit = 0;
+    controllerByte = storedControllerByte = currentControllerBit = 0;
     readController = false;
-
-
 
     return;
 }
@@ -182,7 +171,7 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
                 } else if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 261 + 2) && (cpuClock % (262 * 341)) >= (341 * 261 + 2) ) {
                     NMI = false;
                     nesPPU.ppuRegisters[2] &= 0x1F;
-
+                    NMI = false;
                 }
                 
                 
@@ -210,8 +199,6 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
                 //0x40 to match nintendulator log
                 return returnControllerBit() | 0x40;
             }
-        } else if (memAddress == 0x4017) {
-            return 0x40;
         }
         return ioRegisters[ memAddress - 0x4000 ];
     } else if (memAddress < 0x6000) {
@@ -260,8 +247,6 @@ inline void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
                 cpuClock += 513 * 3; 
             }
 
-            
-
         } else if (memAddress == 0x4016) {
             if ((byte & 0x1) == 0x1) {
                 storedControllerByte = controllerByte;
@@ -290,7 +275,8 @@ inline void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
     return;
 }
 
-inline uint16_t CPU::retrieveCpuAddress(enum AddressMode mode, bool * pagePass, uint8_t firstByte, uint8_t secondByte) {
+inline uint16_t CPU::retrieveCpuAddress(enum AddressMode mode, bool * pagePass,
+    uint8_t firstByte, uint8_t secondByte) {
 
     *pagePass = false;
 
@@ -790,10 +776,8 @@ void CPU::executeNextOpcode(bool debug) {
         case 0x68:              //PLA
         SP++;
         cpuClock += 3;
-
         A = getCpuByte(SP + 0x100, true);
         cpuClock += 3;
-
         PS[N] = getBit(A, 7);
         PS[Z] = (A == 0) ? true : false;
         break;
@@ -801,7 +785,6 @@ void CPU::executeNextOpcode(bool debug) {
         case 0x28:                 //PLP
         SP++;
         cpuClock += 3;
-
         getPswFromByte(PS, getCpuByte(SP + 0x100, true));
         cpuClock += 3;
         break;
