@@ -114,7 +114,7 @@ inline uint8_t PPU::getPpuByte(uint16_t address) {
 			return getPpuMapper0(address, CHR_ROM);
 		} else {
 			std::cerr << "Fatal error, mapper not recognized in getPpuByte()" << std::endl;
-			exit(1);
+			exit(EXIT_FAILURE);
 			return 0;
 		}
 

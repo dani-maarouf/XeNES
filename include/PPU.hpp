@@ -17,7 +17,7 @@ class PPU {
 
 private:
 
-    //render
+    //render variables
     uint8_t m_SpriteOld1;
     uint8_t m_SpriteOld2;
     uint8_t m_PaletteOld;
@@ -32,16 +32,16 @@ private:
     uint8_t readBuffer;                 //$2007 buffer
 
     //hardware
-    uint8_t palette[0x20];
+    uint8_t palette[0x20];              //palette indicies
     uint8_t VRAM[0x1000];               //4kB PPU internal VRAM
     uint8_t lineOAM[6 * 8];             //secondary oam, not faithful to hardware
 
-    void loadNewTile();
+    void loadNewTile();                 //load rendering variables
     void setPpuByte(uint16_t, uint8_t); //set byte in PPU address space
     uint8_t getPpuByte(uint16_t);       //get byte from PPU address space
-    void ppuFlagUpdate(bool *);
-    void drawPixel(int, int);
-    void updateSecondaryOAM(int);
+    void ppuFlagUpdate(bool *);         //update state based on register access
+    void drawPixel(int, int);           //draw background and sprite pixels
+    void updateSecondaryOAM(int);       //prepare secondary oam for next line
 
 public:
 
@@ -51,15 +51,14 @@ public:
 
     //registers
     uint8_t oamAddress;                 //current OAM address
-    bool suppressVBL;
+    bool suppressVBL;                   //dont throw up vbl flag
     bool suppressCpuTickSkip;
-
 
     //info/configuration
     bool draw;                          //draw frame?
-    uint64_t ppuClock;
-    int numRomBanks;
-    int ppuMapper;
+    uint64_t ppuClock;                  
+    int numRomBanks;                    //number of 4kb rom banks
+    int ppuMapper;                      //cartridge mapper
     bool usesRAM;                       //true if CHR_RAM is used rather than CHR_ROM
     enum Mirroring mirroring;           //nametable arrangement
 
@@ -70,8 +69,7 @@ public:
     uint8_t pixels[256 * 240];
 
     PPU();
-    void setVblank(bool);
-    void tick(bool *, uint64_t *);             //one PPU tick is executed
+    void tick(bool *, uint64_t *);      //one PPU tick is executed
     void freePointers();                //free memory
     uint8_t return2007();               //return $2007
 

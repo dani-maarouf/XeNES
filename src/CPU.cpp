@@ -9,6 +9,8 @@
                             (bit == 2) ? (num & 0x4) : (bit == 3) ? (num & 0x8) :   \
                             (bit == 4) ? (num & 0x10) : (bit == 5) ? (num & 0x20) : \
                             (bit == 6) ? (num & 0x40) : (num & 0x80)
+
+//used to calculate number of cpu ticks for each instruction
 enum InstructionType {
     READ   = 0,     //read from mem address
     WRITE  = 1,     //write to mem address
@@ -17,6 +19,7 @@ enum InstructionType {
     OTHER  = 4,     //note: above 4 are not applicable to every opcode
 };
 
+//memory addressing mode for each opcode
 static const enum AddressMode addressModes[] = {
   //0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
     IMP, INDX,NONE,INDX,ZRP ,ZRP ,ZRP ,ZRP ,IMP, IMM, ACC, NONE,ABS, ABS ,ABS, ABS,   //0
@@ -37,30 +40,7 @@ static const enum AddressMode addressModes[] = {
     REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //F
 }; 
 
-//opcode mnemonics for debugging
-static const char * opnames[] = {
-    //0     1      2      3      4      5      6      7      8      9
-    "$$$", "ADC", "AND", "ASL", "BCC", "BCS", "BEQ", "BIT", "BMI", "BNE", //0
-    "BPL", "BRK", "BVC", "BVS", "CLC", "CLD", "CLI", "CLV", "CMP", "CPX", //1
-    "CPY","*DCP", "DEC", "DEX", "DEY", "EOR", "INC", "INX", "INY","*ISB", //2
-    "JMP", "JSR","*LAX", "LDA", "LDX", "LDY", "LSR", "NOP","*NOP", "ORA", //3
-    "PHA", "PHP", "PLA", "PLP","*RLA", "ROL", "ROR","*RRA", "RTI", "RTS", //4
-   "*SAX","*SBC", "SBC", "SEC", "SED", "SEI","*SLO","*SRE", "STA", "STX", //5
-    "STY", "TAX", "TAY", "TSX", "TXA", "TXS", "TYA"                       //6
-};      
-
-static const enum InstructionType opInstrTypes[] = {
-    //0    1      2      3      4      5      6      7      8      9   
-    OTHER, READ,  READ,  R_M_W, OTHER, OTHER, OTHER, READ,  OTHER, OTHER, //0
-    OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, READ,  READ,  //1
-    READ,  WRITE2,R_M_W, OTHER, OTHER, READ,  R_M_W, OTHER, OTHER, WRITE2,//2
-    OTHER, OTHER, READ,  READ,  READ,  READ,  R_M_W, READ,  READ,  READ,  //3
-    OTHER, OTHER, OTHER, OTHER, WRITE2,R_M_W, R_M_W, WRITE2,OTHER, OTHER, //4
-    WRITE, READ,  READ,  OTHER, OTHER, OTHER, WRITE2,WRITE2,WRITE, WRITE, //5
-    WRITE, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER                       //6
-};         
-
-//opcode mnemonic mapping for debugging
+//opcode mapping to assembly mnemonics and instruction type
 static const int opnameMap[] = {
    //0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
     11,39, 0,56,38,39, 3,56,41,39, 3, 0,38,39, 3,56,  //0
@@ -80,6 +60,30 @@ static const int opnameMap[] = {
     19,52, 0,29,19,52,26,29,27,52,37,51,19,52,26,29,  //E
      6,52, 0,29,38,52,26,29,54,52,38,29,38,52,26,29,  //F
 };
+
+//opcode mnemonics for debugging
+static const char * opnames[] = {
+    //0     1      2      3      4      5      6      7      8      9
+    "$$$", "ADC", "AND", "ASL", "BCC", "BCS", "BEQ", "BIT", "BMI", "BNE", //0
+    "BPL", "BRK", "BVC", "BVS", "CLC", "CLD", "CLI", "CLV", "CMP", "CPX", //1
+    "CPY","*DCP", "DEC", "DEX", "DEY", "EOR", "INC", "INX", "INY","*ISB", //2
+    "JMP", "JSR","*LAX", "LDA", "LDX", "LDY", "LSR", "NOP","*NOP", "ORA", //3
+    "PHA", "PHP", "PLA", "PLP","*RLA", "ROL", "ROR","*RRA", "RTI", "RTS", //4
+   "*SAX","*SBC", "SBC", "SEC", "SED", "SEI","*SLO","*SRE", "STA", "STX", //5
+    "STY", "TAX", "TAY", "TSX", "TXA", "TXS", "TYA"                       //6
+};      
+
+//opcode types for tick calculation
+static const enum InstructionType opInstrTypes[] = {
+    //0    1      2      3      4      5      6      7      8      9   
+    OTHER, READ,  READ,  R_M_W, OTHER, OTHER, OTHER, READ,  OTHER, OTHER, //0
+    OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER, READ,  READ,  //1
+    READ,  WRITE2,R_M_W, OTHER, OTHER, READ,  R_M_W, OTHER, OTHER, WRITE2,//2
+    OTHER, OTHER, READ,  READ,  READ,  READ,  R_M_W, READ,  READ,  READ,  //3
+    OTHER, OTHER, OTHER, OTHER, WRITE2,R_M_W, R_M_W, WRITE2,OTHER, OTHER, //4
+    WRITE, READ,  READ,  OTHER, OTHER, OTHER, WRITE2,WRITE2,WRITE, WRITE, //5
+    WRITE, OTHER, OTHER, OTHER, OTHER, OTHER, OTHER                       //6
+};         
 
 //cpu cycles taken for different address modes
 static const int cycles[] = {
@@ -105,6 +109,7 @@ static void printDebugLine(uint16_t, uint8_t, uint8_t, uint8_t, enum AddressMode
 CPU::CPU() {
 
     nesPPU = PPU();
+    nesAPU = APU();
 
     for (int x = 0; x < 0x2000; x++) cpuMem[x] = 0x0;
     for (int x = 0; x < 0x800; x++) RAM[x] = 0x0;
@@ -212,7 +217,7 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
             return getCpuMapper0(memAddress, numRomBanks, PRG_ROM);
         } else {
             std::cerr << "Fatal error, mapper not recognized in getCpuByte()" << std::endl;
-            exit(1);
+            exit(EXIT_FAILURE);
             return 0;
         }
     }
@@ -249,7 +254,7 @@ inline void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
             }
 
         } else if (memAddress == 0x4016) {
-            if ((byte & 0x1) == 0x1) {
+            if ((byte & 0x1)) {
                 storedControllerByte = controllerByte;
                 readController = false;
             } else {
@@ -270,7 +275,8 @@ inline void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
     } else {
         /* memAddress >= 0x8000 && memAddress <= 0xFFFF */
         std::cerr << "Segmentation fault! Can't write to 0x" << std::hex << memAddress << std::endl;
-        exit(1);
+        exit(EXIT_FAILURE);
+        return;
     }
 
     return;
@@ -331,7 +337,9 @@ inline uint16_t CPU::retrieveCpuAddress(enum AddressMode mode, bool * pagePass,
         }
 
         default:
-        exit(1);
+        std::cerr << "Fatal error. Addressing type not recognized" << std::endl;
+        exit(EXIT_FAILURE);
+        return 0;
     }
 }
 
@@ -1002,7 +1010,8 @@ void CPU::executeNextOpcode(bool debug) {
         
         default: 
         std:: cout << " Unrecognized opcode : " << std::hex << (int) opcode << std::endl;
-        exit(1);
+        exit(EXIT_FAILURE);
+        break;
     }
 
     return;

@@ -10,7 +10,7 @@ int main(int argc, char ** argv) {
         std::cout << "\nPlease call program with format: '" << argv[0] << " ROM.nes'\n" << std::endl;
 
         std::cout << "Flags:\n-t\t\t\tAutomated testing" << std::endl;
-        return 1;
+        return EXIT_FAILURE;
     }
 
     /*
@@ -25,11 +25,11 @@ int main(int argc, char ** argv) {
     if (!nesSystem.openCartridge(argv[1])) {
         std::cerr << "Could not load ROM : " << argv[1] << std::endl;
         nesSystem.closeCartridge();
-        return 1;
+        return EXIT_FAILURE;
     }
 
     loop(nesSystem, argv[1]);
 
     nesSystem.closeCartridge();
-    return 0;
+    return EXIT_SUCCESS;
 }

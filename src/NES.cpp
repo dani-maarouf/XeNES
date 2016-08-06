@@ -20,6 +20,7 @@ void NES::closeCartridge() {
 bool NES::openCartridge(const char * fileLoc) {
 
     if (fileLoc == NULL) {
+        std::cerr << "Error: File location is NULL" << std::endl;
         return false;
     }
 
@@ -27,29 +28,21 @@ bool NES::openCartridge(const char * fileLoc) {
     romFile.open(fileLoc, std::ios::binary);
 
     if (!romFile.is_open()) {
+        std::cerr << "Error: File " << fileLoc << " can not be accessed or does not exist" << std::endl;
         return false;
     }
 
     uint8_t flags[16];
+    int prg_rom_size = 0;   //number of 16KB ROM blocks
+    int chr_rom_size = 0;   //number of 8KB VROM blocks
+    int prg_ram_size = 0;   //number of 8KB RAM blocks
+    int prgRomBytes = 0;    //size of program rom in bytes
+    int chrRomBytes = 0;    //size of vrom in bytes
+    int prgRamBytes = 0;    //size of program ram in bytes
+    int mapperNumber;       //mapper
 
-    uint8_t prg_rom_size = 0;   //number of 16KB ROM blocks
-    uint8_t chr_rom_size = 0;   //number of 8KB VROM blocks
-    uint8_t prg_ram_size = 0;   //number of 8KB RAM blocks
 
-    uint8_t mapperNumber;
-
-    //bool batteryRAM = false;
-    bool trainer = false;
-
-    bool NTSC;      //false = PAL
-    NTSC = false;
-
-    int prgRomBytes = 0;
-    int chrRomBytes = 0;
-    int prgRamBytes = 0;
-
-    int index;
-    index = 0;
+    int index = 0;          //loop variable for reading file
 
     while (romFile) {
         char c;
@@ -63,7 +56,7 @@ bool NES::openCartridge(const char * fileLoc) {
         } else {
             if (index == 16) {
                 if (flags[0] != 0x4E || flags[1] != 0x45 || flags[2] != 0x53 || flags[3] != 0x1A) {
-                    std::cerr << "iNes file format not recognized!" << std::endl;
+                    std::cerr << "Error: iNes file format not recognized!" << std::endl;
                     romFile.close();
                     return false;
                 }
@@ -129,14 +122,11 @@ bool NES::openCartridge(const char * fileLoc) {
                 if ((flags[6] & 0x2) == 0x2) {
                     //batteryRAM = true;
                 }
-                if ((flags[6] & 0x4) == 0x4) {
+                if ((flags[6] & 0x4)) {
                     std::cout << "Trainer present" << std::endl;
-                    trainer = true;
                     romFile.close();
                     return false;
                 }
-
-                
 
                 if ((flags[7] & 0xC) == 0x8) {
                     std::cout << "NES 2.0 format" << std::endl;
@@ -176,17 +166,12 @@ bool NES::openCartridge(const char * fileLoc) {
                 }
 
 
-                if ((flags[9] & 0x1) == 0x1) {
-                    NTSC = false;
-                } else {
-                    NTSC = true;
-                }
-            }
+                if ((flags[9] & 0x1)) {
+                    std::cerr << "PAL ROM detected. Only NTSC supported. Quitting" << std::endl;
+                    romFile.close();
+                    return false;
 
-            if (trainer) {
-                std::cout << "Trainer detected. Quitting." << std::endl;
-                romFile.close();
-                return false;
+                }
             }
 
             if (index < 16 + prgRomBytes) {
@@ -197,12 +182,6 @@ bool NES::openCartridge(const char * fileLoc) {
             
             index++;
         }
-    }
-
-    if (NTSC == false) {
-        std::cerr << "PAL detected. Quitting" << std::endl;
-        romFile.close();
-        return false;
     }
 
     nesCPU.numRomBanks = prg_rom_size;
