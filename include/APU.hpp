@@ -11,6 +11,11 @@ public:
     int audioBufferSize;
     uint64_t sampleClock;
 
+    int lengthCounterPulse1;
+    int lengthCounterPulse2;
+    int lengthCounterTriangle;
+    int lengthCounterNoise;
+
     APU();
     void fillBuffer();
 };

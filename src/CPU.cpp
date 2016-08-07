@@ -5,6 +5,12 @@
 #include "CPU.hpp"
 #include "mappers.hpp"
 
+const int lengthTable[] = {
+    10,254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
+    12, 16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30,
+};
+
+
 #define getBit(num, bit)    (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) :   \
                             (bit == 2) ? (num & 0x4) : (bit == 3) ? (num & 0x8) :   \
                             (bit == 4) ? (num & 0x10) : (bit == 5) ? (num & 0x20) : \
@@ -199,7 +205,29 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
         return nesPPU.ppuRegisters[address];
     } else if (memAddress < 0x4020) {
 
-        if (memAddress == 0x4016) {
+        if (memAddress == 0x4015) {
+            uint8_t returnByte = 0;
+
+            if (nesAPU.lengthCounterPulse1 > 0) {
+                returnByte |= 0x1;
+            }
+
+            if (nesAPU.lengthCounterPulse2 > 0) {
+                returnByte |= 0x2;
+            }
+
+            if (nesAPU.lengthCounterTriangle > 0) {
+                returnByte |= 0x4;
+            }
+
+            if (nesAPU.lengthCounterNoise > 0) {
+                returnByte |= 0x8;
+            }
+
+            return returnByte;
+
+
+        } else if (memAddress == 0x4016) {
             if (readController) {
                 return returnControllerBit();
             }
@@ -253,6 +281,55 @@ inline void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
                 //even cycle
                 cpuClock += 513 * 3; 
             }
+
+        } else if (memAddress == 0x4015) {
+
+
+            if (byte & 0x1) {
+                if (nesAPU.lengthCounterPulse1 < 1) {
+                    int lengthCounter;
+                    lengthCounter = nesAPU.registers[3] >> 3;
+                    nesAPU.lengthCounterPulse1 = lengthTable[lengthCounter];
+                }
+
+            } else {
+                nesAPU.lengthCounterPulse1 = 0;
+            }
+
+            if (byte & 0x2) {
+                if (nesAPU.lengthCounterPulse2 < 1) {
+                    int lengthCounter;
+                    lengthCounter = nesAPU.registers[7] >> 3;
+                    nesAPU.lengthCounterPulse2 = lengthTable[lengthCounter];
+                }
+
+            } else {
+                nesAPU.lengthCounterPulse2 = 0;
+            }
+
+            if (byte & 0x4) {
+                if (nesAPU.lengthCounterTriangle < 1) {
+                    int lengthCounter;
+                    lengthCounter = nesAPU.registers[0xB] >> 3;
+                    nesAPU.lengthCounterTriangle = lengthTable[lengthCounter];
+                }
+
+            } else {
+                nesAPU.lengthCounterTriangle = 0;
+            }
+
+            if (byte & 0x8) {
+                if (nesAPU.lengthCounterNoise < 1) {
+                    int lengthCounter;
+                    lengthCounter = nesAPU.registers[0xF] >> 3;
+                    nesAPU.lengthCounterNoise = lengthTable[lengthCounter];
+                }
+
+            } else {
+                nesAPU.lengthCounterNoise = 0;
+            }
+
+            //std::cout << "4015 set: " << std::hex << (int) byte << std::endl;
 
         } else if (memAddress == 0x4016) {
             if ((byte & 0x1)) {
