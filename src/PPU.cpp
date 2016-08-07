@@ -182,7 +182,7 @@ inline uint8_t PPU::getPpuByte(uint16_t address) {
 }
 
 inline void PPU::setPpuByte(uint16_t address, uint8_t byte) {
-    address %= 0x4000;
+    address &= 0x3FFF;
 
     if (address < 0x1000) {
         CHR_ROM[address] = byte;    //needed for vbl_nmi_timing test roms
@@ -333,10 +333,8 @@ inline void PPU::ppuFlagUpdate(bool * NMI) {
     //process state changes due to register read
     if (readFlag == 2) {
         addressLatch = false;
-
         ppuRegisters[2] &= 0x7F;
         *NMI = false;
-
 
     } else if (readFlag == 4) {
 

@@ -71,7 +71,7 @@ bool NES::openCartridge(const char * fileLoc) {
                 nesCPU.nesPPU.ppuMapper = mapperNumber;
 
                 if (mapperNumber != 0 && mapperNumber != 1) {
-                    std::cout << "Unrecognized mapper : " << (int) mapperNumber << std::endl;
+                    std::cerr << "Unrecognized mapper : " << (int) mapperNumber << std::endl;
                     std::cerr << "Rom size : " << (int) prg_rom_size << std::endl;
                     romFile.close();
                     return false;

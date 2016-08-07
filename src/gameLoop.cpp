@@ -3,11 +3,6 @@
 
 #include "NES.hpp"
 
-const double MILLISECONDS_PER_FRAME = 1000.0/60.0; //60FPS
-const int SCALE_FACTOR = 2;                  //size of each NES display pixel in real pixels
-const bool REMOVE_OVERSCAN = true;
-const bool DEBUG = false;
-
 //obtained from blargg's Full Palette demo
 const uint32_t paletteTable [] = {
     ( 84<<16)|( 84<<8)|( 84),(  0<<16)|( 30<<8)|(116),(  8<<16)|( 16<<8)|(144),( 48<<16)|(  0<<8)|(136),
@@ -28,11 +23,73 @@ const uint32_t paletteTable [] = {
     (160<<16)|(214<<8)|(228),(160<<16)|(162<<8)|(160),(  0<<16)|(  0<<8)|(  0),(  0<<16)|(  0<<8)|(  0),
 };
 
+/* consts */
+const double MILLISECONDS_PER_FRAME = 1000.0/60.0; //60FPS
+const int SCALE_FACTOR = 2;                  //size of each NES display pixel in real pixels
+const bool REMOVE_OVERSCAN = true;
+const bool DEBUG = false;
+
+/* SDL video */
 SDL_Window * window = NULL;     //SDL window
 SDL_Renderer * renderer = NULL; //SDL renderer
 SDL_Texture * texture = NULL;   //SDL texture
 uint32_t localPixels[256 * 240];
 
+/* SDL audio */
+const int samplingFrequency = 48000;
+const int sampleBytes = sizeof(int16_t) * 2;
+const int channels = 2;
+const SDL_AudioFormat format = AUDIO_S16LSB;
+uint64_t sampleClock = 0;
+SDL_AudioDeviceID sdlAudioDevice = 0;
+
+void generateAndQueueSquare(int bytesToQueue, uint64_t * clock, int period, int volume) {
+
+    int16_t * SoundBuffer = (int16_t *) malloc(bytesToQueue);
+    
+    for (int i = 0; i < (bytesToQueue/sampleBytes); i++, (*clock)++) {
+        //alternatives produces high and low signals based on current time and period
+        int16_t SampleValue = ((*clock / (period)) % 2) ? volume : -volume;
+        SoundBuffer[i * 2] = SampleValue;
+        SoundBuffer[i * 2 + 1] = SampleValue;
+
+    }
+
+    SDL_QueueAudio(sdlAudioDevice, (void *) SoundBuffer, bytesToQueue);
+
+    free(SoundBuffer);
+
+    return;
+}
+
+/*
+void queueTriangleWave(int bytesToQueue, uint64_t * clock, int period, int volume) {
+
+    int16_t * buffer = (int16_t *) malloc(bytesToQueue);
+    
+    for (int i = 0; i < (bytesToQueue/sampleBytes); i++, (*clock)++) {
+
+        int16_t sampleVal;
+        if (((*clock) / period) % 2) {
+            sampleVal = ((((*clock)) % (period)) - (period / 2)) * (volume * 8 / period);
+        } else {
+            sampleVal = ( (period / 2) -(((*clock)) % (period))) * (volume * 8 / period);
+        }
+
+        buffer[i * 2] = sampleVal;
+        buffer[i * 2 + 1] = sampleVal;
+
+    }
+
+    SDL_QueueAudio(sdlAudioDevice, (void *) buffer, bytesToQueue);
+    free(buffer);
+
+    return;
+}
+*/
+
+
+/* local function prototypes */
 static int getRefreshRate(SDL_Window * win);
 static bool initSDL(const char *);
 static void closeSDL();
@@ -52,9 +109,11 @@ void loop(NES nesSystem, const char * fileLoc) {
     bool paused = false;
     SDL_Event event;
 
-    //first draw
     for (int x = 0; x < 256 * 240; x++) localPixels[x] = 0;
-    draw(nesSystem.nesCPU.nesPPU.pixels);
+    draw(nesSystem.nesCPU.nesPPU.pixels);       //draw screen black
+    SDL_PauseAudioDevice(sdlAudioDevice, 0);    //unpause audio
+
+   
 
     for (;;) {
 
@@ -76,6 +135,21 @@ void loop(NES nesSystem, const char * fileLoc) {
         //3 draw
         draw(nesSystem.nesCPU.nesPPU.pixels);
 
+
+        int nesPeriod = ((nesSystem.nesCPU.nesAPU.registers[3] & 0x7) << 8) | (nesSystem.nesCPU.nesAPU.registers[2]);
+        
+        nesPeriod /= 2;
+
+
+        if (nesPeriod != 0) {
+            if (nesSystem.nesCPU.nesAPU.registers[0x15] & 0x1) {
+                generateAndQueueSquare(sampleBytes * 800, &sampleClock, nesPeriod, 1000);
+            }
+            
+
+        }
+        
+
         //4 sync framerate
         double delay = MILLISECONDS_PER_FRAME - (((SDL_GetPerformanceCounter() - startTime) / frequency) * 1000) - 0.5;
         if (delay > 0) {
@@ -85,6 +159,8 @@ void loop(NES nesSystem, const char * fileLoc) {
         
     }
 
+    SDL_PauseAudioDevice(sdlAudioDevice, 1);    //pause
+    SDL_ClearQueuedAudio(sdlAudioDevice);       //clear audio queue
     closeSDL();
 
     return;
@@ -109,6 +185,7 @@ static bool initSDL(const char * fileLoc) {
         return false;
     }
 
+    /*  START VIDEO */
     //set window title
     char windowTitle[100];
     strcpy(windowTitle, "XeNES: ");
@@ -144,7 +221,6 @@ static bool initSDL(const char * fileLoc) {
     if (renderer == NULL) {
         std::cerr << "Could not create SDL renderer : " << SDL_GetError() << std::endl;
         SDL_DestroyWindow(window);
-        window = NULL;
         SDL_Quit();
         return false;
     }
@@ -155,28 +231,45 @@ static bool initSDL(const char * fileLoc) {
     if (texture == NULL) {
         std::cerr << "Could not create SDL texture : " << SDL_GetError() << std::endl;
         SDL_DestroyRenderer(renderer);
-        renderer = NULL;
         SDL_DestroyWindow(window);
-        window = NULL;
         SDL_Quit();
         return false;
     }
 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, 0); 
-    
+    /* END VIDEO */
 
+    /* START AUDIO */
+    SDL_AudioSpec want;
+    SDL_memset(&want, 0, sizeof(want));
+
+    SDL_AudioSpec have;
+    want.freq = samplingFrequency;
+    want.format = format;        //32-bit floating point samples in little-endian byte order
+    want.channels = channels;
+    want.samples = samplingFrequency * sampleBytes / 60;
+
+    sdlAudioDevice = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
+
+    if (sdlAudioDevice == 0) {
+        std::cerr << "Failed to open audio : " << SDL_GetError() << std::endl;
+        SDL_DestroyTexture(texture);
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return false;
+    }
+
+    /* END AUDIO */
+    
     return true;
 }
 
 static void closeSDL() {
-
     SDL_DestroyTexture(texture);
-    texture = NULL;
     SDL_DestroyRenderer(renderer);
-    renderer = NULL;
     SDL_DestroyWindow(window);
-    window = NULL;
-
+    SDL_CloseAudioDevice(sdlAudioDevice);
     SDL_Quit();
     return;
 }

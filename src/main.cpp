@@ -5,11 +5,14 @@
 
 int main(int argc, char ** argv) {
 
-    if (argc != 2) {
-        std::cerr << "Invalid number of arguments. Expected one. Received " << argc - 1 << std::endl;
-        std::cout << "\nPlease call program with format: '" << argv[0] << " ROM.nes'\n" << std::endl;
 
-        std::cout << "Flags:\n-t\t\t\tAutomated testing" << std::endl;
+    if (argc != 2) {
+        if (argc != 1) {
+            std::cerr << "Invalid number of arguments. Expected one. Received " << argc - 1 << std::endl;
+        }
+        
+        std::cout << "\nPlease call program with format: '" << argv[0] << " ROM.nes'\n" << std::endl;
+        std::cout << "Flags:\n-t\t\t\tAutomated testing (not yet implemented)" << std::endl;
         return EXIT_FAILURE;
     }
 

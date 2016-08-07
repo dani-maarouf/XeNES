@@ -36,10 +36,10 @@ private:
     uint8_t VRAM[0x1000];               //4kB PPU internal VRAM
     uint8_t lineOAM[6 * 8];             //secondary oam, not faithful to hardware
 
-    void loadNewTile();                 //load rendering variables
     void setPpuByte(uint16_t, uint8_t); //set byte in PPU address space
     uint8_t getPpuByte(uint16_t);       //get byte from PPU address space
-    void ppuFlagUpdate(bool *);         //update state based on register access
+    void loadNewTile();                 //load shift registers with rendering bytes
+    void ppuFlagUpdate(bool *);         //update ppu state based on register access
     void drawPixel(int, int);           //draw background and sprite pixels
     void updateSecondaryOAM(int);       //prepare secondary oam for next line
 
@@ -71,7 +71,7 @@ public:
     PPU();
     void tick(bool *, uint64_t *);      //one PPU tick is executed
     void freePointers();                //free memory
-    uint8_t return2007();               //return $2007
+    uint8_t return2007();               //return ppudata for 'cpu get byte'
 
 };
 

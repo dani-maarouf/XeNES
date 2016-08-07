@@ -201,7 +201,6 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
 
         if (memAddress == 0x4016) {
             if (readController) {
-                //0x40 to match nintendulator log
                 return returnControllerBit();
             }
         }
@@ -247,17 +246,21 @@ inline void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
                 nesPPU.oamAddress = (nesPPU.oamAddress + 1) & 0xFF;
             }
 
-            if (cpuClock % 2) {
+            if (cpuClock % 2 == 1) {
+                //odd cycle
                 cpuClock += 514 * 3; 
             } else {
+                //even cycle
                 cpuClock += 513 * 3; 
             }
 
         } else if (memAddress == 0x4016) {
             if ((byte & 0x1)) {
+                //controller state is read into shift registers
                 storedControllerByte = controllerByte;
                 readController = false;
             } else {
+                //serial controller data can start being read starting from bit 0
                 currentControllerBit = 0;
                 readController = true;
             }
@@ -368,6 +371,8 @@ void CPU::executeNextOpcode(bool debug) {
         return;
     }
 
+    /* PREPARE TO EXECUTE OPCODE */
+
     cpuClock += 6;        //always spend 2 cycles fetching opcode and next byte
     uint8_t opcode = getCpuByte(PC, false);
     uint8_t iByte2 = getCpuByte(PC + 1, false);
@@ -417,6 +422,8 @@ void CPU::executeNextOpcode(bool debug) {
             break;
 
             default:
+            /* this selectiveness is needed to prevent spurious reads to $2007, $4014 and
+            othe registers which may incorrectly affect the state of the cpu */
             memoryByte = getCpuByte(address, false);
             break;
         }
@@ -427,10 +434,11 @@ void CPU::executeNextOpcode(bool debug) {
             PC, memoryByte, A, X, Y, SP, PS, nesPPU.ppuClock);
         std::cout << std::endl;
     }
-
-    //increment program counter
-    PC += opcodeLens[opcode % 0x20];
+    
+    PC += opcodeLens[opcode % 0x20];    //increment program counter
     if (opcode == 0xA2) PC += 2;        //irregular opcode
+
+    /* END PREPERATION */
     
     switch (opcode) {
 
