@@ -163,7 +163,7 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
 
             if (address == 0x2) {
         
-                /*
+                
                 //ppu/cpu synchronization hack
                 if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 241 + 1) && (cpuClock % (262 * 341)) >= (341 * 241 + 1) ) {
                     nesPPU.ppuRegisters[2] |= 0x80;
@@ -177,7 +177,7 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
                     nesPPU.ppuRegisters[2] &= 0x1F;
                     NMI = false;
                 }
-                */
+                
                 
                 
 

@@ -1,4 +1,6 @@
 #include <iostream>
+#include <cstdlib>
+#include <ctime>
 
 #include "NES.hpp"
 #include "gameLoop.hpp"
@@ -15,6 +17,9 @@ int main(int argc, char ** argv) {
         std::cout << "Flags:\n-t\t\t\tAutomated testing (not yet implemented)" << std::endl;
         return EXIT_FAILURE;
     }
+
+    srand (time(NULL));     //for audio noise channel
+
 
     /*
     todo:
