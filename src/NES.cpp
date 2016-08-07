@@ -184,6 +184,10 @@ bool NES::openCartridge(const char * fileLoc) {
         }
     }
 
+    nesCPU.nesAPU.audioBufferSize = sizeof(int16_t) * 2 * 800;
+    nesCPU.nesAPU.audioBuffer = (int16_t *) malloc(sizeof(int16_t) * 2 * 800);
+
+
     nesCPU.numRomBanks = prg_rom_size;
     nesCPU.nesPPU.numRomBanks = chr_rom_size;
 

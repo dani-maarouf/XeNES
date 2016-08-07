@@ -40,53 +40,7 @@ const int samplingFrequency = 48000;
 const int sampleBytes = sizeof(int16_t) * 2;
 const int channels = 2;
 const SDL_AudioFormat format = AUDIO_S16LSB;
-uint64_t sampleClock = 0;
 SDL_AudioDeviceID sdlAudioDevice = 0;
-
-void generateAndQueueSquare(int bytesToQueue, uint64_t * clock, int period, int volume) {
-
-    int16_t * SoundBuffer = (int16_t *) malloc(bytesToQueue);
-    
-    for (int i = 0; i < (bytesToQueue/sampleBytes); i++, (*clock)++) {
-        //alternatives produces high and low signals based on current time and period
-        int16_t SampleValue = ((*clock / (period)) % 2) ? volume : -volume;
-        SoundBuffer[i * 2] = SampleValue;
-        SoundBuffer[i * 2 + 1] = SampleValue;
-
-    }
-
-    SDL_QueueAudio(sdlAudioDevice, (void *) SoundBuffer, bytesToQueue);
-
-    free(SoundBuffer);
-
-    return;
-}
-
-/*
-void queueTriangleWave(int bytesToQueue, uint64_t * clock, int period, int volume) {
-
-    int16_t * buffer = (int16_t *) malloc(bytesToQueue);
-    
-    for (int i = 0; i < (bytesToQueue/sampleBytes); i++, (*clock)++) {
-
-        int16_t sampleVal;
-        if (((*clock) / period) % 2) {
-            sampleVal = ((((*clock)) % (period)) - (period / 2)) * (volume * 8 / period);
-        } else {
-            sampleVal = ( (period / 2) -(((*clock)) % (period))) * (volume * 8 / period);
-        }
-
-        buffer[i * 2] = sampleVal;
-        buffer[i * 2 + 1] = sampleVal;
-
-    }
-
-    SDL_QueueAudio(sdlAudioDevice, (void *) buffer, bytesToQueue);
-    free(buffer);
-
-    return;
-}
-*/
 
 
 /* local function prototypes */
@@ -113,8 +67,6 @@ void loop(NES nesSystem, const char * fileLoc) {
     draw(nesSystem.nesCPU.nesPPU.pixels);       //draw screen black
     SDL_PauseAudioDevice(sdlAudioDevice, 0);    //unpause audio
 
-   
-
     for (;;) {
 
         //1 process events
@@ -130,25 +82,15 @@ void loop(NES nesSystem, const char * fileLoc) {
                 //ppu catches up
                 nesSystem.nesCPU.nesPPU.tick(&nesSystem.nesCPU.NMI, &nesSystem.nesCPU.cpuClock);
             } while (!nesSystem.nesCPU.nesPPU.draw);
+
+            //3.1 audio
+            nesSystem.nesCPU.nesAPU.fillBuffer();
+            SDL_QueueAudio(sdlAudioDevice, (void *) nesSystem.nesCPU.nesAPU.audioBuffer, nesSystem.nesCPU.nesAPU.audioBufferSize);
+
         }
 
-        //3 draw
+        //3.2 video
         draw(nesSystem.nesCPU.nesPPU.pixels);
-
-
-        int nesPeriod = ((nesSystem.nesCPU.nesAPU.registers[3] & 0x7) << 8) | (nesSystem.nesCPU.nesAPU.registers[2]);
-        
-        nesPeriod /= 2;
-
-
-        if (nesPeriod != 0) {
-            if (nesSystem.nesCPU.nesAPU.registers[0x15] & 0x1) {
-                generateAndQueueSquare(sampleBytes * 800, &sampleClock, nesPeriod, 1000);
-            }
-            
-
-        }
-        
 
         //4 sync framerate
         double delay = MILLISECONDS_PER_FRAME - (((SDL_GetPerformanceCounter() - startTime) / frequency) * 1000) - 0.5;
