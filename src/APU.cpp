@@ -25,8 +25,6 @@ APU::APU() {
 
 
 void APU::fillBuffer() {
-
-    int volume = 800;
     
 
     for (int x = 0; x < 800 * 2; x++) {
@@ -38,10 +36,12 @@ void APU::fillBuffer() {
     if (registers[0x15] & 0x1) {
 
         int rawPeriod = ((registers[3] & 0x7) << 8) | (registers[2]);
-        int period = ((rawPeriod + 1) / 111860.8) * 48000.0;
 
+        //period in sdl samples
+        int period = ((rawPeriod + 1) / 111860.8) * 48000.0;
         period *= 2;
 
+        int volume = (registers[0] & 0xF) * (1200 / 16);
 
 
         if (period != 0) {
@@ -90,6 +90,8 @@ void APU::fillBuffer() {
         int period = ((rawPeriod + 1) / 111860.8) * 48000.0;
 
         period *= 2;
+
+        int volume = (registers[4] & 0xF) * (1200 / 16);
 
 
         if (period != 0) {
@@ -147,6 +149,7 @@ void APU::fillBuffer() {
 
         period *= 2;
 
+        int volume = 850;
 
         if (period != 0) {
 
@@ -171,24 +174,27 @@ void APU::fillBuffer() {
     }
 
     
-    /*
+    
     if (registers[0x15] & 0x8) {
 
+        int volume = (registers[0xC] & 0xF) * (1200 / 16);
 
+        if (volume != 0) {
+            for (int i = 0; i < 800; i++) {
 
-        for (int i = 0; i < 800; i++) {
+                int16_t val = rand() % volume;
 
-            int16_t val = rand() % volume;
+                audioBuffer[i * 2] += val;
+                audioBuffer[i * 2 + 1] += val;
 
-            audioBuffer[i * 2] += val;
-            audioBuffer[i * 2 + 1] += val;
-
+            }
         }
 
     
 
     }
-    */
+    
+    
     
     sampleClock += 3200;
     
