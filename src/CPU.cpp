@@ -170,6 +170,7 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
             if (address == 0x2) {
         
                 
+                /*
                 //ppu/cpu synchronization hack
                 if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 241 + 1) && (cpuClock % (262 * 341)) >= (341 * 241 + 1) ) {
                     nesPPU.ppuRegisters[2] |= 0x80;
@@ -183,6 +184,7 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
                     nesPPU.ppuRegisters[2] &= 0x1F;
                     NMI = false;
                 }
+                */
                 
                 
                 
@@ -205,29 +207,7 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
         return nesPPU.ppuRegisters[address];
     } else if (memAddress < 0x4020) {
 
-        if (memAddress == 0x4015) {
-            uint8_t returnByte = 0;
-
-            if (nesAPU.lengthCounterPulse1 > 0) {
-                returnByte |= 0x1;
-            }
-
-            if (nesAPU.lengthCounterPulse2 > 0) {
-                returnByte |= 0x2;
-            }
-
-            if (nesAPU.lengthCounterTriangle > 0) {
-                returnByte |= 0x4;
-            }
-
-            if (nesAPU.lengthCounterNoise > 0) {
-                returnByte |= 0x8;
-            }
-
-            return returnByte;
-
-
-        } else if (memAddress == 0x4016) {
+        if (memAddress == 0x4016) {
             if (readController) {
                 return returnControllerBit();
             }
@@ -284,53 +264,7 @@ inline void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
 
         } else if (memAddress == 0x4015) {
 
-
-            if (byte & 0x1) {
-                if (nesAPU.lengthCounterPulse1 < 1) {
-                    int lengthCounter;
-                    lengthCounter = nesAPU.registers[3] >> 3;
-                    nesAPU.lengthCounterPulse1 = lengthTable[lengthCounter];
-                }
-
-            } else {
-                nesAPU.lengthCounterPulse1 = 0;
-            }
-
-            if (byte & 0x2) {
-                if (nesAPU.lengthCounterPulse2 < 1) {
-                    int lengthCounter;
-                    lengthCounter = nesAPU.registers[7] >> 3;
-                    nesAPU.lengthCounterPulse2 = lengthTable[lengthCounter];
-                }
-
-            } else {
-                nesAPU.lengthCounterPulse2 = 0;
-            }
-
-            if (byte & 0x4) {
-                if (nesAPU.lengthCounterTriangle < 1) {
-                    int lengthCounter;
-                    lengthCounter = nesAPU.registers[0xB] >> 3;
-                    nesAPU.lengthCounterTriangle = lengthTable[lengthCounter];
-                }
-
-            } else {
-                nesAPU.lengthCounterTriangle = 0;
-            }
-
-            if (byte & 0x8) {
-                if (nesAPU.lengthCounterNoise < 1) {
-                    int lengthCounter;
-                    lengthCounter = nesAPU.registers[0xF] >> 3;
-                    nesAPU.lengthCounterNoise = lengthTable[lengthCounter];
-                }
-
-            } else {
-                nesAPU.lengthCounterNoise = 0;
-            }
-
-            //std::cout << "4015 set: " << std::hex << (int) byte << std::endl;
-
+            
         } else if (memAddress == 0x4016) {
             if ((byte & 0x1)) {
                 //controller state is read into shift registers

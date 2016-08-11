@@ -571,24 +571,22 @@ void PPU::tick(bool * NMI, uint64_t * cpuClock) {
         int cyc = ppuClock % 341;
         int line = (ppuClock % (341 * 262)) / 341;
 
+        
+        //first frame tick skipped on odd frame when screen on
+        if (ppuRegisters[1] & 0x8) {
+            if (((ppuClock % (262 * 341 * 2)) == 0)) {
+                ppuClock++;
+                ppuEnd++;
+                *cpuClock += 1;
+                
+            }
+        }
+        
+
         if (line < 240) {
 
             //not in vblank
             ppuRegisters[2] &= 0x7F;
-
-            
-            //first frame tick skipped on odd frame when screen on
-            if (ppuRegisters[1] & 0x8) {
-                if ((ppuClock % (262 * 341 * 2) == 0)) {
-                    ppuClock++;
-                    if (!suppressCpuTickSkip) {
-                        ppuEnd++;
-                        *cpuClock += 1;
-                    }
-                    suppressCpuTickSkip = false;
-                    
-                }
-            }
             
 
             if (cyc == 0) {

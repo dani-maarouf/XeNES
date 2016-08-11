@@ -39,7 +39,7 @@ uint32_t localPixels[256 * 240];
 const int samplingFrequency = 48000;
 const int sampleBytes = sizeof(int16_t) * 2;
 const int channels = 2;
-const SDL_AudioFormat format = AUDIO_S16LSB;
+const SDL_AudioFormat format = AUDIO_S16SYS;
 SDL_AudioDeviceID sdlAudioDevice = 0;
 
 

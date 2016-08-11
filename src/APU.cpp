@@ -37,111 +37,100 @@ void APU::fillBuffer() {
     
     if (registers[0x15] & 0x1) {
 
-        if (lengthCounterPulse1 > 0) {
+        int rawPeriod = ((registers[3] & 0x7) << 8) | (registers[2]);
+        int period = ((rawPeriod + 1) / 111860.8) * 48000.0;
 
-            int t = ((registers[3] & 0x7) << 8) | (registers[2]);
-
-            int period = 48000 / (1789773 / (16 * (t + 1)));
-            period *= 2;
+        period *= 2;
 
 
-            if (period != 0) {
-                for (int i = 0; i < 800; i++) {
 
-                    int16_t sampleVal;
+        if (period != 0) {
+            for (int i = 0; i < 800; i++) {
 
-                    switch((registers[0] & 0xC0) >> 6) {
+                int16_t sampleVal;
 
-                        case 1:
-                        sampleVal = (((sampleClock + i * 4) / (period)) % 8) ? -volume : volume;
-                        break;
+                switch((registers[0] & 0xC0) >> 6) {
 
-                        case 2:
-                        sampleVal = (((sampleClock + i * 4) / (period)) % 4) ? -volume : volume;
-                        break;
+                    case 1:
+                    sampleVal = (((sampleClock + i * 4) / (period)) % 8) ? -volume : volume;
+                    break;
 
-                        case 3:
-                        sampleVal = (((sampleClock + i * 4) / (period)) % 2) ? volume : -volume;
-                        break;
+                    case 2:
+                    sampleVal = (((sampleClock + i * 4) / (period)) % 4) ? -volume : volume;
+                    break;
 
-                        case 4:
-                        sampleVal = (((sampleClock + i * 4) / (period)) % 4) ? volume : -volume;
-                        break;
+                    case 3:
+                    sampleVal = (((sampleClock + i * 4) / (period)) % 2) ? volume : -volume;
+                    break;
 
-                        default:
-                        sampleVal = 0;
-                        break;
+                    case 4:
+                    sampleVal = (((sampleClock + i * 4) / (period)) % 4) ? volume : -volume;
+                    break;
 
-                    }
+                    default:
+                    sampleVal = 0;
+                    break;
 
-                    audioBuffer[i * 2] += sampleVal;
-                    audioBuffer[i * 2 + 1] += sampleVal;
                 }
-            }
 
-            if (!(registers[0] & 0x20)) {
-                lengthCounterPulse1 -= 4;
+                audioBuffer[i * 2] += sampleVal;
+                audioBuffer[i * 2 + 1] += sampleVal;
             }
-
         }
+
+
+
     }
+    
     
     if (registers[0x15] & 0x2) {
 
-        if (lengthCounterPulse2 > 0) {
 
-            int t = ((registers[7] & 0x7) << 8) | (registers[6]);
+        int rawPeriod = ((registers[7] & 0x7) << 8) | (registers[6]);
+        int period = ((rawPeriod + 1) / 111860.8) * 48000.0;
 
-            int period = 48000 / (1789773 / (16 * (t + 1)));
-            period *= 2;
-
+        period *= 2;
 
 
-            if (period != 0) {
-                for (int i = 0; i < 800; i++) {
+        if (period != 0) {
+            for (int i = 0; i < 800; i++) {
 
-                    int16_t sampleVal;
+                int16_t sampleVal;
 
 
 
-                    switch((registers[4] & 0xC0) >> 6) {
+                switch((registers[4] & 0xC0) >> 6) {
 
-                        case 1:
-                        sampleVal = (((sampleClock + i * 4) / (period)) % 8) ? -volume : volume;
-                        break;
+                    case 1:
+                    sampleVal = (((sampleClock + i * 4) / (period)) % 8) ? -volume : volume;
+                    break;
 
-                        case 2:
-                        sampleVal = (((sampleClock + i * 4) / (period)) % 4) ? -volume : volume;
-                        break;
+                    case 2:
+                    sampleVal = (((sampleClock + i * 4) / (period)) % 4) ? -volume : volume;
+                    break;
 
-                        case 3:
-                        sampleVal = (((sampleClock + i * 4) / (period)) % 2) ? volume : -volume;
-                        break;
+                    case 3:
+                    sampleVal = (((sampleClock + i * 4) / (period)) % 2) ? volume : -volume;
+                    break;
 
-                        case 4:
-                        sampleVal = (((sampleClock + i * 4) / (period)) % 4) ? volume : -volume;
-                        break;
+                    case 4:
+                    sampleVal = (((sampleClock + i * 4) / (period)) % 4) ? volume : -volume;
+                    break;
 
-                        default:
-                        sampleVal = 0;
-                        break;
-
-                    }
-
-
-
-                    audioBuffer[i * 2] += sampleVal;
-                    audioBuffer[i * 2 + 1] += sampleVal;
+                    default:
+                    sampleVal = 0;
+                    break;
 
                 }
+
+
+
+                audioBuffer[i * 2] += sampleVal;
+                audioBuffer[i * 2 + 1] += sampleVal;
+
             }
-
-            if (!(registers[4] & 0x20)) {
-                lengthCounterPulse2 -= 4;
-            }
-
-
         }
+
 
 
     }
@@ -150,74 +139,59 @@ void APU::fillBuffer() {
     
     if (registers[0x15] & 0x4) {
 
-        if (lengthCounterTriangle > 0) {
-
-            int t = ((registers[0xB] & 0x7) << 8) | (registers[0xA]);
-            int period = 48000 / (1789773 / (16 * (t + 1)));
-            period *= 2;
-
-            if (period != 0) {
-
-                for (int i = 0; i < 800; i++) {
-
-                    int16_t sampleVal;
-                    if (((sampleClock + i * 4) / period) % 2) {
-                        sampleVal = (((sampleClock + i * 4) % (period)) - (period / 2)) * (volume * 6 / period);
-                    } else {
-                        sampleVal = ( (period / 2) -((sampleClock + i * 4) % (period))) * (volume * 6 / period);
-                    }
-
-                    audioBuffer[i * 2] += sampleVal;
-                    audioBuffer[i * 2 + 1] += sampleVal;
 
 
-                }
 
-            }
+        int rawPeriod = ((registers[0xB] & 0x7) << 8) | (registers[0xA]);
+        int period = ((rawPeriod + 1) / 55930.4) * 48000.0;
 
-            if (!(registers[0x8] & 0x80)) {
-                lengthCounterTriangle -= 4;
-            }
+        period *= 2;
 
-        }
 
-    }
-
-    
-    if (registers[0x15] & 0x8) {
-
-        if (lengthCounterNoise > 0) {
-
+        if (period != 0) {
 
             for (int i = 0; i < 800; i++) {
 
-                int16_t val = rand() % volume;
+                int16_t sampleVal;
+                if (((sampleClock + i * 4) / period) % 2) {
+                    sampleVal = (((sampleClock + i * 4) % (period)) - (period / 2)) * (volume * 6 / period);
+                } else {
+                    sampleVal = ( (period / 2) -((sampleClock + i * 4) % (period))) * (volume * 6 / period);
+                }
 
-                audioBuffer[i * 2] += val;
-                audioBuffer[i * 2 + 1] += val;
+                audioBuffer[i * 2] += sampleVal;
+                audioBuffer[i * 2 + 1] += sampleVal;
 
-            }
 
-            if (!(registers[0xC] & 0x20)) {
-                lengthCounterNoise -= 4;
             }
 
         }
 
-        
 
     }
+
     
-    
-    
+    /*
+    if (registers[0x15] & 0x8) {
+
+
+
+        for (int i = 0; i < 800; i++) {
+
+            int16_t val = rand() % volume;
+
+            audioBuffer[i * 2] += val;
+            audioBuffer[i * 2 + 1] += val;
+
+        }
 
     
 
-
-    
-    
+    }
+    */
     
     sampleClock += 3200;
+    
 
     return;
 }
