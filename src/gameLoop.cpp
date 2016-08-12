@@ -1,4 +1,5 @@
 #include <iostream>
+#include <unistd.h>
 #include <SDL2/SDL.h>
 #include "NES.hpp"
 
@@ -84,20 +85,26 @@ void loop(NES nesSystem, const char * fileLoc) {
 
             //3.1 audio
             nesSystem.nesCPU.nesAPU.fillBuffer(&nesSystem.nesCPU.IRQ);
+            if (SDL_GetQueuedAudioSize(sdlAudioDevice) > (unsigned int) nesSystem.nesCPU.nesAPU.audioBufferSize * 10) {
+                //prevents audio from becoming too out of sync
+                SDL_ClearQueuedAudio(sdlAudioDevice);
+            }
             SDL_QueueAudio(sdlAudioDevice, (void *) nesSystem.nesCPU.nesAPU.audioBuffer, nesSystem.nesCPU.nesAPU.audioBufferSize);
 
         }
 
         //3.2 video
         draw(nesSystem.nesCPU.nesPPU.pixels);
-
+        
         //4 sync framerate
         double delay = MILLISECONDS_PER_FRAME - (((SDL_GetPerformanceCounter() - startTime) / frequency) * 1000) - 0.5;
         if (delay > 0) {
-            SDL_Delay(delay);
+            usleep(delay * 1000);
+        }
+        while ((((SDL_GetPerformanceCounter() - startTime) / frequency) * 1000)  < MILLISECONDS_PER_FRAME) {
+
         }
         startTime = SDL_GetPerformanceCounter();
-        
     }
 
     SDL_PauseAudioDevice(sdlAudioDevice, 1);    //pause
@@ -151,7 +158,7 @@ static bool initSDL(const char * fileLoc) {
 
     //SDL_RENDERER_PRESENTVSYNC
     if (getRefreshRate(window) == 60) {
-    	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+    	renderer = SDL_CreateRenderer(window, -1, 0);
     	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
     } else {	
     	renderer = SDL_CreateRenderer(window, -1, 0);

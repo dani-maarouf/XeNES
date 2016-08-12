@@ -213,7 +213,7 @@ void APU::fillBuffer(bool * IRQ) {
 
         if (lengthCounterNoise > 0) {
 
-            int volume = (registers[0xC] & 0xF) * (SDL_VOLUME / 12);
+            int volume = (registers[0xC] & 0xF) * (SDL_VOLUME / 8);
 
             if (volume != 0) {
                 for (int i = 0; i < 800; i++) {
