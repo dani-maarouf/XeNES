@@ -3,7 +3,7 @@ HEADER_FILES = include/NES.hpp include/PPU.hpp include/CPU.hpp include/gameLoop.
 
 CXXFLAGS     = -std=c++14 -Wall -Wextra -Wwrite-strings -Wshadow -Wstrict-overflow=4 -Wno-unused-parameter -pedantic -Iinclude -Ofast -fno-exceptions -funroll-loops -ffast-math -frename-registers -march=native #-Wconversion -Weffc++
 WINFLAGS     = -lmingw32 -lSDL2main -lSDL2 -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic
-LINK_FLAGS   = -lSDL2 -lstdc++
+LINK_FLAGS   = -lSDL2 -lstdc++ -lpthread
 
 all: linux
 

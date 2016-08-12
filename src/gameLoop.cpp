@@ -3,6 +3,10 @@
 #include <SDL2/SDL.h>
 #include "NES.hpp"
 
+#include <chrono>
+#include <thread>
+
+
 //obtained from blargg's Full Palette demo
 const uint32_t paletteTable [] = {
     ( 84<<16)|( 84<<8)|( 84),(  0<<16)|( 30<<8)|(116),(  8<<16)|( 16<<8)|(144),( 48<<16)|(  0<<8)|(136),
@@ -99,7 +103,8 @@ void loop(NES nesSystem, const char * fileLoc) {
         //4 sync framerate
         double delay = MILLISECONDS_PER_FRAME - (((SDL_GetPerformanceCounter() - startTime) / frequency) * 1000) - 0.5;
         if (delay > 0) {
-            usleep(delay * 1000);
+            std::this_thread::sleep_for(std::chrono::microseconds((int) (delay * 1000)));
+            //usleep(delay * 1000);
         }
         while ((((SDL_GetPerformanceCounter() - startTime) / frequency) * 1000)  < MILLISECONDS_PER_FRAME) {
 
