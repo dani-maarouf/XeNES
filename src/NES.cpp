@@ -1,6 +1,5 @@
 #include <iostream>
 #include <fstream>
-
 #include "NES.hpp"
 
 NES::NES() {
@@ -70,7 +69,7 @@ bool NES::openCartridge(const char * fileLoc) {
                 nesCPU.cpuMapper = mapperNumber;
                 nesCPU.nesPPU.ppuMapper = mapperNumber;
 
-                if (mapperNumber != 0 && mapperNumber != 1) {
+                if (mapperNumber != 0) {
                     std::cerr << "Unrecognized mapper : " << (int) mapperNumber << std::endl;
                     std::cerr << "Rom size : " << (int) prg_rom_size << std::endl;
                     romFile.close();

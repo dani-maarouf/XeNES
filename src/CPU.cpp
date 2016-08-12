@@ -1,7 +1,6 @@
 #include <iostream>
 #include <cstring>
 #include <iomanip>
-
 #include "CPU.hpp"
 #include "mappers.hpp"
 
@@ -105,12 +104,11 @@ static const int cycles[] = {
 static const int opcodeLens[0x20] = {2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3,  //0 2 4 6 8 A C E
                                      2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3}; //1 3 5 7 9 B D F
 
-static inline uint8_t getPswByte(bool *);
-static inline void getPswFromByte(bool * PS, uint8_t byte);
-static void printByte(uint8_t);
+static inline u8 getPswByte(bool *);
+static inline void getPswFromByte(bool * PS, u8 byte);
+static void printByte(u8);
 static int debugPrintVal(enum AddressMode, int, int);
-static void printDebugLine(uint16_t, uint8_t, uint8_t, uint8_t, enum AddressMode, 
-    uint16_t, uint8_t, uint8_t, uint8_t, uint8_t, uint8_t, bool *, int);
+static void printDebugLine(u16, u8, u8, u8, enum AddressMode, u16, u8, u8, u8, u8, u8, bool *, int);
 
 CPU::CPU() {
 
@@ -125,6 +123,7 @@ CPU::CPU() {
     SP = 0xFD;
     A = X = Y = 0x0;
     NMI = false;
+    IRQ = false;
     PS[I] = true;
     cpuClock = 0;
     controllerByte = storedControllerByte = currentControllerBit = 0;
@@ -156,12 +155,12 @@ inline bool CPU::returnControllerBit() {
 
 }
 
-inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
+inline u8 CPU::getCpuByte(u16 memAddress, bool silent) {
 
     if (memAddress < 0x2000) {
         return RAM[memAddress % 0x800];
     } else if (memAddress < 0x4000) {
-        uint16_t address;
+        u16 address;
         address = (memAddress - 0x2000) % 8;
 
         if (!silent) {
@@ -230,7 +229,7 @@ inline uint8_t CPU::getCpuByte(uint16_t memAddress, bool silent) {
     }
 }
 
-inline void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
+inline void CPU::setCpuByte(u16 memAddress, u8 byte) {
 
     if (memAddress < 0x2000) {
 
@@ -238,16 +237,36 @@ inline void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
 
     } else if (memAddress < 0x4000) {
 
-        uint16_t address;
+        u16 address;
         address = (memAddress - 0x2000) % 8;
         nesPPU.writeFlag = address;
         nesPPU.ppuRegisters[address] = byte;
 
     } else if (memAddress < 0x4020) { 
 
+
+        if (memAddress == 0x4003) {
+            nesAPU.lengthCounterPulse1 = lengthTable[(byte >> 3)];
+        } else if (memAddress == 0x4007) {
+            nesAPU.lengthCounterPulse2 = lengthTable[(byte >> 3)];
+        } else if (memAddress == 0x4008) {
+
+            nesAPU.linearCounterTriangle = byte & 0x7F;
+
+        } else if (memAddress == 0x400B) {
+
+            nesAPU.linearReloading = true;
+
+            nesAPU.lengthCounterTriangle = lengthTable[(byte >> 3)];
+
+        } else if (memAddress == 0x400F) {
+            nesAPU.lengthCounterNoise = lengthTable[(byte >> 3)];
+        }
+
+
         if (memAddress == 0x4014) {
 
-            uint8_t OAMDMA;
+            u8 OAMDMA;
             OAMDMA = byte;
             for (unsigned int x = 0; x < 0x100; x++) {
                 nesPPU.OAM[nesPPU.oamAddress] = getCpuByte( (OAMDMA << 8) + x , false);
@@ -263,6 +282,8 @@ inline void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
             }
 
         } else if (memAddress == 0x4015) {
+
+
 
             
         } else if (memAddress == 0x4016) {
@@ -296,8 +317,8 @@ inline void CPU::setCpuByte(uint16_t memAddress, uint8_t byte) {
     return;
 }
 
-inline uint16_t CPU::retrieveCpuAddress(enum AddressMode mode, bool * pagePass,
-    uint8_t firstByte, uint8_t secondByte) {
+inline u16 CPU::retrieveCpuAddress(enum AddressMode mode, bool * pagePass,
+    u8 firstByte, u8 secondByte) {
 
     *pagePass = false;
 
@@ -316,36 +337,36 @@ inline uint16_t CPU::retrieveCpuAddress(enum AddressMode mode, bool * pagePass,
         return (firstByte | (secondByte << 8));
 
         case ABSX: {
-            uint16_t before = (firstByte | (secondByte << 8));
-            uint16_t after = ((before + X) & 0xFFFF);
+            u16 before = (firstByte | (secondByte << 8));
+            u16 after = ((before + X) & 0xFFFF);
             if ((before / 256) != (after/256)) *pagePass = true;
             return after;
         }
 
         case ABSY: {
-            uint16_t before = (firstByte | (secondByte << 8));
-            uint16_t after = ((before + Y) & 0xFFFF);
+            u16 before = (firstByte | (secondByte << 8));
+            u16 after = ((before + Y) & 0xFFFF);
             if ((before / 256) != (after/256)) *pagePass = true;
             return after;
         }
 
         case IND: {
-            uint8_t low = getCpuByte((firstByte | (secondByte << 8)), false);
-            uint8_t high = getCpuByte(((firstByte + 1) & 0xFF) | (secondByte << 8), false);
+            u8 low = getCpuByte((firstByte | (secondByte << 8)), false);
+            u8 high = getCpuByte(((firstByte + 1) & 0xFF) | (secondByte << 8), false);
             return ((high << 8) | low);
         }
 
         case INDX: {
-            uint8_t low = getCpuByte((firstByte + X) & 0xFF, false);
-            uint8_t high = getCpuByte((firstByte + 1 + X) & 0xFF, false);
+            u8 low = getCpuByte((firstByte + X) & 0xFF, false);
+            u8 high = getCpuByte((firstByte + 1 + X) & 0xFF, false);
             return ((high << 8) | low);
         }
         
         case INDY: {
-            uint8_t low = (getCpuByte(firstByte, false));
-            uint8_t high = (getCpuByte((firstByte + 1) & 0xFF, false));
-            uint16_t before = (low | (high << 8));
-            uint16_t after = ((before + Y) & 0xFFFF);
+            u8 low = (getCpuByte(firstByte, false));
+            u8 high = (getCpuByte((firstByte + 1) & 0xFF, false));
+            u16 before = (low | (high << 8));
+            u16 after = ((before + Y) & 0xFFFF);
             if (( before/ 256) != (after/256)) *pagePass = true;
             return after;
         }
@@ -360,14 +381,17 @@ inline uint16_t CPU::retrieveCpuAddress(enum AddressMode mode, bool * pagePass,
 void CPU::executeNextOpcode(bool debug) {
 
     if (NMI) {
-        uint16_t store;
+
+        NMI = false;
+        
+        u16 store;
         store = PC;
 
-        uint8_t high = (store & 0xFF00) >> 8;
+        u8 high = (store & 0xFF00) >> 8;
         setCpuByte(SP + 0x100, high);
         SP--;
 
-        uint8_t low = store & 0xFF;;
+        u8 low = store & 0xFF;;
         setCpuByte(SP + 0x100, low);
         SP--;
 
@@ -376,22 +400,55 @@ void CPU::executeNextOpcode(bool debug) {
 
         PC = getCpuByte(0xFFFA, false) | (getCpuByte(0xFFFB, false) << 8);    //nmi handler
 
-        NMI = false;
+        
         cpuClock += 21;
 
         return;
     }
 
+    if (IRQ) {
+
+        IRQ = false;
+
+        if (PS[I] == false) {
+
+            u16 store;
+            store = PC + 1;
+
+            u8 high = (store & 0xFF00) >> 8;
+            setCpuByte(SP + 0x100, high);
+            SP--;
+
+            u8 low = store & 0xFF;;
+            setCpuByte(SP + 0x100, low);
+            SP--;
+
+            setCpuByte(0x100 + SP, getPswByte(PS) | 0x10);
+            SP--;
+
+            PC = getCpuByte(0xFFFE, false) | (getCpuByte(0xFFFF, false) << 8);    //IRQ/BRK handler
+
+            
+            cpuClock += 21;
+
+            return;
+        }
+
+
+
+
+    }
+
     /* PREPARE TO EXECUTE OPCODE */
 
     cpuClock += 6;        //always spend 2 cycles fetching opcode and next byte
-    uint8_t opcode = getCpuByte(PC, false);
-    uint8_t iByte2 = getCpuByte(PC + 1, false);
-    uint8_t iByte3 = getCpuByte(PC + 2, false);
+    u8 opcode = getCpuByte(PC, false);
+    u8 iByte2 = getCpuByte(PC + 1, false);
+    u8 iByte3 = getCpuByte(PC + 2, false);
     enum AddressMode opAddressMode = addressModes[opcode];
     bool pass = false;    //page boundy cross?
 
-    uint16_t address = 0;
+    u16 address = 0;
     if (opAddressMode != ACC && opAddressMode != IMM && opAddressMode != REL && opAddressMode != IMP) {
         address = retrieveCpuAddress(opAddressMode, &pass, iByte2, iByte3);
     }
@@ -416,7 +473,7 @@ void CPU::executeNextOpcode(bool debug) {
     
 
 
-    uint8_t memoryByte;
+    u8 memoryByte;
     if (opAddressMode == IMM) {
         memoryByte = iByte2;
     } else if (opAddressMode == NONE || opAddressMode == ACC
@@ -455,7 +512,7 @@ void CPU::executeNextOpcode(bool debug) {
 
         //ADC
         case 0x69: case 0x65: case 0x75: case 0x6D: case 0x7D: case 0x79: case 0x61: case 0x71: {
-            uint16_t total;
+            u16 total;
             total = A + memoryByte + PS[C];
             PS[V] = (((int8_t) A) + ((int8_t) memoryByte) + PS[C] < -128
                 || ((int8_t) A) + ((int8_t) memoryByte) + PS[C] > 127);  
@@ -515,7 +572,7 @@ void CPU::executeNextOpcode(bool debug) {
         
         //BIT
         case 0x24: case 0x2C: {
-            uint8_t num;
+            u8 num;
             num = A & memoryByte;
             PS[N] = getBit(memoryByte, 7);
             PS[V] = getBit(memoryByte, 6);
@@ -548,17 +605,17 @@ void CPU::executeNextOpcode(bool debug) {
         break;
         
         case 0x00: {            //BRK
-            uint8_t high = (PC & 0xFF00) >> 8;
+            u8 high = (PC & 0xFF00) >> 8;
             setCpuByte(0x100 + SP, high);
             SP--;
             cpuClock += 3;
 
-            uint8_t low = PC & 0xFF;
+            u8 low = PC & 0xFF;
             setCpuByte(0x100 + SP, low);
             SP--;
             cpuClock += 3;
 
-            uint8_t memByte = getPswByte(PS);
+            u8 memByte = getPswByte(PS);
             setCpuByte(0x100 + SP, memByte | 0x10);
             SP--;
             cpuClock += 3;
@@ -716,15 +773,15 @@ void CPU::executeNextOpcode(bool debug) {
         case 0x20: {            //JSR
             cpuClock += 3;
 
-            uint16_t store;
+            u16 store;
             store = PC;
             
-            uint8_t high = (store & 0xFF00) >> 8;
+            u8 high = (store & 0xFF00) >> 8;
             setCpuByte(SP + 0x100, high);
             SP--;
             cpuClock += 3;
 
-            uint8_t low = store & 0xFF;;
+            u8 low = store & 0xFF;;
             setCpuByte(SP + 0x100, low);
             SP--;
             cpuClock += 3;
@@ -879,9 +936,9 @@ void CPU::executeNextOpcode(bool debug) {
             setCpuByte(address, (getCpuByte(address, true) >> 1) & 0x7F);
             setCpuByte(address, getCpuByte(address, true) | (PS[C] ? 0x80 : 0x0));
             PS[C] = store;
-            uint8_t memByte;
+            u8 memByte;
             memByte = getCpuByte(address, true);
-            uint16_t total;
+            u16 total;
             total = A + memByte + PS[C];
             PS[V] = (((int8_t) A) + ((int8_t) memByte) + PS[C] < -128 
                 || ((int8_t) A) + ((int8_t) memByte) + PS[C] > 127);
@@ -896,17 +953,17 @@ void CPU::executeNextOpcode(bool debug) {
             SP++;
             cpuClock += 3;
 
-            uint8_t memByte;
+            u8 memByte;
             memByte = getCpuByte(SP + 0x100, true);
             getPswFromByte(PS, memByte);
 
             SP++;
             cpuClock += 3;
-            uint16_t low = getCpuByte(SP + 0x100, true);
+            u16 low = getCpuByte(SP + 0x100, true);
 
             SP++;
             cpuClock += 3;
-            uint16_t high = getCpuByte(SP + 0x100, true) << 8;
+            u16 high = getCpuByte(SP + 0x100, true) << 8;
             cpuClock += 3;
 
             PC = high | low;
@@ -917,11 +974,11 @@ void CPU::executeNextOpcode(bool debug) {
             SP++;
             cpuClock += 3;
 
-            uint16_t low = getCpuByte(SP + 0x100, true);
+            u16 low = getCpuByte(SP + 0x100, true);
             SP++;
             cpuClock += 3;
 
-            uint16_t high = getCpuByte(SP + 0x100, true) << 8;
+            u16 high = getCpuByte(SP + 0x100, true) << 8;
             cpuClock += 3;
             PC = (high | low);
 
@@ -1036,8 +1093,8 @@ void CPU::executeNextOpcode(bool debug) {
     return;
 }
 
-static inline uint8_t getPswByte(bool * PS) {
-    uint8_t P;
+static inline u8 getPswByte(bool * PS) {
+    u8 P;
     P = 0x20;
     if (PS[C]) P |= 0x1;
     if (PS[Z]) P |= 0x2;
@@ -1048,7 +1105,7 @@ static inline uint8_t getPswByte(bool * PS) {
     return P;
 }
 
-static inline void getPswFromByte(bool * PS, uint8_t byte) {
+static inline void getPswFromByte(bool * PS, u8 byte) {
     PS[N] = getBit(byte, 7);
     PS[V] = getBit(byte, 6);
     PS[D] = getBit(byte, 3);
@@ -1059,7 +1116,7 @@ static inline void getPswFromByte(bool * PS, uint8_t byte) {
 }
 
 //debugging
-static void printByte(uint8_t byte) {
+static void printByte(u8 byte) {
     std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) byte;
     return;
 }
@@ -1125,9 +1182,9 @@ static int debugPrintVal(enum AddressMode mode, int firstByte, int secondByte) {
 }
 
 //note:ugly, for debugging, matches nintendulator log
-static void printDebugLine(uint16_t address, uint8_t opcode, uint8_t iByte2,
- uint8_t iByte3, enum AddressMode opAddressMode, uint16_t PC, uint8_t memByte, 
- uint8_t A, uint8_t X, uint8_t Y, uint8_t SP, bool * PS, int ppuClock) {
+static void printDebugLine(u16 address, u8 opcode, u8 iByte2,
+ u8 iByte3, enum AddressMode opAddressMode, u16 PC, u8 memByte, 
+ u8 A, u8 X, u8 Y, u8 SP, bool * PS, int ppuClock) {
 
     std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << (int) PC << "  ";
 

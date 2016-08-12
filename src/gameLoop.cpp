@@ -1,6 +1,5 @@
 #include <iostream>
 #include <SDL2/SDL.h>
-
 #include "NES.hpp"
 
 //obtained from blargg's Full Palette demo
@@ -59,7 +58,7 @@ void loop(NES nesSystem, const char * fileLoc) {
 
     //game loop variables
     double frequency = SDL_GetPerformanceFrequency();
-    uint64_t startTime = SDL_GetPerformanceCounter();
+    uintmax_t startTime = SDL_GetPerformanceCounter();
     bool paused = false;
     SDL_Event event;
 
@@ -84,7 +83,7 @@ void loop(NES nesSystem, const char * fileLoc) {
             } while (!nesSystem.nesCPU.nesPPU.draw);
 
             //3.1 audio
-            nesSystem.nesCPU.nesAPU.fillBuffer();
+            nesSystem.nesCPU.nesAPU.fillBuffer(&nesSystem.nesCPU.IRQ);
             SDL_QueueAudio(sdlAudioDevice, (void *) nesSystem.nesCPU.nesAPU.audioBuffer, nesSystem.nesCPU.nesAPU.audioBufferSize);
 
         }

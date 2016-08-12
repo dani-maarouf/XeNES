@@ -1,5 +1,4 @@
 #include <iostream>
-
 #include "mappers.hpp"
 #include "PPU.hpp"
 
@@ -25,7 +24,7 @@ const bool DEBUG = false;
         loopyv += 0x1000;                               \
     } else {                                            \
         loopyv &= ~0x7000;                              \
-        uint16_t yVal;                                  \
+        u16 yVal;                                  \
         yVal = (loopyv & 0x03E0) >> 5;                  \
         if (yVal == 29) {                               \
             yVal = 0;                                   \
@@ -105,7 +104,7 @@ inline void PPU::loadNewTile() {
     return;
 }
 
-inline uint8_t PPU::getPpuByte(uint16_t address) {
+inline u8 PPU::getPpuByte(u16 address) {
     address &= 0x3FFF;
 
 	if (address < 0x2000) {
@@ -172,16 +171,16 @@ inline uint8_t PPU::getPpuByte(uint16_t address) {
             return VRAM[address - 0x3000];
         }
     } else {
-        uint8_t newAddress;
+        u8 newAddress;
         newAddress = (address - 0x3F00) % 0x20;
         if (newAddress == 0x10 || newAddress == 0x14 || newAddress == 0x18 || newAddress == 0x1C) {
-            newAddress -= (uint8_t) 0x10;
+            newAddress -= (u8) 0x10;
         }
         return palette[newAddress];
     }
 }
 
-inline void PPU::setPpuByte(uint16_t address, uint8_t byte) {
+inline void PPU::setPpuByte(u16 address, u8 byte) {
     address &= 0x3FFF;
 
     if (address < 0x1000) {
@@ -247,7 +246,7 @@ inline void PPU::setPpuByte(uint16_t address, uint8_t byte) {
             VRAM[address - 0x3000] = byte;
         }
     } else {
-        uint8_t newAddress;
+        u8 newAddress;
         newAddress = (address - 0x3F00) % 0x20;
         if (newAddress == 0x10 || newAddress == 0x14 || newAddress == 0x18 || newAddress == 0x1C) {
             newAddress -= 0x10;
@@ -352,12 +351,12 @@ inline void PPU::ppuFlagUpdate(bool * NMI) {
 
 }
 
-uint8_t PPU::return2007() {
+u8 PPU::return2007() {
 
     //if screen off
     //if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x18) == 0) || true) {
 
-    uint8_t ppuByte;
+    u8 ppuByte;
 
     m_v &= 0x3FFF;
 
@@ -385,7 +384,7 @@ inline void PPU::drawPixel(int cycle, int line) {
     //decode palette to rgb all at once at end of frame?
 
     int pixelLocation = (cycle - 1) + NES_SCREEN_WIDTH * line;  //current pixel being rendered
-    uint8_t backgroundColour = 0;
+    u8 backgroundColour = 0;
 
     //render background pixel
     if (((ppuRegisters[1] & 0x2) && cycle  < 9 && (ppuRegisters[1] & 0x8)) || ((ppuRegisters[1] & 0x8) && cycle >= 9)) {    //is background rendering enabled?
@@ -431,8 +430,8 @@ inline void PPU::drawPixel(int cycle, int line) {
     if (((ppuRegisters[1] & 0x4) && (cycle) < 9 && (ppuRegisters[1] & 0x10)) || ((ppuRegisters[1] & 0x10) && (cycle) >= 9)) {    
         for (int i = 0; i < 8; i++) {
 
-            uint8_t spriteLayer1 = lineOAM[i * 6 + 4];
-            uint8_t spriteLayer2 = lineOAM[i * 6 + 5];
+            u8 spriteLayer1 = lineOAM[i * 6 + 4];
+            u8 spriteLayer2 = lineOAM[i * 6 + 5];
 
             if (spriteLayer1 == 0 && spriteLayer2 == 0) {
                 continue;
@@ -446,7 +445,7 @@ inline void PPU::drawPixel(int cycle, int line) {
                 continue;
             }
 
-            uint8_t spriteAttributes = lineOAM[i * 6 + 3];
+            u8 spriteAttributes = lineOAM[i * 6 + 3];
 
             //column location of pixel in sprite data
             int spriteColumnNumber;
@@ -502,7 +501,7 @@ inline void PPU::updateSecondaryOAM(int line) {
     }
 
     for (int x = 0; x < 64; x++) {
-        uint8_t yPos;
+        u8 yPos;
         yPos = OAM[x * 4];
 
         //determine whether sprite will appear on next scanline
@@ -554,10 +553,10 @@ inline void PPU::updateSecondaryOAM(int line) {
     return;
 }
 
-void PPU::tick(bool * NMI, uint64_t * cpuClock) {
+void PPU::tick(bool * NMI, uintmax_t * cpuClock) {
 
     draw = false; 
-    uint64_t ppuEnd = *cpuClock;
+    uintmax_t ppuEnd = *cpuClock;
 
     //process state changes due to register write
     if (readFlag != -1 || writeFlag != -1) {

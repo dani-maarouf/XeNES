@@ -101,14 +101,15 @@ And most other NROM/mapper 0 games
 
 Add support for more mappers
 
-Add hardware features
+Implement timestamp based system for performance
 
-Improve accuracy
+Automated testing by hashing pixel buffer of known good test ROM screens
 
-Add audio
+## Issues
 
-Improve performance
+APU DMC needs to be added
 
-Easier multiplatform build
+Synchronization method (opcode then PPU catch up) is inadequate for exact VBL timing behaviour
 
-Add automated testing
+Unknown issue with odd/even frame timing
+

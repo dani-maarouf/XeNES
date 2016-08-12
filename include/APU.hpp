@@ -1,6 +1,4 @@
-#ifndef __NES_APU__
-#define __NES_APU__
-
+#pragma once
 #include <cstdint>
 
 class APU {
@@ -9,16 +7,16 @@ public:
     uint8_t registers[0x20];          //joystick and apu registers
     int16_t * audioBuffer;
     int audioBufferSize;
-    uint64_t sampleClock;
+    uintmax_t sampleClock;
 
     int lengthCounterPulse1;
     int lengthCounterPulse2;
     int lengthCounterTriangle;
+    int linearCounterTriangle;
     int lengthCounterNoise;
 
-    APU();
-    void fillBuffer();
-};
+    bool linearReloading;
 
-#endif
-/* DEFINED __NES_APU__ */
+    APU();
+    void fillBuffer(bool *);
+};

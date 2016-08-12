@@ -1,7 +1,6 @@
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
-
 #include "NES.hpp"
 #include "gameLoop.hpp"
 

@@ -1,7 +1,4 @@
-#ifndef __NES_CPU__
-#define __NES_CPU__
-
-#include <cstdint>
+#pragma once
 #include "PPU.hpp"
 #include "APU.hpp"
 
@@ -37,30 +34,30 @@ private:
     
     //controller 1
     bool readController;
-    uint8_t storedControllerByte;
+    u8 storedControllerByte;
     int currentControllerBit;
 
     //registers
-    uint8_t SP;         //stack pointer
-    uint8_t A;          //accumulator
+    u8 SP;         //stack pointer
+    u8 A;          //accumulator
     bool PS[8];         //processor status word
-    uint8_t X;          //register X
-    uint8_t Y;          //register Y
+    u8 X;          //register X
+    u8 Y;          //register Y
 
     //hardware
-    uint8_t RAM[0x800];         //2kB CPU RAM
-    uint8_t cpuMem[0x2000];    //fallback memory addresses for (0x4020 - 0x6000)
+    u8 RAM[0x800];         //2kB CPU RAM
+    u8 cpuMem[0x2000];    //fallback memory addresses for (0x4020 - 0x6000)
 
     bool returnControllerBit();
-    void setCpuByte(uint16_t, uint8_t); //set byte in CPU address space
-    uint16_t retrieveCpuAddress(enum AddressMode, bool *, uint8_t, uint8_t);  //get address basedon address mode
+    void setCpuByte(u16, u8); //set byte in CPU address space
+    u16 retrieveCpuAddress(enum AddressMode, bool *, u8, u8);  //get address basedon address mode
 
 public:
 
     PPU nesPPU;
     APU nesAPU;
     
-    uint64_t cpuClock;          //time in ppu ticks
+    uintmax_t cpuClock;          //time in ppu ticks
 
     //info
     int cpuMapper;
@@ -69,19 +66,17 @@ public:
 
     //registers
     bool NMI;                   //non maskable interupt
-    uint16_t PC;                //program counter
-    uint8_t controllerByte;     //controller 1
+    bool IRQ;
+    u16 PC;                //program counter
+    u8 controllerByte;     //controller 1
 
     //hardware
-    uint8_t * PRG_ROM;          //cartridge program ROM
-    uint8_t * PRG_RAM;          //cartridge program RAM
+    u8 * PRG_ROM;          //cartridge program ROM
+    u8 * PRG_RAM;          //cartridge program RAM
 
     CPU();                  //stage 1 initialize, stage 2 when ROM loading occurs
     void freePointers();    //deinitialize
     void executeNextOpcode(bool);
-    uint8_t getCpuByte(uint16_t, bool);       //get byte from CPU address space
+    u8 getCpuByte(u16, bool);       //get byte from CPU address space
 
 };
-
-#endif
-/* DEFINED __NES_CPU__ */
