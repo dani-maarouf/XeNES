@@ -4,9 +4,14 @@
 #include "CPU.hpp"
 #include "mappers.hpp"
 
+//used for setting length on APU
 const int lengthTable[] = {
     10,254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
     12, 16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30,
+};
+
+const int rateTable[] = {
+    428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106,  84,  72,  54
 };
 
 
@@ -206,7 +211,11 @@ inline u8 CPU::getCpuByte(u16 memAddress, bool silent) {
         return nesPPU.ppuRegisters[address];
     } else if (memAddress < 0x4020) {
 
-        if (memAddress == 0x4016) {
+        if (memAddress == 0x4015) {
+
+            //status read conditions
+
+        } else if (memAddress == 0x4016) {
             if (readController) {
                 return returnControllerBit();
             }
@@ -244,27 +253,37 @@ inline void CPU::setCpuByte(u16 memAddress, u8 byte) {
 
     } else if (memAddress < 0x4020) { 
 
-
+        //APU and IO mem write behaviour
         if (memAddress == 0x4003) {
             nesAPU.lengthCounterPulse1 = lengthTable[(byte >> 3)];
         } else if (memAddress == 0x4007) {
             nesAPU.lengthCounterPulse2 = lengthTable[(byte >> 3)];
         } else if (memAddress == 0x4008) {
-
             nesAPU.linearCounterTriangle = byte & 0x7F;
-
         } else if (memAddress == 0x400B) {
-
             nesAPU.linearReloading = true;
-
             nesAPU.lengthCounterTriangle = lengthTable[(byte >> 3)];
-
         } else if (memAddress == 0x400F) {
             nesAPU.lengthCounterNoise = lengthTable[(byte >> 3)];
-        }
+        } else if (memAddress == 0x4010) {
+
+            //set sample frequency
+            sampleFrequency = 1789773.0/rateTable[byte & 0xF];
 
 
-        if (memAddress == 0x4014) {
+        } else if (memAddress == 0x4011) {
+
+            //direct load
+            nesAPU.dmcOut = (byte & 0x7F);
+        } else if (memAddress == 0x4012) {
+
+            nesAPU.sampleAddress = 0xC000 | (byte << 6);
+
+        } else if (memAddress == 0x4013) {
+
+            nesAPU.sampleLength = (byte << 4) | 0x1;
+
+        } else if (memAddress == 0x4014) {
 
             u8 OAMDMA;
             OAMDMA = byte;
@@ -282,9 +301,6 @@ inline void CPU::setCpuByte(u16 memAddress, u8 byte) {
             }
 
         } else if (memAddress == 0x4015) {
-
-
-
             
         } else if (memAddress == 0x4016) {
             if ((byte & 0x1)) {
@@ -297,6 +313,7 @@ inline void CPU::setCpuByte(u16 memAddress, u8 byte) {
                 readController = true;
             }
         }
+
         nesAPU.registers[memAddress - 0x4000] = byte;
 
     } else if (memAddress < 0x6000) {
@@ -408,6 +425,8 @@ void CPU::executeNextOpcode(bool debug) {
 
     if (IRQ) {
 
+        //std::cout << "caught IRQ" << std::endl;
+
         IRQ = false;
 
         if (PS[I] == false) {
@@ -490,8 +509,9 @@ void CPU::executeNextOpcode(bool debug) {
             break;
 
             default:
-            /* this selectiveness is needed to prevent spurious reads to $2007, $4014 and
-            othe registers which may incorrectly affect the state of the cpu */
+            /* this is needed to prevent spurious reads to $2007, $4014 and
+            other registers which trigger a flag that tells the PPU
+            to process the read which changes the state of the ppu */
             memoryByte = getCpuByte(address, false);
             break;
         }

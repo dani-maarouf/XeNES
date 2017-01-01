@@ -1,11 +1,8 @@
 #include <iostream>
-#include <unistd.h>
-#include <SDL2/SDL.h>
-#include "NES.hpp"
-
 #include <chrono>
 #include <thread>
-
+#include <SDL2/SDL.h>
+#include "NES.hpp"
 
 //obtained from blargg's Full Palette demo
 const uint32_t paletteTable [] = {
@@ -29,7 +26,7 @@ const uint32_t paletteTable [] = {
 
 /* consts */
 const double MILLISECONDS_PER_FRAME = 1000.0/60.0; //60FPS
-const int SCALE_FACTOR = 2;                  //size of each NES display pixel in real pixels
+const int SCALE_FACTOR = 3;                  //size of each NES display pixel in real pixels
 const bool REMOVE_OVERSCAN = true;
 const bool DEBUG = false;
 
@@ -104,7 +101,6 @@ void loop(NES nesSystem, const char * fileLoc) {
         double delay = MILLISECONDS_PER_FRAME - (((SDL_GetPerformanceCounter() - startTime) / frequency) * 1000) - 0.5;
         if (delay > 0) {
             std::this_thread::sleep_for(std::chrono::microseconds((int) (delay * 1000)));
-            //usleep(delay * 1000);
         }
         while ((((SDL_GetPerformanceCounter() - startTime) / frequency) * 1000)  < MILLISECONDS_PER_FRAME) {
 
@@ -153,7 +149,7 @@ static bool initSDL(const char * fileLoc) {
     }
 
     window = SDL_CreateWindow(windowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        NES_SCREEN_WIDTH * SCALE_FACTOR, outputHeight * SCALE_FACTOR, 0);
+        NES_SCREEN_WIDTH * SCALE_FACTOR, outputHeight * SCALE_FACTOR, SDL_WINDOW_RESIZABLE);
 
     if (window == NULL) {
         std::cerr << "Could not create SDL window : " << SDL_GetError() << std::endl;
@@ -163,10 +159,10 @@ static bool initSDL(const char * fileLoc) {
 
     //SDL_RENDERER_PRESENTVSYNC
     if (getRefreshRate(window) == 60) {
-    	renderer = SDL_CreateRenderer(window, -1, 0);
+    	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
     	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
     } else {	
-    	renderer = SDL_CreateRenderer(window, -1, 0);
+    	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
     }
     

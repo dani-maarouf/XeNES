@@ -23,6 +23,12 @@ int main(int argc, char ** argv) {
     /*
     todo:
 
+    debugger:
+    waveform visualizer
+    change speed
+    breakpoints
+    nametables and pattern tables view
+
     fix sprite rendering, output pixel alignment, sprite 0 hits and ppu even and odd frame timing
     
     */

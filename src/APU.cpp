@@ -1,12 +1,10 @@
 #include <cstdlib>
 #include "APU.hpp"
 
-const int SDL_VOLUME = 1200;
+#include <iostream>     //DEBUG
 
-const int lengthTable[] = {
-    10,254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
-    12, 16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30,
-};
+//arbitrary number which results in reasonable volume
+const int SDL_VOLUME = 1200;
 
 APU::APU() {
 
@@ -23,12 +21,21 @@ APU::APU() {
 
     linearReloading = false;
 
+    sampleFrequency = 0;
+    dmcOut = 0;
+    sampleLength = 0;
+    sampleAddress = 0;
+    sampleBuffer = 0;
+    bufferIndex = 0;
+
     return;
 }
 
 
 void APU::fillBuffer(bool * IRQ) {
     
+
+    int lastValue = audioBuffer[1599];
 
     for (int x = 0; x < 800 * 2; x++) {
         audioBuffer[x] = 0;
@@ -151,10 +158,7 @@ void APU::fillBuffer(bool * IRQ) {
         } else {
             //registers[0x15] &= ~0x2;
         }
-
-
     }
-
 
     
     if (registers[0x15] & 0x4) {
@@ -175,34 +179,27 @@ void APU::fillBuffer(bool * IRQ) {
 
                     int16_t sampleVal;
                     if (((sampleClock + i * 4) / period) % 2) {
-                        sampleVal = (((sampleClock + i * 4) % (period)) - (period / 2)) * (volume * 4 / period);
+                        sampleVal = ((sampleClock + i * 4) % (period)) * (volume * 4 / period);
                     } else {
-                        sampleVal = ( (period / 2) -((sampleClock + i * 4) % (period))) * (volume * 4 / period);
+                        sampleVal = (period - ((sampleClock + i * 4) % (period))) * (volume * 4 / period);
                     }
 
                     audioBuffer[i * 2] += sampleVal;
                     audioBuffer[i * 2 + 1] += sampleVal;
-
-
                 }
-
             }
-
-
-
-
         }
 
-            if (linearReloading) {
-                linearCounterTriangle = registers[0x8] & 0x7F;
-            } else {
-                linearCounterTriangle -= 2;
-            }
+        if (linearReloading) {
+            linearCounterTriangle = registers[0x8] & 0x7F;
+        } else {
+            linearCounterTriangle -= 2;
+        }
 
-            if (!(registers[0x8] & 0x80)) {
-                lengthCounterTriangle -= 2;
-                linearReloading = false;
-            }
+        if (!(registers[0x8] & 0x80)) {
+            lengthCounterTriangle -= 2;
+            linearReloading = false;
+        }
 
 
     }
@@ -239,23 +236,34 @@ void APU::fillBuffer(bool * IRQ) {
     }
 
 
-    
-
     if (registers[0x15] & 0x10) {
 
 
-        
 
+    }
+
+    //PCM always outputs
+    for (int i = 0; i < 800; i++) {
+
+        audioBuffer[i * 2] += dmcOut * SDL_VOLUME;
+        audioBuffer[i * 2 + 1] += dmcOut * SDL_VOLUME;
 
     }
     
+    /*
     if ((registers[0x17] & 0xC0) == 0) {
         *IRQ = true;
     }
-    
+    */
+
+
+    //anti clicking, smoother waveform
+    int smoothLength = 25;
+    for (int x = 0; x < smoothLength; x++) {
+        audioBuffer[x] = (lastValue * (smoothLength - 1 - x) + audioBuffer[x] * x) / (smoothLength - 1);
+    }
     
     sampleClock += 3200;
-    
 
     return;
 }
