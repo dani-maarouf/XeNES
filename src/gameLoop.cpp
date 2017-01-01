@@ -45,15 +45,15 @@ SDL_AudioDeviceID sdlAudioDevice = 0;
 
 
 /* local function prototypes */
-static int getRefreshRate(SDL_Window * win);
-static bool initSDL(const char *);
-static void closeSDL();
+static int get_refresh_rate(SDL_Window * win);
+static bool init_sdl(const char *);
+static void close_sdl();
 static void draw(uint8_t *);
-static bool processEvents(SDL_Event *, uint8_t *, bool *);
+static bool process_events(SDL_Event *, uint8_t *, bool *);
 
 void loop(NES nesSystem, const char * fileLoc) {
 
-    if (!initSDL(fileLoc)) {
+    if (!init_sdl(fileLoc)) {
         std::cerr << "SDL did not initialize, quitting" << std::endl;
         return;
     }
@@ -65,13 +65,13 @@ void loop(NES nesSystem, const char * fileLoc) {
     SDL_Event event;
 
     for (int x = 0; x < 256 * 240; x++) localPixels[x] = 0;
-    draw(nesSystem.nesCPU.nesPPU.pixels);       //draw screen black
+    draw(nesSystem.m_nesCPU.m_nesPPU.m_pixels);       //draw screen black
     SDL_PauseAudioDevice(sdlAudioDevice, 0);    //unpause audio
 
     for (;;) {
 
         //1 process events
-        if (!processEvents(&event, &nesSystem.nesCPU.controllerByte, &paused)) {
+        if (!process_events(&event, &nesSystem.m_nesCPU.m_controllerByte, &paused)) {
             break;
         }
 
@@ -79,23 +79,24 @@ void loop(NES nesSystem, const char * fileLoc) {
         if (!paused) {
             do {
                 //execute one cpu opcode
-                nesSystem.nesCPU.executeNextOpcode(DEBUG);
+                nesSystem.m_nesCPU.execute_next_opcode(DEBUG);
                 //ppu catches up
-                nesSystem.nesCPU.nesPPU.tick(&nesSystem.nesCPU.NMI, &nesSystem.nesCPU.cpuClock);
-            } while (!nesSystem.nesCPU.nesPPU.draw);
+                nesSystem.m_nesCPU.m_nesPPU.tick(&nesSystem.m_nesCPU.m_NMI, &nesSystem.m_nesCPU.m_cpuClock);
+            } while (!nesSystem.m_nesCPU.m_nesPPU.m_draw);
 
+            /*
             //3.1 audio
-            nesSystem.nesCPU.nesAPU.fillBuffer(&nesSystem.nesCPU.IRQ);
-            if (SDL_GetQueuedAudioSize(sdlAudioDevice) > (unsigned int) nesSystem.nesCPU.nesAPU.audioBufferSize * 10) {
+            nesSystem.m_nesCPU.m_nesAPU.fill_buffer(&nesSystem, &nesSystem.m_nesCPU.m_IRQ);
+            if (SDL_GetQueuedAudioSize(sdlAudioDevice) > (unsigned int) nesSystem.m_nesCPU.m_nesAPU.m_audioBufferSize * 10) {
                 //prevents audio from becoming too out of sync
                 SDL_ClearQueuedAudio(sdlAudioDevice);
             }
-            SDL_QueueAudio(sdlAudioDevice, (void *) nesSystem.nesCPU.nesAPU.audioBuffer, nesSystem.nesCPU.nesAPU.audioBufferSize);
-
+            SDL_QueueAudio(sdlAudioDevice, (void *) nesSystem.m_nesCPU.m_nesAPU.m_audioBuffer, nesSystem.m_nesCPU.m_nesAPU.m_audioBufferSize);
+            */
         }
 
         //3.2 video
-        draw(nesSystem.nesCPU.nesPPU.pixels);
+        draw(nesSystem.m_nesCPU.m_nesPPU.m_pixels);
         
         //4 sync framerate
         double delay = MILLISECONDS_PER_FRAME - (((SDL_GetPerformanceCounter() - startTime) / frequency) * 1000) - 0.5;
@@ -110,12 +111,12 @@ void loop(NES nesSystem, const char * fileLoc) {
 
     SDL_PauseAudioDevice(sdlAudioDevice, 1);    //pause
     SDL_ClearQueuedAudio(sdlAudioDevice);       //clear audio queue
-    closeSDL();
+    close_sdl();
 
     return;
 }
 
-static int getRefreshRate(SDL_Window * win) {
+static int get_refresh_rate(SDL_Window * win) {
 
 	SDL_DisplayMode mode;
 	int displayIndex = SDL_GetWindowDisplayIndex(win);
@@ -127,7 +128,7 @@ static int getRefreshRate(SDL_Window * win) {
     }
 }
 
-static bool initSDL(const char * fileLoc) {
+static bool init_sdl(const char * fileLoc) {
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
         std::cerr << "Could not initialize SDL : " << SDL_GetError() << std::endl;
@@ -158,7 +159,7 @@ static bool initSDL(const char * fileLoc) {
     }
 
     //SDL_RENDERER_PRESENTVSYNC
-    if (getRefreshRate(window) == 60) {
+    if (get_refresh_rate(window) == 60) {
     	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
     	SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
     } else {	
@@ -214,7 +215,7 @@ static bool initSDL(const char * fileLoc) {
     return true;
 }
 
-static void closeSDL() {
+static void close_sdl() {
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
@@ -245,7 +246,7 @@ static void draw(uint8_t * pixels) {
     return;
 }
 
-static bool processEvents(SDL_Event * event, uint8_t * controller, bool * paused) {
+static bool process_events(SDL_Event * event, uint8_t * controller, bool * paused) {
 
     while (SDL_PollEvent(event)) {
         switch(event->type) {

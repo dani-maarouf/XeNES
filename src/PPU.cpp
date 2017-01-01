@@ -5,12 +5,12 @@
 const bool DEBUG = false;
 
 /* Begin macro functions */
-#define getBit(num, bit)    (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) : \
+#define get_bit(num, bit)    (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) : \
     (bit == 2) ? (num & 0x4) : (bit == 3) ? (num & 0x8) :   \
     (bit == 4) ? (num & 0x10) : (bit == 5) ? (num & 0x20) : \
     (bit == 6) ? (num & 0x40) : (num & 0x80)
 
-#define horizontalIncrement(loopyv) if (ppuRegisters[1] & 0x18) {\
+#define horizontal_increment(loopyv) if (m_ppuRegisters[1] & 0x18) {\
     if ((loopyv & 0x001F) == 31) {      \
         loopyv &= ~0x001F;              \
         loopyv ^= 0x400;                \
@@ -19,7 +19,7 @@ const bool DEBUG = false;
     }                                   \
 }
 
-#define verticalIncrement(loopyv) if (ppuRegisters[1] & 0x18) {\
+#define vertical_increment(loopyv) if (m_ppuRegisters[1] & 0x18) {\
     if ((loopyv & 0x7000) != 0x7000) {                  \
         loopyv += 0x1000;                               \
     } else {                                            \
@@ -38,13 +38,13 @@ const bool DEBUG = false;
     }                                                   \
 }
 
-#define copyHorizontalBits(loopyv, loopyt) if (ppuRegisters[1] & 0x18) {\
+#define copy_horizontal_bits(loopyv, loopyt) if (m_ppuRegisters[1] & 0x18) {\
     loopyv &= ~0x041F;              \
     loopyv |= (loopyt & 0x041F);    \
 }
 
 
-#define copyVerticalBits(loopyv, loopyt) if (ppuRegisters[1] & 0x18) {\
+#define copy_vertical_bits(loopyv, loopyt) if (m_ppuRegisters[1] & 0x18) {\
     loopyv &= 0x041F;               \
     loopyv |= (loopyt & (~0x041F)); \
 }
@@ -53,122 +53,122 @@ const bool DEBUG = false;
 /* Begin PPU class functions */
 PPU::PPU() {
 
-    for (int x = 0; x < 0x20; x++) palette[x] = 0;
-    for (int x = 0; x < 0x8; x++) ppuRegisters[x] = 0x0;
-    for (int x = 0; x < 0x800; x++) VRAM[x] = 0x0;
-    for (int x = 0; x < 0x100; x++) OAM[x] = 0x0;
-    for (int x = 0; x < (NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT); x++) pixels[x] = 63;    //black in palette
-    for (int x = 0; x < 6 * 8; x++) lineOAM[x] = 0x0;
+    for (int x = 0; x < 0x20; x++) m_palette[x] = 0;
+    for (int x = 0; x < 0x8; x++) m_ppuRegisters[x] = 0x0;
+    for (int x = 0; x < 0x800; x++) m_VRAM[x] = 0x0;
+    for (int x = 0; x < 0x100; x++) m_OAM[x] = 0x0;
+    for (int x = 0; x < (NES_SCREEN_WIDTH * NES_SCREEN_HEIGHT); x++) m_pixels[x] = 63;    //black in m_palette
+    for (int x = 0; x < 6 * 8; x++) m_lineOAM[x] = 0x0;
     
 
-    draw = addressLatch = suppressVBL = false;
+    m_draw = m_addressLatch = m_suppressVBL = false;
 
     m_v = m_t = m_x = 0;
 
-    oamAddress = 0;
+    m_oamAddress = 0;
 
-    CHR_ROM = NULL;
-    readBuffer = 0;
+    m_CHR_ROM = NULL;
+    m_readBuffer = 0;
 
     m_SpriteOld1 = m_SpriteOld2 = m_PaletteOld = m_SpriteNew1 = m_SpriteNew2 = m_PaletteNew = 0;
-    ppuClock = 0;
-    writeFlag = readFlag = -1;
+    m_ppuClock = 0;
+    m_writeFlag = m_readFlag = -1;
 
     return;
 }
 
-void PPU::freePointers() {
-    if (CHR_ROM != NULL) {
-        delete [] CHR_ROM;
+void PPU::free_pointers() {
+    if (m_CHR_ROM != NULL) {
+        delete [] m_CHR_ROM;
     }
     return;
 }
 
-inline void PPU::loadNewTile() {
+inline void PPU::load_new_tile() {
 
-    if (ppuRegisters[1] & 0x18) {
+    if (m_ppuRegisters[1] & 0x18) {
         m_SpriteOld1 = m_SpriteNew1;
         m_SpriteOld2 = m_SpriteNew2;
         m_PaletteOld = m_PaletteNew;
 
-        m_PaletteNew = ((getPpuByte(0x23C0 | (m_v & 0x0C00) | ((m_v >> 4) & 0x38) | ((m_v >> 2) & 0x07))) >> (2 * ((((m_v & 0x1F) % 4) / 2) + ((((m_v & 0x370) >> 5) % 4) / 2) * 2))) & 0x3;
+        m_PaletteNew = ((get_ppu_byte(0x23C0 | (m_v & 0x0C00) | ((m_v >> 4) & 0x38) | ((m_v >> 2) & 0x07))) >> (2 * ((((m_v & 0x1F) % 4) / 2) + ((((m_v & 0x370) >> 5) % 4) / 2) * 2))) & 0x3;
 
-        int spriteStart = getPpuByte(0x2000 | (m_v & 0x0FFF));
-        int spriteAddress = spriteStart * 16 + ((m_v & 0x7000) >> 12) + ((ppuRegisters[0] & 0x10) ? 0x1000 : 0x0);
+        int spriteStart = get_ppu_byte(0x2000 | (m_v & 0x0FFF));
+        int spriteAddress = spriteStart * 16 + ((m_v & 0x7000) >> 12) + ((m_ppuRegisters[0] & 0x10) ? 0x1000 : 0x0);
 
         //load sprite data
-        m_SpriteNew1 = getPpuByte(spriteAddress);
-        m_SpriteNew2 = getPpuByte(spriteAddress + 8);
+        m_SpriteNew1 = get_ppu_byte(spriteAddress);
+        m_SpriteNew2 = get_ppu_byte(spriteAddress + 8);
     }
 
     return;
 }
 
-inline u8 PPU::getPpuByte(u16 address) {
+inline u8 PPU::get_ppu_byte(u16 address) {
     address &= 0x3FFF;
 
 	if (address < 0x2000) {
 		
-		if (ppuMapper == 0) {
-			return getPpuMapper0(address, CHR_ROM);
+		if (m_ppuMapper == 0) {
+			return get_ppu_mapper_0(address, m_CHR_ROM);
 		} else {
-			std::cerr << "Fatal error, mapper not recognized in getPpuByte()" << std::endl;
+			std::cerr << "Fatal error, mapper not recognized in get_ppu_byte()" << std::endl;
 			exit(EXIT_FAILURE);
 			return 0;
 		}
 
 
     } else if (address < 0x2400) {
-        return VRAM[address - 0x2000];
+        return m_VRAM[address - 0x2000];
     } else if (address < 0x2800) {
-        if (mirroring == VERTICAL) {
-            return VRAM[address - 0x2000];
-        } else if (mirroring == HORIZONTAL) {
-            return VRAM[address - 0x2400];
+        if (m_mirroring == VERTICAL) {
+            return m_VRAM[address - 0x2000];
+        } else if (m_mirroring == HORIZONTAL) {
+            return m_VRAM[address - 0x2400];
         } else {
-            return VRAM[address - 0x2000];
+            return m_VRAM[address - 0x2000];
         }
     } else if (address < 0x2C00) {
-        if (mirroring == VERTICAL) {
-            return VRAM[address - 0x2800];
-        } else if (mirroring == HORIZONTAL) {
-            return VRAM[address - 0x2400];
+        if (m_mirroring == VERTICAL) {
+            return m_VRAM[address - 0x2800];
+        } else if (m_mirroring == HORIZONTAL) {
+            return m_VRAM[address - 0x2400];
         } else {
-            return VRAM[address - 0x2000];
+            return m_VRAM[address - 0x2000];
         }
     } else if (address < 0x3000) {
-        if (mirroring == VERTICAL) {
-            return VRAM[address - 0x2800];
-        } else if (mirroring == HORIZONTAL) {
-            return VRAM[address - 0x2800];
+        if (m_mirroring == VERTICAL) {
+            return m_VRAM[address - 0x2800];
+        } else if (m_mirroring == HORIZONTAL) {
+            return m_VRAM[address - 0x2800];
         } else {
-            return VRAM[address - 0x2000];
+            return m_VRAM[address - 0x2000];
         }
     } else if (address < 0x3400) {
-        return VRAM[address - 0x3000];
+        return m_VRAM[address - 0x3000];
     } else if (address < 0x3800) {
-        if (mirroring == VERTICAL) {
-            return VRAM[address - 0x3000];
-        } else if (mirroring == HORIZONTAL) {
-            return VRAM[address - 0x3400];
+        if (m_mirroring == VERTICAL) {
+            return m_VRAM[address - 0x3000];
+        } else if (m_mirroring == HORIZONTAL) {
+            return m_VRAM[address - 0x3400];
         } else {
-            return VRAM[address - 0x3000];
+            return m_VRAM[address - 0x3000];
         }
     } else if (address < 0x3C00) {
-        if (mirroring == VERTICAL) {
-            return VRAM[address - 0x3800];
-        } else if (mirroring == HORIZONTAL) {
-            return VRAM[address - 0x3400];
+        if (m_mirroring == VERTICAL) {
+            return m_VRAM[address - 0x3800];
+        } else if (m_mirroring == HORIZONTAL) {
+            return m_VRAM[address - 0x3400];
         } else {
-            return VRAM[address - 0x3000];
+            return m_VRAM[address - 0x3000];
         }
     } else if (address < 0x3F00) {
-        if (mirroring == VERTICAL) {
-            return VRAM[address - 0x3800];
-        } else if (mirroring == HORIZONTAL) {
-            return VRAM[address - 0x3800];
+        if (m_mirroring == VERTICAL) {
+            return m_VRAM[address - 0x3800];
+        } else if (m_mirroring == HORIZONTAL) {
+            return m_VRAM[address - 0x3800];
         } else {
-            return VRAM[address - 0x3000];
+            return m_VRAM[address - 0x3000];
         }
     } else {
         u8 newAddress;
@@ -176,74 +176,74 @@ inline u8 PPU::getPpuByte(u16 address) {
         if (newAddress == 0x10 || newAddress == 0x14 || newAddress == 0x18 || newAddress == 0x1C) {
             newAddress -= (u8) 0x10;
         }
-        return palette[newAddress];
+        return m_palette[newAddress];
     }
 }
 
-inline void PPU::setPpuByte(u16 address, u8 byte) {
+inline void PPU::set_ppu_byte(u16 address, u8 byte) {
     address &= 0x3FFF;
 
     if (address < 0x1000) {
-        CHR_ROM[address] = byte;    //needed for vbl_nmi_timing test roms
+        m_CHR_ROM[address] = byte;    //needed for vbl_nmi_timing test roms
         if (DEBUG) {
             std::cout << "Illegal write attempt to PPU: $" << std::hex << address << std::endl;
         }
     } else if (address < 0x2000) {
-        CHR_ROM[address] = byte;    //needed for vbl_nmi_timing test roms
+        m_CHR_ROM[address] = byte;    //needed for vbl_nmi_timing test roms
         if (DEBUG) {
             std::cout << "Illegal write attempt to PPU: $" << std::hex << address << std::endl;
         }
     } else if (address < 0x2400) {
-        VRAM[address - 0x2000] = byte;
+        m_VRAM[address - 0x2000] = byte;
     } else if (address < 0x2800) {
-        if (mirroring == VERTICAL) {
-            VRAM[address - 0x2000] = byte;
-        } else if (mirroring == HORIZONTAL) {
-            VRAM[address - 0x2400] = byte;
+        if (m_mirroring == VERTICAL) {
+            m_VRAM[address - 0x2000] = byte;
+        } else if (m_mirroring == HORIZONTAL) {
+            m_VRAM[address - 0x2400] = byte;
         } else {
-            VRAM[address - 0x2000] = byte;
+            m_VRAM[address - 0x2000] = byte;
         }
     } else if (address < 0x2C00) {
-        if (mirroring == VERTICAL) {
-            VRAM[address - 0x2800] = byte;
-        } else if (mirroring == HORIZONTAL) {
-            VRAM[address - 0x2400] = byte;
+        if (m_mirroring == VERTICAL) {
+            m_VRAM[address - 0x2800] = byte;
+        } else if (m_mirroring == HORIZONTAL) {
+            m_VRAM[address - 0x2400] = byte;
         } else {
-            VRAM[address - 0x2000] = byte;
+            m_VRAM[address - 0x2000] = byte;
         }
     } else if (address < 0x3000) {
-        if (mirroring == VERTICAL) {
-            VRAM[address - 0x2800] = byte;
-        } else if (mirroring == HORIZONTAL) {
-            VRAM[address - 0x2800] = byte;
+        if (m_mirroring == VERTICAL) {
+            m_VRAM[address - 0x2800] = byte;
+        } else if (m_mirroring == HORIZONTAL) {
+            m_VRAM[address - 0x2800] = byte;
         } else {
-            VRAM[address - 0x2000] = byte;
+            m_VRAM[address - 0x2000] = byte;
         }
     } else if (address < 0x3400) {
-        VRAM[address - 0x3000] = byte;
+        m_VRAM[address - 0x3000] = byte;
     } else if (address < 0x3800) {
-        if (mirroring == VERTICAL) {
-            VRAM[address - 0x3000] = byte;
-        } else if (mirroring == HORIZONTAL) {
-            VRAM[address - 0x3400] = byte;
+        if (m_mirroring == VERTICAL) {
+            m_VRAM[address - 0x3000] = byte;
+        } else if (m_mirroring == HORIZONTAL) {
+            m_VRAM[address - 0x3400] = byte;
         } else {
-            VRAM[address - 0x3000] = byte;
+            m_VRAM[address - 0x3000] = byte;
         }
     } else if (address < 0x3C00) {
-        if (mirroring == VERTICAL) {
-            VRAM[address - 0x3800] = byte;
-        } else if (mirroring == HORIZONTAL) {
-            VRAM[address - 0x3400] = byte;
+        if (m_mirroring == VERTICAL) {
+            m_VRAM[address - 0x3800] = byte;
+        } else if (m_mirroring == HORIZONTAL) {
+            m_VRAM[address - 0x3400] = byte;
         } else {
-            VRAM[address - 0x3000] = byte;
+            m_VRAM[address - 0x3000] = byte;
         }
     } else if (address < 0x3F00) {
-        if (mirroring == VERTICAL) {
-            VRAM[address - 0x3800] = byte;
-        } else if (mirroring == HORIZONTAL) {
-            VRAM[address - 0x3800] = byte;
+        if (m_mirroring == VERTICAL) {
+            m_VRAM[address - 0x3800] = byte;
+        } else if (m_mirroring == HORIZONTAL) {
+            m_VRAM[address - 0x3800] = byte;
         } else {
-            VRAM[address - 0x3000] = byte;
+            m_VRAM[address - 0x3000] = byte;
         }
     } else {
         u8 newAddress;
@@ -251,29 +251,29 @@ inline void PPU::setPpuByte(u16 address, u8 byte) {
         if (newAddress == 0x10 || newAddress == 0x14 || newAddress == 0x18 || newAddress == 0x1C) {
             newAddress -= 0x10;
         }
-        palette[newAddress] = byte;
+        m_palette[newAddress] = byte;
     }
     return;
 }
 
-inline void PPU::ppuFlagUpdate(bool * NMI) {
+inline void PPU::ppu_flag_update(bool * NMI) {
 
-    if (writeFlag == 0) {
+    if (m_writeFlag == 0) {
         m_t &= ~0x0C00;
-        m_t |= ((ppuRegisters[0] & 0x03) << 10);
+        m_t |= ((m_ppuRegisters[0] & 0x03) << 10);
 
-        //extendedSprites = (ppuRegisters[0] & 0x20) ? true : false;
-        //ppuMaster = (ppuRegisters[0] & 0x40) ? true : false;
+        //extendedSprites = (m_ppuRegisters[0] & 0x20) ? true : false;
+        //ppuMaster = (m_ppuRegisters[0] & 0x40) ? true : false;
 
         //this breaks spelunker
         
         /*
-        if (suppressVBL) {
-            ppuRegisters[0] &= 0x7F;
-            suppressVBL = false;
+        if (m_suppressVBL) {
+            m_ppuRegisters[0] &= 0x7F;
+            m_suppressVBL = false;
         } else {
-            if (ppuRegisters[0] & 0x80) {
-                if (ppuRegisters[2] & 0x80) {
+            if (m_ppuRegisters[0] & 0x80) {
+                if (m_ppuRegisters[2] & 0x80) {
                     *NMI = true;
                 }
             }
@@ -282,68 +282,68 @@ inline void PPU::ppuFlagUpdate(bool * NMI) {
         
 
 
-	} else if (writeFlag == 1) {
+	} else if (m_writeFlag == 1) {
 
-    } else if (writeFlag == 2) {
+    } else if (m_writeFlag == 2) {
 
 
-    } else if (writeFlag == 3) {
+    } else if (m_writeFlag == 3) {
 
-        oamAddress = ppuRegisters[0x3];
+        m_oamAddress = m_ppuRegisters[0x3];
 
-    } else if (writeFlag == 4) {
+    } else if (m_writeFlag == 4) {
 
-        OAM[oamAddress] = ppuRegisters[0x4];
-        oamAddress = (oamAddress + 1) & 0xFF;
+        m_OAM[m_oamAddress] = m_ppuRegisters[0x4];
+        m_oamAddress = (m_oamAddress + 1) & 0xFF;
 
-    } else if (writeFlag == 5) {
-        if (addressLatch == true) {
+    } else if (m_writeFlag == 5) {
+        if (m_addressLatch == true) {
             m_t &= 0x0C1F;
-            m_t |= (ppuRegisters[0x5] & 0x7) << 12;
-            m_t |= (ppuRegisters[0x5] & 0xF8) << 2;
+            m_t |= (m_ppuRegisters[0x5] & 0x7) << 12;
+            m_t |= (m_ppuRegisters[0x5] & 0xF8) << 2;
         } else {
-            m_x = (ppuRegisters[0x5] & 0x7);
+            m_x = (m_ppuRegisters[0x5] & 0x7);
             m_t &= ~0x001F;
-            m_t |= (ppuRegisters[0x5] & 0xF8) >> 3;
+            m_t |= (m_ppuRegisters[0x5] & 0xF8) >> 3;
         }
-        addressLatch = !addressLatch;
+        m_addressLatch = !m_addressLatch;
 
-    } else if (writeFlag == 6) {
-        if (addressLatch) {
+    } else if (m_writeFlag == 6) {
+        if (m_addressLatch) {
             m_t &= 0xFF00;
-            m_t |= ppuRegisters[6];
+            m_t |= m_ppuRegisters[6];
             m_v = m_t;
         } else {
             m_t &= 0x00FF;
 
-            m_t |= (ppuRegisters[6] & 0x3F) << 8;
+            m_t |= (m_ppuRegisters[6] & 0x3F) << 8;
             m_t &= 0x3FFF;
         }
-        addressLatch = !addressLatch;
+        m_addressLatch = !m_addressLatch;
 
-    } else if (writeFlag == 7) {
+    } else if (m_writeFlag == 7) {
         //read from 2007
         m_v &= 0x3FFF;
-        setPpuByte(m_v , ppuRegisters[7]);
+        set_ppu_byte(m_v , m_ppuRegisters[7]);
         //increment vram address
-        m_v += (ppuRegisters[0] & 0x04) ? 32 : 1;
+        m_v += (m_ppuRegisters[0] & 0x04) ? 32 : 1;
     }
 
     //process state changes due to register read
-    if (readFlag == 2) {
-        addressLatch = false;
-        ppuRegisters[2] &= 0x7F;
+    if (m_readFlag == 2) {
+        m_addressLatch = false;
+        m_ppuRegisters[2] &= 0x7F;
         *NMI = false;
 
-    } else if (readFlag == 4) {
+    } else if (m_readFlag == 4) {
 
-    } else if (readFlag == 7) {
+    } else if (m_readFlag == 7) {
         //todo: fix this
     }
 
-    if (writeFlag != -1) {
-        ppuRegisters[0x2] &= ~0x1F;
-        ppuRegisters[0x2] |= (ppuRegisters[writeFlag] & 0x1F);
+    if (m_writeFlag != -1) {
+        m_ppuRegisters[0x2] &= ~0x1F;
+        m_ppuRegisters[0x2] |= (m_ppuRegisters[m_writeFlag] & 0x1F);
     }
 
 
@@ -351,10 +351,10 @@ inline void PPU::ppuFlagUpdate(bool * NMI) {
 
 }
 
-u8 PPU::return2007() {
+u8 PPU::return_2007() {
 
     //if screen off
-    //if ((nesPPU.ppuRegisters[0x2] & 0x80) || ((nesPPU.ppuRegisters[0x1] & 0x18) == 0) || true) {
+    //if ((nesPPU.m_ppuRegisters[0x2] & 0x80) || ((nesPPU.m_ppuRegisters[0x1] & 0x18) == 0) || true) {
 
     u8 ppuByte;
 
@@ -362,14 +362,14 @@ u8 PPU::return2007() {
 
 
     if (m_v % 0x4000 < 0x3F00) {
-        ppuByte = readBuffer;
-        readBuffer = getPpuByte( m_v );
+        ppuByte = m_readBuffer;
+        m_readBuffer = get_ppu_byte( m_v );
     } else {
-        ppuByte = getPpuByte( m_v );
-        readBuffer = getPpuByte( m_v - 0x1000);
+        ppuByte = get_ppu_byte( m_v );
+        m_readBuffer = get_ppu_byte( m_v - 0x1000);
     }
 
-    m_v += (ppuRegisters[0] & 0x04) ? 32 : 1;
+    m_v += (m_ppuRegisters[0] & 0x04) ? 32 : 1;
 
     m_v &= 0x7FFF;
 
@@ -378,16 +378,16 @@ u8 PPU::return2007() {
     return ppuByte;
 }
 
-inline void PPU::drawPixel(int cycle, int line) {
+inline void PPU::draw_pixel(int cycle, int line) {
 
     //think about how chunks of similar operations can be grouped together for caching
-    //decode palette to rgb all at once at end of frame?
+    //decode m_palette to rgb all at once at end of frame?
 
     int pixelLocation = (cycle - 1) + NES_SCREEN_WIDTH * line;  //current pixel being rendered
     u8 backgroundColour = 0;
 
     //render background pixel
-    if (((ppuRegisters[1] & 0x2) && cycle  < 9 && (ppuRegisters[1] & 0x8)) || ((ppuRegisters[1] & 0x8) && cycle >= 9)) {    //is background rendering enabled?
+    if (((m_ppuRegisters[1] & 0x2) && cycle  < 9 && (m_ppuRegisters[1] & 0x8)) || ((m_ppuRegisters[1] & 0x8) && cycle >= 9)) {    //is background rendering enabled?
 
         bool passBound;
         if (((cycle - 1) % 8) + m_x > 7) {
@@ -401,51 +401,51 @@ inline void PPU::drawPixel(int cycle, int line) {
         int pal;
         if (passBound) {
             //mux select bit
-            if (getBit(m_SpriteNew1, 7 - interTilePixelLoc)) {
+            if (get_bit(m_SpriteNew1, 7 - interTilePixelLoc)) {
                 backgroundColour |= 0x1;   
             }
-            if (getBit(m_SpriteNew2, 7 - interTilePixelLoc)) {
+            if (get_bit(m_SpriteNew2, 7 - interTilePixelLoc)) {
                 backgroundColour |= 0x2;
             }
             pal = m_PaletteNew;
         } else {
                     //mux select bit
-            if (getBit(m_SpriteOld1, 7 - interTilePixelLoc)) {
+            if (get_bit(m_SpriteOld1, 7 - interTilePixelLoc)) {
                 backgroundColour |= 0x1;   
             }
-            if (getBit(m_SpriteOld2, 7 - interTilePixelLoc)) {
+            if (get_bit(m_SpriteOld2, 7 - interTilePixelLoc)) {
                 backgroundColour |= 0x2;
             }
             pal = m_PaletteOld;
         }
 
         if (backgroundColour == 0) {
-            pixels[pixelLocation] = getPpuByte(0x3F00);
+            m_pixels[pixelLocation] = get_ppu_byte(0x3F00);
         } else { 
-            pixels[pixelLocation] = getPpuByte(0x3F00 + backgroundColour + pal * 4);
+            m_pixels[pixelLocation] = get_ppu_byte(0x3F00 + backgroundColour + pal * 4);
         }
     }
 
     //render sprite pixel if applicable
-    if (((ppuRegisters[1] & 0x4) && (cycle) < 9 && (ppuRegisters[1] & 0x10)) || ((ppuRegisters[1] & 0x10) && (cycle) >= 9)) {    
+    if (((m_ppuRegisters[1] & 0x4) && (cycle) < 9 && (m_ppuRegisters[1] & 0x10)) || ((m_ppuRegisters[1] & 0x10) && (cycle) >= 9)) {    
         for (int i = 0; i < 8; i++) {
 
-            u8 spriteLayer1 = lineOAM[i * 6 + 4];
-            u8 spriteLayer2 = lineOAM[i * 6 + 5];
+            u8 spriteLayer1 = m_lineOAM[i * 6 + 4];
+            u8 spriteLayer2 = m_lineOAM[i * 6 + 5];
 
             if (spriteLayer1 == 0 && spriteLayer2 == 0) {
                 continue;
             }
 
             int xPosition;
-            xPosition = lineOAM[i * 6 + 2];
+            xPosition = m_lineOAM[i * 6 + 2];
 
             if (!( (cycle - 1) - xPosition < 8 && (cycle - 1) - xPosition >= 0 )) {
                 //current sprite i, is out of range for current pixel location 
                 continue;
             }
 
-            u8 spriteAttributes = lineOAM[i * 6 + 3];
+            u8 spriteAttributes = m_lineOAM[i * 6 + 3];
 
             //column location of pixel in sprite data
             int spriteColumnNumber;
@@ -455,23 +455,23 @@ inline void PPU::drawPixel(int cycle, int line) {
                 spriteColumnNumber = 7 - ((cycle - 1) - xPosition);
             }
 
-            //palette info for pixel
+            //m_palette info for pixel
             int spriteColour = 0; 
-            if (getBit(spriteLayer1, spriteColumnNumber)) {
+            if (get_bit(spriteLayer1, spriteColumnNumber)) {
                 spriteColour |= 0x1;
             }
-            if (getBit(spriteLayer2, spriteColumnNumber)) {
+            if (get_bit(spriteLayer2, spriteColumnNumber)) {
                 spriteColour |= 0x2;
             }
 
             //sprite zero hit detection
             if ((spriteColour != 0)) {
-                if (lineOAM[i * 6] == 1) {
-                    if ((ppuRegisters[1] & 0x18) == 0x18) {
+                if (m_lineOAM[i * 6] == 1) {
+                    if ((m_ppuRegisters[1] & 0x18) == 0x18) {
 
                         if (backgroundColour != 0) {
                             if (cycle < 256) {
-                                ppuRegisters[2] |= 0x40;    //this alone makes NEStress flicker
+                                m_ppuRegisters[2] |= 0x40;    //this alone makes NEStress flicker
                             }
                         }
                         
@@ -479,7 +479,7 @@ inline void PPU::drawPixel(int cycle, int line) {
                 }
                 //priority
                 if (((spriteAttributes & 0x20) == 0) || backgroundColour == 0) {
-                    pixels[pixelLocation] = getPpuByte(0x3F10 + spriteColour + (spriteAttributes & 0x3) * 4);
+                    m_pixels[pixelLocation] = get_ppu_byte(0x3F10 + spriteColour + (spriteAttributes & 0x3) * 4);
                     break;
                 }
             } else {
@@ -492,49 +492,49 @@ inline void PPU::drawPixel(int cycle, int line) {
     return;
 }
 
-inline void PPU::updateSecondaryOAM(int line) {
+inline void PPU::update_secondary_oam(int line) {
 
     int secondaryOamAddress = 0;
 
     for (int x = 0; x < 8 * 6; x++) {
-        lineOAM[x] = 0;
+        m_lineOAM[x] = 0;
     }
 
     for (int x = 0; x < 64; x++) {
         u8 yPos;
-        yPos = OAM[x * 4];
+        yPos = m_OAM[x * 4];
 
         //determine whether sprite will appear on next scanline
-        if ((((line) % 262) - yPos < 8 && ((line) % 262) - yPos >= 0 && (yPos < 240) && (OAM[x * 4 + 3] < 255) && ((ppuRegisters[0x0] & 0x20) == 0)) ||     //8x8
-            (((line) % 262) - yPos < 16 && ((line) % 262) - yPos >= 0 && (yPos < 240) && (OAM[x * 4 + 3] < 255) && ((ppuRegisters[0x0] & 0x20))))            //16x8
+        if ((((line) % 262) - yPos < 8 && ((line) % 262) - yPos >= 0 && (yPos < 240) && (m_OAM[x * 4 + 3] < 255) && ((m_ppuRegisters[0x0] & 0x20) == 0)) ||     //8x8
+            (((line) % 262) - yPos < 16 && ((line) % 262) - yPos >= 0 && (yPos < 240) && (m_OAM[x * 4 + 3] < 255) && ((m_ppuRegisters[0x0] & 0x20))))            //16x8
             {
 
             //load sprite to sOAM if in range of next scanline
             if (secondaryOamAddress < 8) {
                 //sprite 0?
                 if (x == 0) {
-                    lineOAM[secondaryOamAddress * 6] = 1;       
+                    m_lineOAM[secondaryOamAddress * 6] = 1;       
                 } else {
-                    lineOAM[secondaryOamAddress * 6] = 0;
+                    m_lineOAM[secondaryOamAddress * 6] = 0;
                 }
 
-                lineOAM[secondaryOamAddress * 6 + 1] = yPos;
-                lineOAM[secondaryOamAddress * 6 + 2] = OAM[x * 4 + 3];  //xpos
-                lineOAM[secondaryOamAddress * 6 + 3] = OAM[x * 4 + 2];  //attributes
+                m_lineOAM[secondaryOamAddress * 6 + 1] = yPos;
+                m_lineOAM[secondaryOamAddress * 6 + 2] = m_OAM[x * 4 + 3];  //xpos
+                m_lineOAM[secondaryOamAddress * 6 + 3] = m_OAM[x * 4 + 2];  //attributes
 
-                int sIndex = OAM[x * 4 + 1];
+                int sIndex = m_OAM[x * 4 + 1];
 
                 //row location of pixel in sprite data
                 int spriteRowNumber;
-                if (OAM[x * 4 + 2] & 0x80) {
+                if (m_OAM[x * 4 + 2] & 0x80) {
                     spriteRowNumber = 7 -(line - yPos);
                 } else {
                     spriteRowNumber = (line- yPos);
                 }
 
                 //pattern data for sprite
-                lineOAM[secondaryOamAddress * 6 + 4] = getPpuByte(sIndex * 16 + (spriteRowNumber + ((ppuRegisters[0] & 0x8) ? 0x1000 : 0x0)));
-                lineOAM[secondaryOamAddress * 6 + 5] = getPpuByte(sIndex * 16 + (spriteRowNumber + ((ppuRegisters[0] & 0x8) ? 0x1000 : 0x0) + 8));
+                m_lineOAM[secondaryOamAddress * 6 + 4] = get_ppu_byte(sIndex * 16 + (spriteRowNumber + ((m_ppuRegisters[0] & 0x8) ? 0x1000 : 0x0)));
+                m_lineOAM[secondaryOamAddress * 6 + 5] = get_ppu_byte(sIndex * 16 + (spriteRowNumber + ((m_ppuRegisters[0] & 0x8) ? 0x1000 : 0x0) + 8));
             }
 
             secondaryOamAddress++;
@@ -542,8 +542,8 @@ inline void PPU::updateSecondaryOAM(int line) {
             //sprite overflow detection
             if (secondaryOamAddress == 9) {
 
-                if (((ppuRegisters[1] & 0x10)) || ((ppuRegisters[1] & 0x8))) {
-                    ppuRegisters[2] |= 0x20;    //sprite overflow
+                if (((m_ppuRegisters[1] & 0x10)) || ((m_ppuRegisters[1] & 0x8))) {
+                    m_ppuRegisters[2] |= 0x20;    //sprite overflow
                     break;
                 }   
             }
@@ -555,26 +555,26 @@ inline void PPU::updateSecondaryOAM(int line) {
 
 void PPU::tick(bool * NMI, uintmax_t * cpuClock) {
 
-    draw = false; 
+    m_draw = false; 
     uintmax_t ppuEnd = *cpuClock;
 
     //process state changes due to register write
-    if (readFlag != -1 || writeFlag != -1) {
-        ppuFlagUpdate(NMI);
-        readFlag = -1;
-        writeFlag = -1;
+    if (m_readFlag != -1 || m_writeFlag != -1) {
+        ppu_flag_update(NMI);
+        m_readFlag = -1;
+        m_writeFlag = -1;
     }  
 
-    for ( ; ppuClock < ppuEnd; ppuClock++) {
+    for ( ; m_ppuClock < ppuEnd; m_ppuClock++) {
 
-        int cyc = ppuClock % 341;
-        int line = (ppuClock % (341 * 262)) / 341;
+        int cyc = m_ppuClock % 341;
+        int line = (m_ppuClock % (341 * 262)) / 341;
 
         
         //first frame tick skipped on odd frame when screen on
-        if (ppuRegisters[1] & 0x8) {
-            if (((ppuClock % (262 * 341 * 2)) == 0)) {
-                ppuClock++;
+        if (m_ppuRegisters[1] & 0x8) {
+            if (((m_ppuClock % (262 * 341 * 2)) == 0)) {
+                m_ppuClock++;
                 ppuEnd++;
                 *cpuClock += 1;
                 
@@ -585,39 +585,39 @@ void PPU::tick(bool * NMI, uintmax_t * cpuClock) {
         if (line < 240) {
 
             //not in vblank
-            ppuRegisters[2] &= 0x7F;
+            m_ppuRegisters[2] &= 0x7F;
             
 
             if (cyc == 0) {
                 continue;
             } else if (cyc > 0 && cyc < 256) {
 
-                if (ppuRegisters[1] & 0x18) {
-                    drawPixel(cyc, line);
+                if (m_ppuRegisters[1] & 0x18) {
+                    draw_pixel(cyc, line);
                 }
 
                 if (((cyc - 1) % 8 == 7)) {
-                    loadNewTile();
-                    horizontalIncrement(m_v);
+                    load_new_tile();
+                    horizontal_increment(m_v);
                 }
             } else if (cyc == 256) {
-                drawPixel(cyc, line);
-                horizontalIncrement(m_v);
-                verticalIncrement(m_v);
+                draw_pixel(cyc, line);
+                horizontal_increment(m_v);
+                vertical_increment(m_v);
             } else if (cyc == 257) {
-                if (ppuRegisters[1] & 0x18) {
-                    copyHorizontalBits(m_v, m_t);
+                if (m_ppuRegisters[1] & 0x18) {
+                    copy_horizontal_bits(m_v, m_t);
                 }
                 
             } else if (cyc == 328) {
-                loadNewTile();
-                horizontalIncrement(m_v);
+                load_new_tile();
+                horizontal_increment(m_v);
             } else if (cyc == 336) {
-                loadNewTile();
-                horizontalIncrement(m_v);
+                load_new_tile();
+                horizontal_increment(m_v);
             } else if (cyc == 340) {
-                if (ppuRegisters[1] & 0x18) {
-                    updateSecondaryOAM(line);
+                if (m_ppuRegisters[1] & 0x18) {
+                    update_secondary_oam(line);
                 }
 
             } 
@@ -627,17 +627,17 @@ void PPU::tick(bool * NMI, uintmax_t * cpuClock) {
         } else if (line == 241) {
             if (cyc == 1) {
 
-                ppuRegisters[2] &= 0x7F;
+                m_ppuRegisters[2] &= 0x7F;
 
                 //set vblank in PPUSTATUS
-                if (!suppressVBL) {
-                    ppuRegisters[2] |= 0x80;
+                if (!m_suppressVBL) {
+                    m_ppuRegisters[2] |= 0x80;
                 }
                 
             } else if (cyc == 2) {
 
                 //throw NMI (should this be cyc == 1)? this matched nintendulator apparently
-                if ((ppuRegisters[0] & 0x80) && (ppuRegisters[2] & 0x80)) {
+                if ((m_ppuRegisters[0] & 0x80) && (m_ppuRegisters[2] & 0x80)) {
                     *NMI = true;
                 }
 
@@ -648,33 +648,33 @@ void PPU::tick(bool * NMI, uintmax_t * cpuClock) {
             if (cyc > 0 && cyc < 256) {
                 if (cyc == 1) {
                     //clear vblank, sprite 0 and overflow
-                    ppuRegisters[2] &= 0x1F;
-                    suppressVBL = false;
+                    m_ppuRegisters[2] &= 0x1F;
+                    m_suppressVBL = false;
                     *NMI = false;
-                    //ppuRegisters[0] &= 0x7F;	//breaks spelunker
+                    //m_ppuRegisters[0] &= 0x7F;	//breaks spelunker
                 } else if (((cyc - 1) % 8 == 7)) {
-                    loadNewTile();
-                    horizontalIncrement(m_v);
+                    load_new_tile();
+                    horizontal_increment(m_v);
                 }
             } else if (cyc == 256) {
-                horizontalIncrement(m_v);
-                verticalIncrement(m_v);
+                horizontal_increment(m_v);
+                vertical_increment(m_v);
             } else if (cyc == 257) {
-                copyHorizontalBits(m_v, m_t);
+                copy_horizontal_bits(m_v, m_t);
             } else if (cyc == 304) {
-                copyVerticalBits(m_v, m_t);
+                copy_vertical_bits(m_v, m_t);
             } else if (cyc == 328) {
-                loadNewTile();
-                horizontalIncrement(m_v);
+                load_new_tile();
+                horizontal_increment(m_v);
             } else if (cyc == 336) {
-                loadNewTile();
-                horizontalIncrement(m_v);
+                load_new_tile();
+                horizontal_increment(m_v);
             } else if (cyc == 340) {
-                if (ppuRegisters[1] & 0x18) {
-                    updateSecondaryOAM(line);
+                if (m_ppuRegisters[1] & 0x18) {
+                    update_secondary_oam(line);
                 }
 
-                draw = true;
+                m_draw = true;
             } 
         }
     }

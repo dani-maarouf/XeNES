@@ -1,30 +1,35 @@
 #pragma once
+
 #include <cstdint>
+
+class NES;
 
 class APU {
 
 public:
 
-    int sampleFrequency;
-    uint8_t dmcOut;
-    uint16_t sampleLength;
-    uint16_t sampleAddress;    
-    uint8_t sampleBuffer;
-    int bufferIndex;
+    int m_sampleFrequency;
+    uint8_t m_dmcOut;
+    uint16_t m_sampleAddress;    
 
-    uint8_t registers[0x20];          //joystick and apu registers
-    int16_t * audioBuffer;
-    int audioBufferSize;
-    uintmax_t sampleClock;
+    uint16_t m_sampleByteLength;
+    int m_currentSampleByte;
+    uint8_t m_sampleBuffer;
+    int m_bufferIndex;
 
-    int lengthCounterPulse1;
-    int lengthCounterPulse2;
-    int lengthCounterTriangle;
-    int linearCounterTriangle;
-    int lengthCounterNoise;
+    uint8_t m_registers[0x20];          //joystick and apu registers
+    int16_t * m_audioBuffer;
+    int m_audioBufferSize;
+    uintmax_t m_sampleClock;
 
-    bool linearReloading;
+    int m_lengthCounterPulse1;
+    int m_lengthCounterPulse2;
+    int m_lengthCounterTriangle;
+    int m_linearCounterTriangle;
+    int m_lengthCounterNoise;
+
+    bool m_linearReloading;
 
     APU();
-    void fillBuffer(bool *);
+    void fill_buffer(NES *, bool *);
 };

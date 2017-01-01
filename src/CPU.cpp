@@ -15,7 +15,7 @@ const int rateTable[] = {
 };
 
 
-#define getBit(num, bit)    (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) :   \
+#define get_bit(num, bit)    (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) :   \
                             (bit == 2) ? (num & 0x4) : (bit == 3) ? (num & 0x8) :   \
                             (bit == 4) ? (num & 0x10) : (bit == 5) ? (num & 0x20) : \
                             (bit == 6) ? (num & 0x40) : (num & 0x80)
@@ -31,7 +31,7 @@ enum InstructionType {
 
 //memory addressing mode for each opcode
 static const enum AddressMode addressModes[] = {
-  //0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
+  //0    1    2    3    4    5    6    7    8    9    m_A    B    C    D    E    F
     IMP, INDX,NONE,INDX,ZRP ,ZRP ,ZRP ,ZRP ,IMP, IMM, ACC, NONE,ABS, ABS ,ABS, ABS,   //0
     REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //1
     ABS, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, ACC, NONE,ABS, ABS, ABS, ABS,   //2
@@ -42,7 +42,7 @@ static const enum AddressMode addressModes[] = {
     REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //7
     IMM, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, NONE,IMP, NONE,ABS, ABS, ABS, ABS,   //8
     REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPY,ZRPY,IMP, ABSY,IMP, NONE,NONE,ABSX,NONE,NONE,  //9
-    IMM, INDX,IMM, INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, IMP, NONE,ABS, ABS, ABS, ABS,   //A
+    IMM, INDX,IMM, INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, IMP, NONE,ABS, ABS, ABS, ABS,   //m_A
     REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPY,ZRPY,IMP, ABSY,IMP, NONE,ABSX,ABSX,ABSY,ABSY,  //B
     IMM, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, IMP, NONE,ABS, ABS, ABS, ABS,   //C
     REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //D
@@ -52,7 +52,7 @@ static const enum AddressMode addressModes[] = {
 
 //opcode mapping to assembly mnemonics and instruction type
 static const int opnameMap[] = {
-   //0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+   //0  1  2  3  4  5  6  7  8  9  m_A  B  C  D  E  F
     11,39, 0,56,38,39, 3,56,41,39, 3, 0,38,39, 3,56,  //0
     10,39, 0,56,38,39, 3,56,14,39,38,56,38,39, 3,56,  //1
     31, 2, 0,44, 7, 2,45,44,43, 2,45, 0, 7, 2,45,44,  //2
@@ -63,7 +63,7 @@ static const int opnameMap[] = {
     13, 1, 0,47,38, 1,46,47,55, 1,38,47,38, 1,46,47,  //7
     38,58, 0,50,60,58,59,50,24, 0,64, 0,60,58,59,50,  //8
      4,58, 0, 0,60,58,59,50,66,58,65, 0, 0,58, 0, 0,  //9
-    35,33,34,32,35,33,34,32,62,33,61, 0,35,33,34,32,  //A
+    35,33,34,32,35,33,34,32,62,33,61, 0,35,33,34,32,  //m_A
      5,33, 0,32,35,33,34,32,17,33,63, 0,35,33,34,32,  //B
     20,18, 0,21,20,18,22,21,28,18,23, 0,20,18,22,21,  //C
      9,18, 0,21,38,18,22,21,15,18,38,21,38,18,22,21,  //D
@@ -104,55 +104,55 @@ static const int cycles[] = {
     0,0,0,0,0,0,0,0,0,0,0,0,0,  //other
 };
 
-//table of opcode lengths for advancing PC
-                                   //0,1,2,3,4,5,6,7,8,9,A,B,C,D,E,F
-static const int opcodeLens[0x20] = {2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3,  //0 2 4 6 8 A C E
+//table of opcode lengths for advancing m_PC
+                                   //0,1,2,3,4,5,6,7,8,9,m_A,B,C,D,E,F
+static const int opcodeLens[0x20] = {2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3,  //0 2 4 6 8 m_A C E
                                      2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3}; //1 3 5 7 9 B D F
 
-static inline u8 getPswByte(bool *);
-static inline void getPswFromByte(bool * PS, u8 byte);
-static void printByte(u8);
-static int debugPrintVal(enum AddressMode, int, int);
-static void printDebugLine(u16, u8, u8, u8, enum AddressMode, u16, u8, u8, u8, u8, u8, bool *, int);
+static inline u8 get_psw_byte(bool *);
+static inline void get_psw_from_byte(bool * m_PS, u8 byte);
+static void print_byte(u8);
+static int debug_print_val(enum AddressMode, int, int);
+static void print_debug_line(u16, u8, u8, u8, enum AddressMode, u16, u8, u8, u8, u8, u8, bool *, int);
 
 CPU::CPU() {
 
-    nesPPU = PPU();
-    nesAPU = APU();
+    m_nesPPU = PPU();
+    m_nesAPU = APU();
 
-    for (int x = 0; x < 0x2000; x++) cpuMem[x] = 0x0;
-    for (int x = 0; x < 0x800; x++) RAM[x] = 0x0;
-    for (int x = 0; x < 8; x++) PS[x] = false;
+    for (int x = 0; x < 0x2000; x++) m_cpuMem[x] = 0x0;
+    for (int x = 0; x < 0x800; x++) m_RAM[x] = 0x0;
+    for (int x = 0; x < 8; x++) m_PS[x] = false;
 
-    PRG_ROM = PRG_RAM = NULL;
-    SP = 0xFD;
-    A = X = Y = 0x0;
-    NMI = false;
-    IRQ = false;
-    PS[I] = true;
-    cpuClock = 0;
-    controllerByte = storedControllerByte = currentControllerBit = 0;
-    readController = false;
+    m_PRG_ROM = m_PRG_RAM = NULL;
+    m_SP = 0xFD;
+    m_A = m_X = m_Y = 0x0;
+    m_NMI = false;
+    m_IRQ = false;
+    m_PS[I] = true;
+    m_cpuClock = 0;
+    m_controllerByte = m_storedControllerByte = m_currentControllerBit = 0;
+    m_readController = false;
 
     return;
 }
 
-void CPU::freePointers() {
-    if (PRG_ROM != NULL) {
-        delete [] PRG_ROM;
+void CPU::free_pointers() {
+    if (m_PRG_ROM != NULL) {
+        delete [] m_PRG_ROM;
     }
-    if (PRG_RAM != NULL) {
-        delete [] PRG_RAM;
+    if (m_PRG_RAM != NULL) {
+        delete [] m_PRG_RAM;
     }
     return;
 }
 
-inline bool CPU::returnControllerBit() {
+inline bool CPU::return_controller_bit() {
 
-    if (currentControllerBit < 8) {
-        currentControllerBit++;
+    if (m_currentControllerBit < 8) {
+        m_currentControllerBit++;
         bool bit;
-        bit = getBit(storedControllerByte, currentControllerBit - 1);
+        bit = get_bit(m_storedControllerByte, m_currentControllerBit - 1);
         return bit;
     } else {
         return true;
@@ -160,33 +160,33 @@ inline bool CPU::returnControllerBit() {
 
 }
 
-inline u8 CPU::getCpuByte(u16 memAddress, bool silent) {
+inline u8 CPU::get_cpu_byte(u16 memAddress, bool silent) {
 
     if (memAddress < 0x2000) {
-        return RAM[memAddress % 0x800];
+        return m_RAM[memAddress % 0x800];
     } else if (memAddress < 0x4000) {
         u16 address;
         address = (memAddress - 0x2000) % 8;
 
         if (!silent) {
-            nesPPU.readFlag = address;
+            m_nesPPU.m_readFlag = address;
 
             if (address == 0x2) {
         
                 
                 /*
                 //ppu/cpu synchronization hack
-                if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 241 + 1) && (cpuClock % (262 * 341)) >= (341 * 241 + 1) ) {
-                    nesPPU.ppuRegisters[2] |= 0x80;
-                    nesPPU.suppressVBL = true;
-                    NMI = false;
-                } else if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 241 + 0 ) && (cpuClock % (262 * 341)) >= (341 * 241 + 0) ) {
-                    nesPPU.suppressVBL = true;
-                    NMI = false;
-                } else if (  (nesPPU.ppuClock % (262 * 341)) < (341 * 261 + 1) && (cpuClock % (262 * 341)) >= (341 * 261 + 1) ) {
-                    NMI = false;
-                    nesPPU.ppuRegisters[2] &= 0x1F;
-                    NMI = false;
+                if (  (m_nesPPU.m_ppuClock % (262 * 341)) < (341 * 241 + 1) && (m_cpuClock % (262 * 341)) >= (341 * 241 + 1) ) {
+                    m_nesPPU.m_ppuRegisters[2] |= 0x80;
+                    m_nesPPU.suppressVBL = true;
+                    m_NMI = false;
+                } else if (  (m_nesPPU.m_ppuClock % (262 * 341)) < (341 * 241 + 0 ) && (m_cpuClock % (262 * 341)) >= (341 * 241 + 0) ) {
+                    m_nesPPU.suppressVBL = true;
+                    m_NMI = false;
+                } else if (  (m_nesPPU.m_ppuClock % (262 * 341)) < (341 * 261 + 1) && (m_cpuClock % (262 * 341)) >= (341 * 261 + 1) ) {
+                    m_NMI = false;
+                    m_nesPPU.m_ppuRegisters[2] &= 0x1F;
+                    m_NMI = false;
                 }
                 */
                 
@@ -195,20 +195,20 @@ inline u8 CPU::getCpuByte(u16 memAddress, bool silent) {
 
             } else if (address == 0x4) {
 
-                if ((nesPPU.ppuRegisters[2] & 0x80) || ((nesPPU.ppuRegisters[1] & 0x18) == 0)) {
-                    return nesPPU.OAM[nesPPU.oamAddress];
+                if ((m_nesPPU.m_ppuRegisters[2] & 0x80) || ((m_nesPPU.m_ppuRegisters[1] & 0x18) == 0)) {
+                    return m_nesPPU.m_OAM[m_nesPPU.m_oamAddress];
                 } else {
-                    nesPPU.oamAddress++;
-                    return nesPPU.OAM[nesPPU.oamAddress - 1];
+                    m_nesPPU.m_oamAddress++;
+                    return m_nesPPU.m_OAM[m_nesPPU.m_oamAddress - 1];
                 }
 
             } else if (address == 0x7) {
-                return nesPPU.return2007();
+                return m_nesPPU.return_2007();
             }
 
         }
 
-        return nesPPU.ppuRegisters[address];
+        return m_nesPPU.m_ppuRegisters[address];
     } else if (memAddress < 0x4020) {
 
         if (memAddress == 0x4015) {
@@ -216,88 +216,88 @@ inline u8 CPU::getCpuByte(u16 memAddress, bool silent) {
             //status read conditions
 
         } else if (memAddress == 0x4016) {
-            if (readController) {
-                return returnControllerBit();
+            if (m_readController) {
+                return return_controller_bit();
             }
         }
         
-        return nesAPU.registers[ memAddress - 0x4000 ];
+        return m_nesAPU.m_registers[ memAddress - 0x4000 ];
     } else if (memAddress < 0x6000) {
-        return cpuMem[memAddress - 0x4000];
+        return m_cpuMem[memAddress - 0x4000];
     } else if (memAddress < 0x8000) {
-        /* Family Basic only: PRG RAM, mirrored as necessary to fill entire 8 KiB window, write protectable with an external switch */
-        return PRG_RAM[memAddress - 0x6000];
+        /* Family Basic only: PRG m_RAM, mirrored as necessary to fill entire 8 KiB window, write protectable with an external switch */
+        return m_PRG_RAM[memAddress - 0x6000];
     } else {
-        if (cpuMapper == 0) {
-            return getCpuMapper0(memAddress, numRomBanks, PRG_ROM);
+        if (m_cpuMapper == 0) {
+            return get_cpu_mapper_0(memAddress, m_numRomBanks, m_PRG_ROM);
         } else {
-            std::cerr << "Fatal error, mapper not recognized in getCpuByte()" << std::endl;
+            std::cerr << "Fatal error, mapper not recognized in get_cpu_byte()" << std::endl;
             exit(EXIT_FAILURE);
             return 0;
         }
     }
 }
 
-inline void CPU::setCpuByte(u16 memAddress, u8 byte) {
+inline void CPU::set_cpu_byte(u16 memAddress, u8 byte) {
 
     if (memAddress < 0x2000) {
 
-        RAM[memAddress % 0x800] = byte;
+        m_RAM[memAddress % 0x800] = byte;
 
     } else if (memAddress < 0x4000) {
 
         u16 address;
         address = (memAddress - 0x2000) % 8;
-        nesPPU.writeFlag = address;
-        nesPPU.ppuRegisters[address] = byte;
+        m_nesPPU.m_writeFlag = address;
+        m_nesPPU.m_ppuRegisters[address] = byte;
 
     } else if (memAddress < 0x4020) { 
 
         //APU and IO mem write behaviour
         if (memAddress == 0x4003) {
-            nesAPU.lengthCounterPulse1 = lengthTable[(byte >> 3)];
+            m_nesAPU.m_lengthCounterPulse1 = lengthTable[(byte >> 3)];
         } else if (memAddress == 0x4007) {
-            nesAPU.lengthCounterPulse2 = lengthTable[(byte >> 3)];
+            m_nesAPU.m_lengthCounterPulse2 = lengthTable[(byte >> 3)];
         } else if (memAddress == 0x4008) {
-            nesAPU.linearCounterTriangle = byte & 0x7F;
+            m_nesAPU.m_linearCounterTriangle = byte & 0x7F;
         } else if (memAddress == 0x400B) {
-            nesAPU.linearReloading = true;
-            nesAPU.lengthCounterTriangle = lengthTable[(byte >> 3)];
+            m_nesAPU.m_linearReloading = true;
+            m_nesAPU.m_lengthCounterTriangle = lengthTable[(byte >> 3)];
         } else if (memAddress == 0x400F) {
-            nesAPU.lengthCounterNoise = lengthTable[(byte >> 3)];
+            m_nesAPU.m_lengthCounterNoise = lengthTable[(byte >> 3)];
         } else if (memAddress == 0x4010) {
 
             //set sample frequency
-            sampleFrequency = 1789773.0/rateTable[byte & 0xF];
+            m_nesAPU.m_sampleFrequency = 1789773.0/rateTable[byte & 0xF];
 
 
         } else if (memAddress == 0x4011) {
 
             //direct load
-            nesAPU.dmcOut = (byte & 0x7F);
+            m_nesAPU.m_dmcOut = (byte & 0x7F);
         } else if (memAddress == 0x4012) {
 
-            nesAPU.sampleAddress = 0xC000 | (byte << 6);
+            m_nesAPU.m_sampleAddress = 0xC000 | (byte << 6);
 
         } else if (memAddress == 0x4013) {
 
-            nesAPU.sampleLength = (byte << 4) | 0x1;
+            m_nesAPU.m_sampleByteLength = (byte << 4) | 0x1;
 
         } else if (memAddress == 0x4014) {
 
             u8 OAMDMA;
             OAMDMA = byte;
             for (unsigned int x = 0; x < 0x100; x++) {
-                nesPPU.OAM[nesPPU.oamAddress] = getCpuByte( (OAMDMA << 8) + x , false);
-                nesPPU.oamAddress = (nesPPU.oamAddress + 1) & 0xFF;
+                m_nesPPU.m_OAM[m_nesPPU.m_oamAddress] = get_cpu_byte( (OAMDMA << 8) + x , false);
+                m_nesPPU.m_oamAddress = (m_nesPPU.m_oamAddress + 1) & 0xFF;
             }
 
-            if (cpuClock % 2 == 1) {
+            if (m_cpuClock % 2 == 1) {
                 //odd cycle
-                cpuClock += 514 * 3; 
+                m_cpuClock += 514 * 3; 
             } else {
                 //even cycle
-                cpuClock += 513 * 3; 
+                m_cpuClock += 513 * 3; 
             }
 
         } else if (memAddress == 0x4015) {
@@ -305,24 +305,24 @@ inline void CPU::setCpuByte(u16 memAddress, u8 byte) {
         } else if (memAddress == 0x4016) {
             if ((byte & 0x1)) {
                 //controller state is read into shift registers
-                storedControllerByte = controllerByte;
-                readController = false;
+                m_storedControllerByte = m_controllerByte;
+                m_readController = false;
             } else {
                 //serial controller data can start being read starting from bit 0
-                currentControllerBit = 0;
-                readController = true;
+                m_currentControllerBit = 0;
+                m_readController = true;
             }
         }
 
-        nesAPU.registers[memAddress - 0x4000] = byte;
+        m_nesAPU.m_registers[memAddress - 0x4000] = byte;
 
     } else if (memAddress < 0x6000) {
 
-        cpuMem[memAddress - 0x4000] = byte;
+        m_cpuMem[memAddress - 0x4000] = byte;
 
     } else if (memAddress < 0x8000) {
 
-        PRG_RAM[memAddress - 0x6000] = byte;
+        m_PRG_RAM[memAddress - 0x6000] = byte;
 
     } else {
         /* memAddress >= 0x8000 && memAddress <= 0xFFFF */
@@ -334,7 +334,7 @@ inline void CPU::setCpuByte(u16 memAddress, u8 byte) {
     return;
 }
 
-inline u16 CPU::retrieveCpuAddress(enum AddressMode mode, bool * pagePass,
+inline u16 CPU::retrieve_cpu_address(enum AddressMode mode, bool * pagePass,
     u8 firstByte, u8 secondByte) {
 
     *pagePass = false;
@@ -345,45 +345,45 @@ inline u16 CPU::retrieveCpuAddress(enum AddressMode mode, bool * pagePass,
         return firstByte;
 
         case ZRPX:
-        return ((firstByte + X) & 0xFF);
+        return ((firstByte + m_X) & 0xFF);
 
         case ZRPY:
-        return ((firstByte + Y) & 0xFF);
+        return ((firstByte + m_Y) & 0xFF);
 
         case ABS:
         return (firstByte | (secondByte << 8));
 
         case ABSX: {
             u16 before = (firstByte | (secondByte << 8));
-            u16 after = ((before + X) & 0xFFFF);
+            u16 after = ((before + m_X) & 0xFFFF);
             if ((before / 256) != (after/256)) *pagePass = true;
             return after;
         }
 
         case ABSY: {
             u16 before = (firstByte | (secondByte << 8));
-            u16 after = ((before + Y) & 0xFFFF);
+            u16 after = ((before + m_Y) & 0xFFFF);
             if ((before / 256) != (after/256)) *pagePass = true;
             return after;
         }
 
         case IND: {
-            u8 low = getCpuByte((firstByte | (secondByte << 8)), false);
-            u8 high = getCpuByte(((firstByte + 1) & 0xFF) | (secondByte << 8), false);
+            u8 low = get_cpu_byte((firstByte | (secondByte << 8)), false);
+            u8 high = get_cpu_byte(((firstByte + 1) & 0xFF) | (secondByte << 8), false);
             return ((high << 8) | low);
         }
 
         case INDX: {
-            u8 low = getCpuByte((firstByte + X) & 0xFF, false);
-            u8 high = getCpuByte((firstByte + 1 + X) & 0xFF, false);
+            u8 low = get_cpu_byte((firstByte + m_X) & 0xFF, false);
+            u8 high = get_cpu_byte((firstByte + 1 + m_X) & 0xFF, false);
             return ((high << 8) | low);
         }
         
         case INDY: {
-            u8 low = (getCpuByte(firstByte, false));
-            u8 high = (getCpuByte((firstByte + 1) & 0xFF, false));
+            u8 low = (get_cpu_byte(firstByte, false));
+            u8 high = (get_cpu_byte((firstByte + 1) & 0xFF, false));
             u16 before = (low | (high << 8));
-            u16 after = ((before + Y) & 0xFFFF);
+            u16 after = ((before + m_Y) & 0xFFFF);
             if (( before/ 256) != (after/256)) *pagePass = true;
             return after;
         }
@@ -395,60 +395,60 @@ inline u16 CPU::retrieveCpuAddress(enum AddressMode mode, bool * pagePass,
     }
 }
 
-void CPU::executeNextOpcode(bool debug) {
+void CPU::execute_next_opcode(bool debug) {
 
-    if (NMI) {
+    if (m_NMI) {
 
-        NMI = false;
+        m_NMI = false;
         
         u16 store;
-        store = PC;
+        store = m_PC;
 
         u8 high = (store & 0xFF00) >> 8;
-        setCpuByte(SP + 0x100, high);
-        SP--;
+        set_cpu_byte(m_SP + 0x100, high);
+        m_SP--;
 
         u8 low = store & 0xFF;;
-        setCpuByte(SP + 0x100, low);
-        SP--;
+        set_cpu_byte(m_SP + 0x100, low);
+        m_SP--;
 
-        setCpuByte(0x100 + SP, getPswByte(PS) | 0x10);
-        SP--;
+        set_cpu_byte(0x100 + m_SP, get_psw_byte(m_PS) | 0x10);
+        m_SP--;
 
-        PC = getCpuByte(0xFFFA, false) | (getCpuByte(0xFFFB, false) << 8);    //nmi handler
+        m_PC = get_cpu_byte(0xFFFA, false) | (get_cpu_byte(0xFFFB, false) << 8);    //nmi handler
 
         
-        cpuClock += 21;
+        m_cpuClock += 21;
 
         return;
     }
 
-    if (IRQ) {
+    if (m_IRQ) {
 
-        //std::cout << "caught IRQ" << std::endl;
+        //std::cout << "caught m_IRQ" << std::endl;
 
-        IRQ = false;
+        m_IRQ = false;
 
-        if (PS[I] == false) {
+        if (m_PS[I] == false) {
 
             u16 store;
-            store = PC + 1;
+            store = m_PC + 1;
 
             u8 high = (store & 0xFF00) >> 8;
-            setCpuByte(SP + 0x100, high);
-            SP--;
+            set_cpu_byte(m_SP + 0x100, high);
+            m_SP--;
 
             u8 low = store & 0xFF;;
-            setCpuByte(SP + 0x100, low);
-            SP--;
+            set_cpu_byte(m_SP + 0x100, low);
+            m_SP--;
 
-            setCpuByte(0x100 + SP, getPswByte(PS) | 0x10);
-            SP--;
+            set_cpu_byte(0x100 + m_SP, get_psw_byte(m_PS) | 0x10);
+            m_SP--;
 
-            PC = getCpuByte(0xFFFE, false) | (getCpuByte(0xFFFF, false) << 8);    //IRQ/BRK handler
+            m_PC = get_cpu_byte(0xFFFE, false) | (get_cpu_byte(0xFFFF, false) << 8);    //m_IRQ/BRK handler
 
             
-            cpuClock += 21;
+            m_cpuClock += 21;
 
             return;
         }
@@ -460,32 +460,32 @@ void CPU::executeNextOpcode(bool debug) {
 
     /* PREPARE TO EXECUTE OPCODE */
 
-    cpuClock += 6;        //always spend 2 cycles fetching opcode and next byte
-    u8 opcode = getCpuByte(PC, false);
-    u8 iByte2 = getCpuByte(PC + 1, false);
-    u8 iByte3 = getCpuByte(PC + 2, false);
+    m_cpuClock += 6;        //always spend 2 cycles fetching opcode and next byte
+    u8 opcode = get_cpu_byte(m_PC, false);
+    u8 iByte2 = get_cpu_byte(m_PC + 1, false);
+    u8 iByte3 = get_cpu_byte(m_PC + 2, false);
     enum AddressMode opAddressMode = addressModes[opcode];
     bool pass = false;    //page boundy cross?
 
     u16 address = 0;
     if (opAddressMode != ACC && opAddressMode != IMM && opAddressMode != REL && opAddressMode != IMP) {
-        address = retrieveCpuAddress(opAddressMode, &pass, iByte2, iByte3);
+        address = retrieve_cpu_address(opAddressMode, &pass, iByte2, iByte3);
     }
 
     enum InstructionType instrType = opInstrTypes[opnameMap[opcode]];
-    cpuClock += cycles[instrType * 13 + opAddressMode] * 3;
+    m_cpuClock += cycles[instrType * 13 + opAddressMode] * 3;
 
     if (instrType == READ) {
         if (pass) {
-            cpuClock += 3;
+            m_cpuClock += 3;
         }
     }
 
     /*
-    if (nesPPU.ppuRegisters[1] & 0x8) {
-        if (nesPPU.ppuClock % (262 * 341 * 2) > cpuClock % (262 * 341 * 2)) {
-            cpuClock++;
-            nesPPU.suppressCpuTickSkip = true;
+    if (m_nesPPU.m_ppuRegisters[1] & 0x8) {
+        if (m_nesPPU.m_ppuClock % (262 * 341 * 2) > m_cpuClock % (262 * 341 * 2)) {
+            m_cpuClock++;
+            m_nesPPU.suppressCpuTickSkip = true;
         }
     }
     */
@@ -512,19 +512,19 @@ void CPU::executeNextOpcode(bool debug) {
             /* this is needed to prevent spurious reads to $2007, $4014 and
             other registers which trigger a flag that tells the PPU
             to process the read which changes the state of the ppu */
-            memoryByte = getCpuByte(address, false);
+            memoryByte = get_cpu_byte(address, false);
             break;
         }
     }
 
     if (debug) {
-        printDebugLine(address, opcode, iByte2, iByte3, opAddressMode, 
-            PC, memoryByte, A, X, Y, SP, PS, nesPPU.ppuClock);
+        print_debug_line(address, opcode, iByte2, iByte3, opAddressMode, 
+            m_PC, memoryByte, m_A, m_X, m_Y, m_SP, m_PS, m_nesPPU.m_ppuClock);
         std::cout << std::endl;
     }
     
-    PC += opcodeLens[opcode % 0x20];    //increment program counter
-    if (opcode == 0xA2) PC += 2;        //irregular opcode
+    m_PC += opcodeLens[opcode % 0x20];    //increment program counter
+    if (opcode == 0xA2) m_PC += 2;        //irregular opcode
 
     /* END PREPERATION */
     
@@ -533,324 +533,324 @@ void CPU::executeNextOpcode(bool debug) {
         //ADC
         case 0x69: case 0x65: case 0x75: case 0x6D: case 0x7D: case 0x79: case 0x61: case 0x71: {
             u16 total;
-            total = A + memoryByte + PS[C];
-            PS[V] = (((int8_t) A) + ((int8_t) memoryByte) + PS[C] < -128
-                || ((int8_t) A) + ((int8_t) memoryByte) + PS[C] > 127);  
-            PS[C] = (total > 255) ? true : false;
-            A = total & 0xFF;
-            PS[Z] = (A == 0) ? true : false;
-            PS[N] = getBit(A, 7);
+            total = m_A + memoryByte + m_PS[C];
+            m_PS[V] = (((int8_t) m_A) + ((int8_t) memoryByte) + m_PS[C] < -128
+                || ((int8_t) m_A) + ((int8_t) memoryByte) + m_PS[C] > 127);  
+            m_PS[C] = (total > 255) ? true : false;
+            m_A = total & 0xFF;
+            m_PS[Z] = (m_A == 0) ? true : false;
+            m_PS[N] = get_bit(m_A, 7);
             break;
         }
 
         //AND
         case 0x29: case 0x25: case 0x35: case 0x2D: case 0x3D: case 0x39: case 0x21: case 0x31: 
-        A = A & memoryByte;
-        PS[N] = getBit(A, 7);
-        PS[Z] = (A == 0) ? true : false;
+        m_A = m_A & memoryByte;
+        m_PS[N] = get_bit(m_A, 7);
+        m_PS[Z] = (m_A == 0) ? true : false;
         break;
 
         //ASL
         case 0x0A: case 0x06: case 0x16: case 0x0E: case 0x1E: {
             if (opcode == 0x0A) {
-                PS[C] = getBit(A, 7);
-                A = ((A << 1) & 0xFE);
-                PS[N] = getBit(A, 7);
-                PS[Z] = (A == 0) ? true : false;
+                m_PS[C] = get_bit(m_A, 7);
+                m_A = ((m_A << 1) & 0xFE);
+                m_PS[N] = get_bit(m_A, 7);
+                m_PS[Z] = (m_A == 0) ? true : false;
             } else {
-                PS[C] = getBit(getCpuByte(address, true), 7);
-                setCpuByte(address, ((getCpuByte(address, true) << 1) & 0xFE));
-                PS[N] = getBit(getCpuByte(address, true), 7);
-                PS[Z] = (getCpuByte(address, true) == 0) ? true : false;
+                m_PS[C] = get_bit(get_cpu_byte(address, true), 7);
+                set_cpu_byte(address, ((get_cpu_byte(address, true) << 1) & 0xFE));
+                m_PS[N] = get_bit(get_cpu_byte(address, true), 7);
+                m_PS[Z] = (get_cpu_byte(address, true) == 0) ? true : false;
             }
             break;
         }
 
         case 0x90:             //BCC
-        if (PS[C] == 0) {
-            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) cpuClock += 3;
-            PC += (int8_t) iByte2;
-            cpuClock += 3;
+        if (m_PS[C] == 0) {
+            if ( ((m_PC + (int8_t) iByte2) / 256) != (m_PC / 256)) m_cpuClock += 3;
+            m_PC += (int8_t) iByte2;
+            m_cpuClock += 3;
         }
         break;
         
         case 0xB0:            //BCS
-        if (PS[C]) {
-            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) cpuClock += 3;
-            PC += (int8_t) iByte2;
-            cpuClock += 3;
+        if (m_PS[C]) {
+            if ( ((m_PC + (int8_t) iByte2) / 256) != (m_PC / 256)) m_cpuClock += 3;
+            m_PC += (int8_t) iByte2;
+            m_cpuClock += 3;
         }
         break;
         
         case 0xF0:             //BEQ
-        if (PS[Z]) {
-            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) cpuClock += 3;
-            PC += (int8_t) iByte2;
-            cpuClock += 3;
+        if (m_PS[Z]) {
+            if ( ((m_PC + (int8_t) iByte2) / 256) != (m_PC / 256)) m_cpuClock += 3;
+            m_PC += (int8_t) iByte2;
+            m_cpuClock += 3;
         }
         break;
         
         //BIT
         case 0x24: case 0x2C: {
             u8 num;
-            num = A & memoryByte;
-            PS[N] = getBit(memoryByte, 7);
-            PS[V] = getBit(memoryByte, 6);
-            PS[Z] = (num == 0) ? true : false;
+            num = m_A & memoryByte;
+            m_PS[N] = get_bit(memoryByte, 7);
+            m_PS[V] = get_bit(memoryByte, 6);
+            m_PS[Z] = (num == 0) ? true : false;
             break;
         }
 
         case 0x30:             //BMI
-        if (PS[N]) {
-            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) cpuClock += 3;
-            PC += (int8_t) iByte2;
-            cpuClock += 3;
+        if (m_PS[N]) {
+            if ( ((m_PC + (int8_t) iByte2) / 256) != (m_PC / 256)) m_cpuClock += 3;
+            m_PC += (int8_t) iByte2;
+            m_cpuClock += 3;
         }
         break;
         
         case 0xD0:             //BNE
-        if (PS[Z] == 0) {
-            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) cpuClock += 3;
-            PC += (int8_t) iByte2;
-            cpuClock += 3;
+        if (m_PS[Z] == 0) {
+            if ( ((m_PC + (int8_t) iByte2) / 256) != (m_PC / 256)) m_cpuClock += 3;
+            m_PC += (int8_t) iByte2;
+            m_cpuClock += 3;
         }
         break;
         
         case 0x10:             //BPL
-        if (PS[N] == 0) {
-            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) cpuClock += 3;
-            PC += (int8_t) iByte2;
-            cpuClock += 3;
+        if (m_PS[N] == 0) {
+            if ( ((m_PC + (int8_t) iByte2) / 256) != (m_PC / 256)) m_cpuClock += 3;
+            m_PC += (int8_t) iByte2;
+            m_cpuClock += 3;
         }
         break;
         
         case 0x00: {            //BRK
-            u8 high = (PC & 0xFF00) >> 8;
-            setCpuByte(0x100 + SP, high);
-            SP--;
-            cpuClock += 3;
+            u8 high = (m_PC & 0xFF00) >> 8;
+            set_cpu_byte(0x100 + m_SP, high);
+            m_SP--;
+            m_cpuClock += 3;
 
-            u8 low = PC & 0xFF;
-            setCpuByte(0x100 + SP, low);
-            SP--;
-            cpuClock += 3;
+            u8 low = m_PC & 0xFF;
+            set_cpu_byte(0x100 + m_SP, low);
+            m_SP--;
+            m_cpuClock += 3;
 
-            u8 memByte = getPswByte(PS);
-            setCpuByte(0x100 + SP, memByte | 0x10);
-            SP--;
-            cpuClock += 3;
+            u8 memByte = get_psw_byte(m_PS);
+            set_cpu_byte(0x100 + m_SP, memByte | 0x10);
+            m_SP--;
+            m_cpuClock += 3;
 
-            low = getCpuByte(0xFFFE, false);
-            cpuClock += 3;
+            low = get_cpu_byte(0xFFFE, false);
+            m_cpuClock += 3;
 
-            high = getCpuByte(0xFFFF, false);
-            cpuClock += 3;
+            high = get_cpu_byte(0xFFFF, false);
+            m_cpuClock += 3;
 
-            PC = (high << 8) | low;
+            m_PC = (high << 8) | low;
             break;
         }
 
         case 0x50:          //BVC
-        if (PS[V] == 0) {
-            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) cpuClock += 3;
-            PC += (int8_t) iByte2;
-            cpuClock += 3;
+        if (m_PS[V] == 0) {
+            if ( ((m_PC + (int8_t) iByte2) / 256) != (m_PC / 256)) m_cpuClock += 3;
+            m_PC += (int8_t) iByte2;
+            m_cpuClock += 3;
         }
         break;
         
         case 0x70:          //BVS
-        if (PS[V]) {
-            if ( ((PC + (int8_t) iByte2) / 256) != (PC / 256)) cpuClock += 3;
-            PC += (int8_t) iByte2;
-            cpuClock += 3;
+        if (m_PS[V]) {
+            if ( ((m_PC + (int8_t) iByte2) / 256) != (m_PC / 256)) m_cpuClock += 3;
+            m_PC += (int8_t) iByte2;
+            m_cpuClock += 3;
         }
         break;
         
         case 0x18:          //CLC           
-        PS[C] = false;
+        m_PS[C] = false;
         break;
         
         case 0xD8:          //CLD           
-        PS[D] = false;
+        m_PS[D] = false;
         break;
         
         case 0x58:          //CLI           
-        PS[I] = false;
+        m_PS[I] = false;
         break;
         
         case 0xB8:          //CLV           
-        PS[V] = false;
+        m_PS[V] = false;
         break;
 
         //CMP
         case 0xC9: case 0xC5: case 0xD5: case 0xCD: case 0xDD: case 0xD9: case 0xC1: case 0xD1: {
             int num;
-            num = A - memoryByte;
-            PS[N] = getBit(num, 7);
-            PS[C] = (A >= memoryByte) ? true : false;
-            PS[Z] = (num == 0) ? true : false;
+            num = m_A - memoryByte;
+            m_PS[N] = get_bit(num, 7);
+            m_PS[C] = (m_A >= memoryByte) ? true : false;
+            m_PS[Z] = (num == 0) ? true : false;
             break;
         }
 
         //CPX
         case 0xE0: case 0xE4: case 0xEC: {
             int total;
-            total = X - memoryByte;
-            PS[N] = (total & 0x80) ? true : false;
-            PS[C] = (X >= memoryByte) ? true : false;
-            PS[Z] = (total == 0) ? 1 : 0;
+            total = m_X - memoryByte;
+            m_PS[N] = (total & 0x80) ? true : false;
+            m_PS[C] = (m_X >= memoryByte) ? true : false;
+            m_PS[Z] = (total == 0) ? 1 : 0;
             break;
         }
 
         //CPY
         case 0xC0: case 0xC4: case 0xCC: {
             int total;
-            total = Y - memoryByte;
-            PS[N] = (total & 0x80) ? true : false;
-            PS[C] = (Y >= memoryByte) ? true : false;
-            PS[Z] = (total == 0) ? 1 : 0;
+            total = m_Y - memoryByte;
+            m_PS[N] = (total & 0x80) ? true : false;
+            m_PS[C] = (m_Y >= memoryByte) ? true : false;
+            m_PS[Z] = (total == 0) ? 1 : 0;
             break;
         }
 
         //DCP
         case 0xC3: case 0xD3: case 0xC7: case 0xD7: case 0xCF: case 0xDF: case 0xDB: {
-            setCpuByte(address, (getCpuByte(address, true) - 1) & 0xFF);
-            memoryByte = getCpuByte(address, true);
+            set_cpu_byte(address, (get_cpu_byte(address, true) - 1) & 0xFF);
+            memoryByte = get_cpu_byte(address, true);
             int num;
-            num = A - memoryByte;
-            PS[N] = getBit(num, 7);
-            PS[C] = (A >= memoryByte) ? true : false;
-            PS[Z] = (num == 0) ? true : false;
+            num = m_A - memoryByte;
+            m_PS[N] = get_bit(num, 7);
+            m_PS[C] = (m_A >= memoryByte) ? true : false;
+            m_PS[Z] = (num == 0) ? true : false;
             break;
         }
 
         //DEC
         case 0xC6: case 0xD6: case 0xCE: case 0xDE: 
-        setCpuByte(address, ((getCpuByte(address, true) - 1) & 0xFF));
-        PS[N] = getBit(getCpuByte(address, true), 7);
-        PS[Z] = (getCpuByte(address, true) == 0) ? true : false;
+        set_cpu_byte(address, ((get_cpu_byte(address, true) - 1) & 0xFF));
+        m_PS[N] = get_bit(get_cpu_byte(address, true), 7);
+        m_PS[Z] = (get_cpu_byte(address, true) == 0) ? true : false;
         break;
         
         case 0xCA:          //DEX
-        X = (X - 1) & 0xFF;
-        PS[Z] = (X == 0) ? true : false;
-        PS[N] = getBit(X, 7);
+        m_X = (m_X - 1) & 0xFF;
+        m_PS[Z] = (m_X == 0) ? true : false;
+        m_PS[N] = get_bit(m_X, 7);
         break;
         
         case 0x88:          //DEY           
-        Y = (Y - 1) & 0xFF;
-        PS[Z] = (Y == 0) ? true : false;
-        PS[N] = getBit(Y, 7);
+        m_Y = (m_Y - 1) & 0xFF;
+        m_PS[Z] = (m_Y == 0) ? true : false;
+        m_PS[N] = get_bit(m_Y, 7);
         break;
         
         //EOR
         case 0x49: case 0x45: case 0x55: case 0x4D: case 0x5D: case 0x59: case 0x41: case 0x51: 
-        A = A ^ memoryByte;
-        PS[N] = getBit(A, 7);
-        PS[Z] = (A == 0) ? true : false;
+        m_A = m_A ^ memoryByte;
+        m_PS[N] = get_bit(m_A, 7);
+        m_PS[Z] = (m_A == 0) ? true : false;
         break;
         
         //INC
         case 0xE6: case 0xF6: case 0xEE: case 0xFE: 
-        setCpuByte(address, ((getCpuByte(address, true) + 1) & 0xFF));
-        PS[N] = getBit(getCpuByte(address, true), 7);
-        PS[Z] = (getCpuByte(address, true) == 0) ? true : false;
+        set_cpu_byte(address, ((get_cpu_byte(address, true) + 1) & 0xFF));
+        m_PS[N] = get_bit(get_cpu_byte(address, true), 7);
+        m_PS[Z] = (get_cpu_byte(address, true) == 0) ? true : false;
         break;
         
         case 0xE8:              //INX           
-        X = (X + 1) & 0xFF;
-        PS[Z] = (X == 0) ? true : false;
-        PS[N] = getBit(X, 7);
+        m_X = (m_X + 1) & 0xFF;
+        m_PS[Z] = (m_X == 0) ? true : false;
+        m_PS[N] = get_bit(m_X, 7);
         break;
         
         case 0xC8:              //INY           
-        Y = (Y + 1) & 0xFF;
-        PS[Z] = (Y == 0) ? true : false;
-        PS[N] = getBit(Y, 7);
+        m_Y = (m_Y + 1) & 0xFF;
+        m_PS[Z] = (m_Y == 0) ? true : false;
+        m_PS[N] = get_bit(m_Y, 7);
         break;
 
         //ISB
         case 0xE3: case 0xE7: case 0xF7: case 0xFB: case 0xEF: case 0xFF: case 0xF3: {     
-            setCpuByte(address, (getCpuByte(address, true) + 1) & 0xFF);
-            memoryByte = getCpuByte(address, true);
+            set_cpu_byte(address, (get_cpu_byte(address, true) + 1) & 0xFF);
+            memoryByte = get_cpu_byte(address, true);
             int total;
-            total = A - memoryByte - (!PS[C]);
-            PS[V] = (((int8_t) A) - ((int8_t) memoryByte) - (!PS[C]) < -128 
-                || ((int8_t) A) - ((int8_t) memoryByte) - (!PS[C]) > 127);
-            A = total & 0xFF;
-            PS[C] = (total >= 0) ? true : false;
-            PS[N] = getBit(total, 7);
-            PS[Z] = (A == 0) ? 1 : 0;
+            total = m_A - memoryByte - (!m_PS[C]);
+            m_PS[V] = (((int8_t) m_A) - ((int8_t) memoryByte) - (!m_PS[C]) < -128 
+                || ((int8_t) m_A) - ((int8_t) memoryByte) - (!m_PS[C]) > 127);
+            m_A = total & 0xFF;
+            m_PS[C] = (total >= 0) ? true : false;
+            m_PS[N] = get_bit(total, 7);
+            m_PS[Z] = (m_A == 0) ? 1 : 0;
             break;
         }
 
         //JMP
         case 0x4C: case 0x6C: 
-        PC = address;
-        cpuClock += (opAddressMode == ABS) ? 3 : 9;
+        m_PC = address;
+        m_cpuClock += (opAddressMode == ABS) ? 3 : 9;
         break;
 
         case 0x20: {            //JSR
-            cpuClock += 3;
+            m_cpuClock += 3;
 
             u16 store;
-            store = PC;
+            store = m_PC;
             
             u8 high = (store & 0xFF00) >> 8;
-            setCpuByte(SP + 0x100, high);
-            SP--;
-            cpuClock += 3;
+            set_cpu_byte(m_SP + 0x100, high);
+            m_SP--;
+            m_cpuClock += 3;
 
             u8 low = store & 0xFF;;
-            setCpuByte(SP + 0x100, low);
-            SP--;
-            cpuClock += 3;
+            set_cpu_byte(m_SP + 0x100, low);
+            m_SP--;
+            m_cpuClock += 3;
 
-            PC = (iByte2 | (iByte3 << 8));
-            cpuClock += 3;
+            m_PC = (iByte2 | (iByte3 << 8));
+            m_cpuClock += 3;
             break;
         }
 
         //LAX
         case 0xA3: case 0xA7: case 0xAF: case 0xB3: case 0xB7: case 0xBF:  
-        A = memoryByte;
-        X = memoryByte;
-        PS[N] = getBit(A, 7);
-        PS[Z] = (A == 0) ? true : false;
+        m_A = memoryByte;
+        m_X = memoryByte;
+        m_PS[N] = get_bit(m_A, 7);
+        m_PS[Z] = (m_A == 0) ? true : false;
         break;
         
         //LDA
         case 0xA9: case 0xA5: case 0xB5: case 0xAD: case 0xBD: case 0xB9: case 0xA1: case 0xB1: 
-        A = memoryByte;
-        PS[N] = getBit(A, 7);
-        PS[Z] = (A == 0) ? true : false;
+        m_A = memoryByte;
+        m_PS[N] = get_bit(m_A, 7);
+        m_PS[Z] = (m_A == 0) ? true : false;
         break;
         
         //LDX
         case 0xA2: case 0xA6: case 0xB6: case 0xAE: case 0xBE: 
-        X = memoryByte;
-        PS[N] = getBit(X, 7);
-        PS[Z] = (X == 0) ? true : false;
+        m_X = memoryByte;
+        m_PS[N] = get_bit(m_X, 7);
+        m_PS[Z] = (m_X == 0) ? true : false;
         break;
         
         //LDY
         case 0xA0: case 0xA4: case 0xB4: case 0xAC: case 0xBC: 
-        Y = memoryByte;
-        PS[N] = getBit(Y, 7);
-        PS[Z] = (Y == 0) ? true : false;
+        m_Y = memoryByte;
+        m_PS[N] = get_bit(m_Y, 7);
+        m_PS[Z] = (m_Y == 0) ? true : false;
         break;
 
         //LSR
         case 0x4A: case 0x46: case 0x56: case 0x4E: case 0x5E: {
-            PS[N] = 0;
+            m_PS[N] = 0;
             if (opcode == 0x4A) {
-                PS[C] = getBit(A, 0);
-                A = (A >> 1) & 0x7F;
-                PS[Z] = (A == 0) ? true : false;
+                m_PS[C] = get_bit(m_A, 0);
+                m_A = (m_A >> 1) & 0x7F;
+                m_PS[Z] = (m_A == 0) ? true : false;
             } else {
-                PS[C] = getBit(getCpuByte(address, true), 0);
-                setCpuByte(address, (getCpuByte(address, true) >> 1) & 0x7F);
-                PS[Z] = (getCpuByte(address, true) == 0) ? true : false;
+                m_PS[C] = get_bit(get_cpu_byte(address, true), 0);
+                set_cpu_byte(address, (get_cpu_byte(address, true) >> 1) & 0x7F);
+                m_PS[Z] = (get_cpu_byte(address, true) == 0) ? true : false;
             }
             break;
         }
@@ -863,49 +863,49 @@ void CPU::executeNextOpcode(bool debug) {
         
         //ORA
         case 0x09: case 0x05: case 0x15: case 0x0D: case 0x1D: case 0x19: case 0x01: case 0x11: 
-        A = (A | memoryByte);
-        PS[N] = getBit(A, 7);
-        PS[Z] = (A == 0) ? true : false;
+        m_A = (m_A | memoryByte);
+        m_PS[N] = get_bit(m_A, 7);
+        m_PS[Z] = (m_A == 0) ? true : false;
         break;
         
         case 0x48:              //PHA
-        setCpuByte(SP + 0x100, A);
-        SP--;
-        cpuClock += 3;
+        set_cpu_byte(m_SP + 0x100, m_A);
+        m_SP--;
+        m_cpuClock += 3;
         break;
 
         case 0x08:                 //PHP
-        setCpuByte(SP + 0x100, (getPswByte(PS) | 0x10));
-        SP--;
-        cpuClock += 3;
+        set_cpu_byte(m_SP + 0x100, (get_psw_byte(m_PS) | 0x10));
+        m_SP--;
+        m_cpuClock += 3;
         break;
         
         case 0x68:              //PLA
-        SP++;
-        cpuClock += 3;
-        A = getCpuByte(SP + 0x100, true);
-        cpuClock += 3;
-        PS[N] = getBit(A, 7);
-        PS[Z] = (A == 0) ? true : false;
+        m_SP++;
+        m_cpuClock += 3;
+        m_A = get_cpu_byte(m_SP + 0x100, true);
+        m_cpuClock += 3;
+        m_PS[N] = get_bit(m_A, 7);
+        m_PS[Z] = (m_A == 0) ? true : false;
         break;
         
         case 0x28:                 //PLP
-        SP++;
-        cpuClock += 3;
-        getPswFromByte(PS, getCpuByte(SP + 0x100, true));
-        cpuClock += 3;
+        m_SP++;
+        m_cpuClock += 3;
+        get_psw_from_byte(m_PS, get_cpu_byte(m_SP + 0x100, true));
+        m_cpuClock += 3;
         break;
         
         //RLA
         case 0x23: case 0x27: case 0x2F: case 0x33: case 0x37: case 0x3B: case 0x3F: {
             bool store;
-            store = getBit(getCpuByte(address, true), 7);
-            setCpuByte(address, (getCpuByte(address, true) << 1) & 0xFE);
-            setCpuByte(address, getCpuByte(address, true) | PS[C]);
-            PS[C] = store;
-            A &= getCpuByte(address, true);
-            PS[Z] = (A == 0) ? true : false;
-            PS[N] = getBit(A, 7);
+            store = get_bit(get_cpu_byte(address, true), 7);
+            set_cpu_byte(address, (get_cpu_byte(address, true) << 1) & 0xFE);
+            set_cpu_byte(address, get_cpu_byte(address, true) | m_PS[C]);
+            m_PS[C] = store;
+            m_A &= get_cpu_byte(address, true);
+            m_PS[Z] = (m_A == 0) ? true : false;
+            m_PS[N] = get_bit(m_A, 7);
             break;
         }
 
@@ -913,19 +913,19 @@ void CPU::executeNextOpcode(bool debug) {
         case 0x2A: case 0x26: case 0x36: case 0x2E: case 0x3E: {
             bool store;
             if (opcode == 0x2A) {
-                store = getBit(A, 7);
-                A = (A << 1) & 0xFE;
-                A |= PS[C];
-                PS[Z] = (A == 0) ? true : false;
-                PS[N] = getBit(A, 7);
+                store = get_bit(m_A, 7);
+                m_A = (m_A << 1) & 0xFE;
+                m_A |= m_PS[C];
+                m_PS[Z] = (m_A == 0) ? true : false;
+                m_PS[N] = get_bit(m_A, 7);
             } else {
-                store = getBit(getCpuByte(address, true), 7);
-                setCpuByte(address, (getCpuByte(address, true) << 1) & 0xFE);
-                setCpuByte(address, getCpuByte(address, true) | PS[C]);
-                PS[Z] = (getCpuByte(address, true) == 0) ? true : false;
-                PS[N] = getBit(getCpuByte(address, true), 7);
+                store = get_bit(get_cpu_byte(address, true), 7);
+                set_cpu_byte(address, (get_cpu_byte(address, true) << 1) & 0xFE);
+                set_cpu_byte(address, get_cpu_byte(address, true) | m_PS[C]);
+                m_PS[Z] = (get_cpu_byte(address, true) == 0) ? true : false;
+                m_PS[N] = get_bit(get_cpu_byte(address, true), 7);
             }
-            PS[C] = store;
+            m_PS[C] = store;
             break;
         }
 
@@ -933,175 +933,175 @@ void CPU::executeNextOpcode(bool debug) {
         case 0x6A: case 0x66: case 0x76: case 0x6E: case 0x7E: {
             bool store;
             if (opcode == 0x6A) {
-                store = getBit(A, 0);
-                A = (A >> 1) & 0x7F;
-                A |= (PS[C] ? 0x80 : 0x0);
-                PS[Z] = (A == 0) ? true : false;
-                PS[N] = getBit(A, 7);
+                store = get_bit(m_A, 0);
+                m_A = (m_A >> 1) & 0x7F;
+                m_A |= (m_PS[C] ? 0x80 : 0x0);
+                m_PS[Z] = (m_A == 0) ? true : false;
+                m_PS[N] = get_bit(m_A, 7);
             } else {
-                store = getBit(getCpuByte(address, true), 0);
-                setCpuByte(address, (getCpuByte(address, true) >> 1) & 0x7F);
-                setCpuByte(address, getCpuByte(address, true) | (PS[C] ? 0x80 : 0x0));
-                PS[Z] = (getCpuByte(address, true) == 0) ? true : false;
-                PS[N] = getBit(getCpuByte(address, true), 7);
+                store = get_bit(get_cpu_byte(address, true), 0);
+                set_cpu_byte(address, (get_cpu_byte(address, true) >> 1) & 0x7F);
+                set_cpu_byte(address, get_cpu_byte(address, true) | (m_PS[C] ? 0x80 : 0x0));
+                m_PS[Z] = (get_cpu_byte(address, true) == 0) ? true : false;
+                m_PS[N] = get_bit(get_cpu_byte(address, true), 7);
             }
-            PS[C] = store;
+            m_PS[C] = store;
             break;
         }
 
         //RRA
         case 0x63: case 0x67: case 0x6F: case 0x73: case 0x77: case 0x7B: case 0x7F: {
             bool store;
-            store = getBit(getCpuByte(address, true), 0);
-            setCpuByte(address, (getCpuByte(address, true) >> 1) & 0x7F);
-            setCpuByte(address, getCpuByte(address, true) | (PS[C] ? 0x80 : 0x0));
-            PS[C] = store;
+            store = get_bit(get_cpu_byte(address, true), 0);
+            set_cpu_byte(address, (get_cpu_byte(address, true) >> 1) & 0x7F);
+            set_cpu_byte(address, get_cpu_byte(address, true) | (m_PS[C] ? 0x80 : 0x0));
+            m_PS[C] = store;
             u8 memByte;
-            memByte = getCpuByte(address, true);
+            memByte = get_cpu_byte(address, true);
             u16 total;
-            total = A + memByte + PS[C];
-            PS[V] = (((int8_t) A) + ((int8_t) memByte) + PS[C] < -128 
-                || ((int8_t) A) + ((int8_t) memByte) + PS[C] > 127);
-            PS[C] = (total > 255) ? true : false;
-            A = total & 0xFF;
-            PS[Z] = (A == 0) ? true : false;
-            PS[N] = getBit(A, 7);
+            total = m_A + memByte + m_PS[C];
+            m_PS[V] = (((int8_t) m_A) + ((int8_t) memByte) + m_PS[C] < -128 
+                || ((int8_t) m_A) + ((int8_t) memByte) + m_PS[C] > 127);
+            m_PS[C] = (total > 255) ? true : false;
+            m_A = total & 0xFF;
+            m_PS[Z] = (m_A == 0) ? true : false;
+            m_PS[N] = get_bit(m_A, 7);
             break;
         }
 
         case 0x40: {                //RTI
-            SP++;
-            cpuClock += 3;
+            m_SP++;
+            m_cpuClock += 3;
 
             u8 memByte;
-            memByte = getCpuByte(SP + 0x100, true);
-            getPswFromByte(PS, memByte);
+            memByte = get_cpu_byte(m_SP + 0x100, true);
+            get_psw_from_byte(m_PS, memByte);
 
-            SP++;
-            cpuClock += 3;
-            u16 low = getCpuByte(SP + 0x100, true);
+            m_SP++;
+            m_cpuClock += 3;
+            u16 low = get_cpu_byte(m_SP + 0x100, true);
 
-            SP++;
-            cpuClock += 3;
-            u16 high = getCpuByte(SP + 0x100, true) << 8;
-            cpuClock += 3;
+            m_SP++;
+            m_cpuClock += 3;
+            u16 high = get_cpu_byte(m_SP + 0x100, true) << 8;
+            m_cpuClock += 3;
 
-            PC = high | low;
+            m_PC = high | low;
             break;
         }
 
         case 0x60: {                //RTS
-            SP++;
-            cpuClock += 3;
+            m_SP++;
+            m_cpuClock += 3;
 
-            u16 low = getCpuByte(SP + 0x100, true);
-            SP++;
-            cpuClock += 3;
+            u16 low = get_cpu_byte(m_SP + 0x100, true);
+            m_SP++;
+            m_cpuClock += 3;
 
-            u16 high = getCpuByte(SP + 0x100, true) << 8;
-            cpuClock += 3;
-            PC = (high | low);
+            u16 high = get_cpu_byte(m_SP + 0x100, true) << 8;
+            m_cpuClock += 3;
+            m_PC = (high | low);
 
-            PC++;
-            cpuClock += 3;
+            m_PC++;
+            m_cpuClock += 3;
             break;
         }
 
         //SBC
         case 0xE9: case 0xE5: case 0xF5: case 0xED: case 0xFD: case 0xF9: case 0xE1: case 0xF1: case 0xEB: {
             int total;
-            total = A - memoryByte - (!PS[C]);
-            PS[V] = (((int8_t) A) - ((int8_t) memoryByte) - (!PS[C]) < -128 
-                || ((int8_t) A) - ((int8_t) memoryByte) - (!PS[C]) > 127);
-            A = total & 0xFF;
-            PS[C] = (total >= 0) ? true : false;
-            PS[N] = getBit(total, 7);
-            PS[Z] = (A == 0) ? 1 : 0;
+            total = m_A - memoryByte - (!m_PS[C]);
+            m_PS[V] = (((int8_t) m_A) - ((int8_t) memoryByte) - (!m_PS[C]) < -128 
+                || ((int8_t) m_A) - ((int8_t) memoryByte) - (!m_PS[C]) > 127);
+            m_A = total & 0xFF;
+            m_PS[C] = (total >= 0) ? true : false;
+            m_PS[N] = get_bit(total, 7);
+            m_PS[Z] = (m_A == 0) ? 1 : 0;
             break;
         }
 
         case 0x38:              //SEC
-        PS[C] = true;
+        m_PS[C] = true;
         break;
         
         case 0xF8:              //SED
-        PS[D] = true;
+        m_PS[D] = true;
         break;
         
         case 0x78:              //SEI
-        PS[I] = true;
+        m_PS[I] = true;
         break;
         
         //SAX
         case 0x83: case 0x87: case 0x97: case 0x8F:
-        setCpuByte(address, A & X);
+        set_cpu_byte(address, m_A & m_X);
         break;
         
         //*SLO
         case 0x03: case 0x07: case 0x0F: case 0x13: case 0x17: case 0x1B: case 0x1F: 
-        PS[C] = getBit(getCpuByte(address, true), 7);
-        setCpuByte(address, ((getCpuByte(address, true) << 1) & 0xFE));
-        A |= getCpuByte(address, true);
-        PS[N] = getBit(A, 7);
-        PS[Z] = (A == 0) ? true : false;
+        m_PS[C] = get_bit(get_cpu_byte(address, true), 7);
+        set_cpu_byte(address, ((get_cpu_byte(address, true) << 1) & 0xFE));
+        m_A |= get_cpu_byte(address, true);
+        m_PS[N] = get_bit(m_A, 7);
+        m_PS[Z] = (m_A == 0) ? true : false;
         break;
 
         //SRE
         case 0x43: case 0x47: case 0x4F: case 0x53: case 0x57: case 0x5B: case 0x5F: 
-        PS[C] = getBit(getCpuByte(address, true), 0);
-        setCpuByte(address, (getCpuByte(address, true) >> 1) & 0x7F);
-        A ^= getCpuByte(address, true);
-        PS[N] = getBit(A, 7);
-        PS[Z] = (A == 0) ? true : false;
+        m_PS[C] = get_bit(get_cpu_byte(address, true), 0);
+        set_cpu_byte(address, (get_cpu_byte(address, true) >> 1) & 0x7F);
+        m_A ^= get_cpu_byte(address, true);
+        m_PS[N] = get_bit(m_A, 7);
+        m_PS[Z] = (m_A == 0) ? true : false;
         break;
 
         //STA
         case 0x85: case 0x95: case 0x8D: case 0x9D: case 0x99: case 0x81: case 0x91: 
-        setCpuByte(address, A);
+        set_cpu_byte(address, m_A);
         break;
         
         //STX
         case 0x86: case 0x96: case 0x8E: 
-        setCpuByte(address, X);
+        set_cpu_byte(address, m_X);
         break;
 
         //STY
         case 0x84: case 0x94: case 0x8C: 
-        setCpuByte(address, Y);
+        set_cpu_byte(address, m_Y);
         break;
 
         case 0xAA:              //TAX           
-        X = A;
-        PS[N] = getBit(X, 7);
-        PS[Z] = (X == 0) ? true : false;
+        m_X = m_A;
+        m_PS[N] = get_bit(m_X, 7);
+        m_PS[Z] = (m_X == 0) ? true : false;
         break;
         
         case 0xA8:              //TAY           
-        Y = A;
-        PS[N] = getBit(Y, 7);
-        PS[Z] = (Y == 0) ? true : false;
+        m_Y = m_A;
+        m_PS[N] = get_bit(m_Y, 7);
+        m_PS[Z] = (m_Y == 0) ? true : false;
         break;
 
         case 0xBA:              //TSX           
-        X = SP;
-        PS[N] = getBit(X, 7);
-        PS[Z] = (X == 0) ? true : false;
+        m_X = m_SP;
+        m_PS[N] = get_bit(m_X, 7);
+        m_PS[Z] = (m_X == 0) ? true : false;
         break;
 
         case 0x8A:              //TXA           
-        A = X;
-        PS[N] = getBit(A, 7);
-        PS[Z] = (A == 0) ? true : false;
+        m_A = m_X;
+        m_PS[N] = get_bit(m_A, 7);
+        m_PS[Z] = (m_A == 0) ? true : false;
         break;
         
         case 0x9A:              //TXS           
-        SP = X;
+        m_SP = m_X;
         break;
         
         case 0x98:              //TYA           
-        A = Y;
-        PS[N] = getBit(A, 7);
-        PS[Z] = (A == 0) ? true : false;
+        m_A = m_Y;
+        m_PS[N] = get_bit(m_A, 7);
+        m_PS[Z] = (m_A == 0) ? true : false;
         break;
         
         default: 
@@ -1113,36 +1113,36 @@ void CPU::executeNextOpcode(bool debug) {
     return;
 }
 
-static inline u8 getPswByte(bool * PS) {
+static inline u8 get_psw_byte(bool * m_PS) {
     u8 P;
     P = 0x20;
-    if (PS[C]) P |= 0x1;
-    if (PS[Z]) P |= 0x2;
-    if (PS[I]) P |= 0x4;
-    if (PS[D]) P |= 0x8;
-    if (PS[V]) P |= 0x40;
-    if (PS[N]) P |= 0x80;
+    if (m_PS[C]) P |= 0x1;
+    if (m_PS[Z]) P |= 0x2;
+    if (m_PS[I]) P |= 0x4;
+    if (m_PS[D]) P |= 0x8;
+    if (m_PS[V]) P |= 0x40;
+    if (m_PS[N]) P |= 0x80;
     return P;
 }
 
-static inline void getPswFromByte(bool * PS, u8 byte) {
-    PS[N] = getBit(byte, 7);
-    PS[V] = getBit(byte, 6);
-    PS[D] = getBit(byte, 3);
-    PS[I] = getBit(byte, 2);
-    PS[Z] = getBit(byte, 1);
-    PS[C] = getBit(byte, 0);
+static inline void get_psw_from_byte(bool * m_PS, u8 byte) {
+    m_PS[N] = get_bit(byte, 7);
+    m_PS[V] = get_bit(byte, 6);
+    m_PS[D] = get_bit(byte, 3);
+    m_PS[I] = get_bit(byte, 2);
+    m_PS[Z] = get_bit(byte, 1);
+    m_PS[C] = get_bit(byte, 0);
     return;
 }
 
 //debugging
-static void printByte(u8 byte) {
+static void print_byte(u8 byte) {
     std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) byte;
     return;
 }
 
 //note:ugly, for debugging
-static int debugPrintVal(enum AddressMode mode, int firstByte, int secondByte) {
+static int debug_print_val(enum AddressMode mode, int firstByte, int secondByte) {
 
     switch (mode) {
         case ABS:
@@ -1150,15 +1150,15 @@ static int debugPrintVal(enum AddressMode mode, int firstByte, int secondByte) {
         return 5;
 
         case ABSX:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ",X";
+        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ",m_X";
         return 7;
 
         case ABSY:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ",Y";
+        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ",m_Y";
         return 7;
 
         case ACC:
-        std::cout << 'A';
+        std::cout << "m_A";
         return 1;
 
         case IMM:
@@ -1173,11 +1173,11 @@ static int debugPrintVal(enum AddressMode mode, int firstByte, int secondByte) {
         return 7;
 
         case INDX:
-        std::cout << "($" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",X)";
+        std::cout << "($" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",m_X)";
         return 7;
 
         case INDY:
-        std::cout << "($" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << "),Y";
+        std::cout << "($" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << "),m_Y";
         return 7;
 
         case REL:
@@ -1188,11 +1188,11 @@ static int debugPrintVal(enum AddressMode mode, int firstByte, int secondByte) {
         return 3;
 
         case ZRPX:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",X";
+        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",m_X";
         return 5;
         
         case ZRPY:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",Y";
+        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",m_Y";
         return 5;
         
         default:
@@ -1202,29 +1202,29 @@ static int debugPrintVal(enum AddressMode mode, int firstByte, int secondByte) {
 }
 
 //note:ugly, for debugging, matches nintendulator log
-static void printDebugLine(u16 address, u8 opcode, u8 iByte2,
- u8 iByte3, enum AddressMode opAddressMode, u16 PC, u8 memByte, 
- u8 A, u8 X, u8 Y, u8 SP, bool * PS, int ppuClock) {
+static void print_debug_line(u16 address, u8 opcode, u8 iByte2,
+ u8 iByte3, enum AddressMode opAddressMode, u16 m_PC, u8 memByte, 
+ u8 m_A, u8 m_X, u8 m_Y, u8 m_SP, bool * m_PS, int m_ppuClock) {
 
-    std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << (int) PC << "  ";
+    std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << (int) m_PC << "  ";
 
     if (opAddressMode == IMP || opAddressMode == ACC) {
-        printByte(opcode);
+        print_byte(opcode);
         std::cout << "       ";
     } else if (opAddressMode == ZRP || opAddressMode == ZRPX || opAddressMode == ZRPY
         || opAddressMode == REL || opAddressMode == IMM
         || opAddressMode == INDX || opAddressMode == INDY) {
-        printByte(opcode);
+        print_byte(opcode);
         std::cout << ' ';
-        printByte(iByte2);
+        print_byte(iByte2);
         std::cout << "    ";
     } else if (opAddressMode == ABS || opAddressMode == ABSX
         || opAddressMode == ABSY || opAddressMode == IND) {
-        printByte(opcode);
+        print_byte(opcode);
         std::cout << ' ';
-        printByte(iByte2);
+        print_byte(iByte2);
         std::cout << ' ';
-        printByte(iByte3);
+        print_byte(iByte3);
         std::cout << ' ';
     } else {
         std::cout << "         ";
@@ -1243,12 +1243,12 @@ static void printDebugLine(u16 address, u8 opcode, u8 iByte2,
 
     if (opAddressMode == REL) {
         std::cout << '$';
-        std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << (int) PC + (int8_t) iByte2 + 2;
+        std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << (int) m_PC + (int8_t) iByte2 + 2;
         whiteSpace -= 5;
     } else {
         int addressLen;
 
-        addressLen = debugPrintVal(addressModes[opcode], iByte2, iByte3);
+        addressLen = debug_print_val(addressModes[opcode], iByte2, iByte3);
         whiteSpace -= addressLen;
     }
 
@@ -1270,13 +1270,13 @@ static void printDebugLine(u16 address, u8 opcode, u8 iByte2,
         } else if (opAddressMode == INDX) {
             whiteSpace -= 17;
 
-            std::cout << " @ " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) ((iByte2 + X) & 0xFF);
+            std::cout << " @ " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) ((iByte2 + m_X) & 0xFF);
             std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << address;
             std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) memByte;
         } else if (opAddressMode == INDY) {
 
             whiteSpace -= 19;
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << ((address - Y) & 0xFFFF);
+            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << ((address - m_Y) & 0xFFFF);
             std::cout << " @ " << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << address;
             std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) memByte;
         } else if (opAddressMode == IND) {
@@ -1306,16 +1306,16 @@ static void printDebugLine(u16 address, u8 opcode, u8 iByte2,
         std::cout << ' ';
     }
 
-    std::cout << "A:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) A << ' ';
-    std::cout << "X:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) X << ' ';
-    std::cout << "Y:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) Y << ' ';
-    std::cout << "P:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) getPswByte(PS) << ' ';
-    std::cout << "SP:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) SP << ' ';
+    std::cout << "m_A:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) m_A << ' ';
+    std::cout << "m_X:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) m_X << ' ';
+    std::cout << "m_Y:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) m_Y << ' ';
+    std::cout << "P:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) get_psw_byte(m_PS) << ' ';
+    std::cout << "m_SP:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) m_SP << ' ';
 
     std::cout << "CYC:";
     
-    int count = ppuClock % 341;
-    int scanLines = (ppuClock % (341 * 262)) / 341; 
+    int count = m_ppuClock % 341;
+    int scanLines = (m_ppuClock % (341 * 262)) / 341; 
 
     if (count < 10) {
         std::cout << "  ";

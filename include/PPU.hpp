@@ -29,49 +29,49 @@ private:
     u8 m_x;                        //fine x scroll
     u16 m_v;                       //current vram address
     u16 m_t;                       //temporary vram address
-    bool addressLatch;                  //w register
-    u8 readBuffer;                 //$2007 buffer
+    bool m_addressLatch;                  //w register
+    u8 m_readBuffer;                 //$2007 buffer
 
     //hardware
-    u8 palette[0x20];              //palette indicies
-    u8 VRAM[0x1000];               //4kB PPU internal VRAM
-    u8 lineOAM[6 * 8];             //secondary oam, not faithful to hardware
+    u8 m_palette[0x20];              //palette indicies
+    u8 m_VRAM[0x1000];               //4kB PPU internal VRAM
+    u8 m_lineOAM[6 * 8];             //secondary oam, not faithful to hardware
 
-    void setPpuByte(u16, u8); //set byte in PPU address space
-    u8 getPpuByte(u16);       //get byte from PPU address space
-    void loadNewTile();                 //load shift registers with rendering bytes
-    void ppuFlagUpdate(bool *);         //update ppu state based on register access
-    void drawPixel(int, int);           //draw background and sprite pixels
-    void updateSecondaryOAM(int);       //prepare secondary oam for next line
+    void set_ppu_byte(u16, u8); //set byte in PPU address space
+    u8 get_ppu_byte(u16);       //get byte from PPU address space
+    void load_new_tile();                 //load shift registers with rendering bytes
+    void ppu_flag_update(bool *);         //update ppu state based on register access
+    void draw_pixel(int, int);           //draw background and sprite pixels
+    void update_secondary_oam(int);       //prepare secondary oam for next line
 
 public:
 
     //0-7 = $2000 - $2007
-    int writeFlag;
-    int readFlag;
+    int m_writeFlag;
+    int m_readFlag;
 
     //registers
-    u8 oamAddress;                 //current OAM address
-    bool suppressVBL;                   //dont throw up vbl flag
-    bool suppressCpuTickSkip;
+    u8 m_oamAddress;                 //current OAM address
+    bool m_suppressVBL;                   //dont throw up vbl flag
+    bool m_suppressCpuTickSkip;
 
     //info/configuration
-    bool draw;                          //draw frame?
-    uintmax_t ppuClock;                  
-    int numRomBanks;                    //number of 4kb rom banks
-    int ppuMapper;                      //cartridge mapper
-    bool usesRAM;                       //true if CHR_RAM is used rather than CHR_ROM
-    enum Mirroring mirroring;           //nametable arrangement
+    bool m_draw;                          //draw frame?
+    uintmax_t m_ppuClock;                  
+    int m_numRomBanks;                    //number of 4kb rom banks
+    int m_ppuMapper;                      //cartridge mapper
+    bool m_usesRAM;                       //true if CHR_RAM is used rather than CHR_ROM
+    enum Mirroring m_mirroring;           //nametable arrangement
 
     //hardware
-    u8 OAM[0x100];                 //256 byte PPU OAM
-    u8 ppuRegisters[0x8];          //PPU registers
-    u8 * CHR_ROM;                  //cartridge video ROM (pattern tables)
-    u8 pixels[256 * 240];
+    u8 m_OAM[0x100];                 //256 byte PPU OAM
+    u8 m_ppuRegisters[0x8];          //PPU registers
+    u8 * m_CHR_ROM;                  //cartridge video ROM (pattern tables)
+    u8 m_pixels[256 * 240];
 
     PPU();
     void tick(bool *, uintmax_t *);      //one PPU tick is executed
-    void freePointers();                //free memory
-    u8 return2007();               //return ppudata for 'cpu get byte'
+    void free_pointers();                //free memory
+    u8 return_2007();               //return ppudata for 'cpu get byte'
 
 };

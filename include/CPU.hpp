@@ -33,50 +33,50 @@ class CPU {
 private:
     
     //controller 1
-    bool readController;
-    u8 storedControllerByte;
-    int currentControllerBit;
+    bool m_readController;
+    u8 m_storedControllerByte;
+    int m_currentControllerBit;
 
     //registers
-    u8 SP;         //stack pointer
-    u8 A;          //accumulator
-    bool PS[8];         //processor status word
-    u8 X;          //register X
-    u8 Y;          //register Y
+    u8 m_SP;         //stack pointer
+    u8 m_A;          //accumulator
+    bool m_PS[8];         //processor status word
+    u8 m_X;          //register X
+    u8 m_Y;          //register Y
 
     //hardware
-    u8 RAM[0x800];         //2kB CPU RAM
-    u8 cpuMem[0x2000];    //fallback memory addresses for (0x4020 - 0x6000)
+    u8 m_RAM[0x800];         //2kB CPU RAM
+    u8 m_cpuMem[0x2000];    //fallback memory addresses for (0x4020 - 0x6000)
 
-    bool returnControllerBit();
-    void setCpuByte(u16, u8); //set byte in CPU address space
-    u16 retrieveCpuAddress(enum AddressMode, bool *, u8, u8);  //get address basedon address mode
+    bool return_controller_bit();
+    void set_cpu_byte(u16, u8); //set byte in CPU address space
+    u16 retrieve_cpu_address(enum AddressMode, bool *, u8, u8);  //get address basedon address mode
 
 public:
 
-    PPU nesPPU;
-    APU nesAPU;
+    PPU m_nesPPU;
+    APU m_nesAPU;
     
-    uintmax_t cpuClock;          //time in ppu ticks
+    uintmax_t m_cpuClock;          //time in ppu ticks
 
     //info
-    int cpuMapper;
-    int numRomBanks;            //number of rom banks
-    int numRamBanks;            //number of RAM banks
+    int m_cpuMapper;
+    int m_numRomBanks;            //number of rom banks
+    int m_numRamBanks;            //number of RAM banks
 
     //registers
-    bool NMI;                   //non maskable interupt
-    bool IRQ;
-    u16 PC;                //program counter
-    u8 controllerByte;     //controller 1
+    bool m_NMI;                   //non maskable interupt
+    bool m_IRQ;
+    u16 m_PC;                //program counter
+    u8 m_controllerByte;     //controller 1
 
     //hardware
-    u8 * PRG_ROM;          //cartridge program ROM
-    u8 * PRG_RAM;          //cartridge program RAM
+    u8 * m_PRG_ROM;          //cartridge program ROM
+    u8 * m_PRG_RAM;          //cartridge program RAM
 
     CPU();                  //stage 1 initialize, stage 2 when ROM loading occurs
-    void freePointers();    //deinitialize
-    void executeNextOpcode(bool);
-    u8 getCpuByte(u16, bool);       //get byte from CPU address space
+    void free_pointers();    //deinitialize
+    void execute_next_opcode(bool);
+    u8 get_cpu_byte(u16, bool);       //get byte from CPU address space
 
 };

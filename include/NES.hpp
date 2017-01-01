@@ -5,9 +5,9 @@ class NES {
 
 public:
 
-    CPU nesCPU;                         //CPU
+    CPU m_nesCPU;                         //CPU
 
     NES();
-    bool openCartridge(const char *);   //load ROM
-    void closeCartridge();              //free memory associated with cartridge
+    bool open_cartridge(const char *);   //load ROM
+    void close_cartridge();              //free memory associated with cartridge
 };

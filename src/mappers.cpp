@@ -1,6 +1,6 @@
 #include <cstdint>
 
-uint8_t getCpuMapper0(uint16_t memAddress, int romBanks, uint8_t * ROM) {
+uint8_t get_cpu_mapper_0(uint16_t memAddress, int romBanks, uint8_t * ROM) {
 
 
     if (memAddress < 0xC000) {
@@ -17,6 +17,6 @@ uint8_t getCpuMapper0(uint16_t memAddress, int romBanks, uint8_t * ROM) {
 
 }
 
-uint8_t getPpuMapper0(uint16_t memAddress, uint8_t * VROM) {
+uint8_t get_ppu_mapper_0(uint16_t memAddress, uint8_t * VROM) {
     return VROM[memAddress];
 }

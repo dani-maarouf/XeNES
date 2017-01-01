@@ -27,7 +27,11 @@ int main(int argc, char ** argv) {
     waveform visualizer
     change speed
     breakpoints
+    memory view
+    disassembler
     nametables and pattern tables view
+
+    automated testing: hash pixel buffer and compare to known good result
 
     fix sprite rendering, output pixel alignment, sprite 0 hits and ppu even and odd frame timing
     
@@ -35,14 +39,14 @@ int main(int argc, char ** argv) {
 
     NES nesSystem;
 
-    if (!nesSystem.openCartridge(argv[1])) {
+    if (!nesSystem.open_cartridge(argv[1])) {
         std::cerr << "Could not load ROM : " << argv[1] << std::endl;
-        nesSystem.closeCartridge();
+        nesSystem.close_cartridge();
         return EXIT_FAILURE;
     }
 
     loop(nesSystem, argv[1]);
 
-    nesSystem.closeCartridge();
+    nesSystem.close_cartridge();
     return EXIT_SUCCESS;
 }
