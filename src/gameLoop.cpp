@@ -25,16 +25,16 @@ const uint32_t paletteTable [] = {
     (160<<16)|(214<<8)|(228),(160<<16)|(162<<8)|(160),(  0<<16)|(  0<<8)|(  0),(  0<<16)|(  0<<8)|(  0),
 };
 
-/* consts */
-const double MILLISECONDS_PER_FRAME = 1000.0/60.0; //60FPS
-const int SCALE_FACTOR = 3;                  //size of each NES display pixel in real pixels
-const bool REMOVE_OVERSCAN = true;
-
 /* SDL video */
 SDL_Window * window = NULL;     //SDL window
 SDL_Renderer * renderer = NULL; //SDL renderer
 SDL_Texture * texture = NULL;   //SDL texture
 uint32_t localPixels[256 * 240];
+
+/* consts */
+const double MILLISECONDS_PER_FRAME = 1000.0/60.0; //60FPS
+const int SCALE_FACTOR = 3;                  //size of each NES display pixel in real pixels
+const bool REMOVE_OVERSCAN = true;
 
 /* SDL audio */
 const int samplingFrequency = 48000;
@@ -42,7 +42,6 @@ const int sampleBytes = sizeof(int16_t) * 2;
 const int channels = 2;
 const SDL_AudioFormat format = AUDIO_S16SYS;
 SDL_AudioDeviceID sdlAudioDevice = 0;
-
 
 /* local function prototypes */
 static int get_refresh_rate(SDL_Window * win);
@@ -58,8 +57,7 @@ void loop(NES nesSystem, const char * fileLoc) {
         return;
     }
 
-    Debugger debugger;
-    bool log = true;
+    Debugger debugger(&nesSystem);
 
     //game loop variables
     double frequency = SDL_GetPerformanceFrequency();
@@ -82,9 +80,7 @@ void loop(NES nesSystem, const char * fileLoc) {
         if (!paused) {
             do {
 
-                if (log) {
-                    debugger.print_debug_line(&nesSystem);
-                }
+                debugger.perform_events();
 
                 //execute one cpu opcode
                 nesSystem.m_nesCPU.execute_next_opcode();
@@ -92,7 +88,7 @@ void loop(NES nesSystem, const char * fileLoc) {
                 nesSystem.m_nesCPU.m_nesPPU.tick(&nesSystem.m_nesCPU.m_NMI, &nesSystem.m_nesCPU.m_cpuClock);
             } while (!nesSystem.m_nesCPU.m_nesPPU.m_draw);
 
-            /*
+            
             //3.1 audio
             nesSystem.m_nesCPU.m_nesAPU.fill_buffer(&nesSystem, &nesSystem.m_nesCPU.m_IRQ);
             if (SDL_GetQueuedAudioSize(sdlAudioDevice) > (unsigned int) nesSystem.m_nesCPU.m_nesAPU.m_audioBufferSize * 10) {
@@ -100,7 +96,25 @@ void loop(NES nesSystem, const char * fileLoc) {
                 SDL_ClearQueuedAudio(sdlAudioDevice);
             }
             SDL_QueueAudio(sdlAudioDevice, (void *) nesSystem.m_nesCPU.m_nesAPU.m_audioBuffer, nesSystem.m_nesCPU.m_nesAPU.m_audioBufferSize);
-            */
+            
+        } else {
+
+            bool quit = false;
+            bool doDraw = false;
+
+            while (debugger.shell(&quit, &doDraw)) {
+                if (doDraw) {
+                    draw(nesSystem.m_nesCPU.m_nesPPU.m_pixels);
+                }
+            }
+
+            if (quit) {
+                break;
+            }
+
+            paused = false;
+            SDL_SetWindowInputFocus(window);
+
         }
 
         //3.2 video

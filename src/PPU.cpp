@@ -4,7 +4,6 @@
 
 const bool DEBUG = false;
 
-/* Begin macro functions */
 #define get_bit(num, bit)    (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) : \
     (bit == 2) ? (num & 0x4) : (bit == 3) ? (num & 0x8) :   \
     (bit == 4) ? (num & 0x10) : (bit == 5) ? (num & 0x20) : \
@@ -24,7 +23,7 @@ const bool DEBUG = false;
         loopyv += 0x1000;                               \
     } else {                                            \
         loopyv &= ~0x7000;                              \
-        u16 yVal;                                  \
+        u16 yVal;                                       \
         yVal = (loopyv & 0x03E0) >> 5;                  \
         if (yVal == 29) {                               \
             yVal = 0;                                   \
@@ -48,7 +47,6 @@ const bool DEBUG = false;
     loopyv &= 0x041F;               \
     loopyv |= (loopyt & (~0x041F)); \
 }
-/* End macro functions */
 
 /* Begin PPU class functions */
 PPU::PPU() {

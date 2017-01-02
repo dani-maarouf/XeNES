@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstring>
 #include <iomanip>
+#include <string>
 
 #include "debugger.hpp"
 
@@ -16,6 +17,20 @@ static const char * opnames[] = {
     "STY", "TAX", "TAY", "TSX", "TXA", "TXS", "TYA"                       //6
 };   
 
+Debugger::Debugger(NES * nes) {
+    log = false;
+    this->nesSystem = nes;
+}
+
+void Debugger::perform_events() {
+
+    if (log) {
+        print_debug_line();
+    }
+
+    return;
+}
+
 void Debugger::print_byte(u8 byte) {
     std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) byte;
     return;
@@ -29,15 +44,15 @@ int Debugger::debug_print_val(enum AddressMode mode, int firstByte, int secondBy
         return 5;
 
         case ABSX:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ",m_X";
+        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ",X";
         return 7;
 
         case ABSY:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ",m_Y";
+        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ",Y";
         return 7;
 
         case ACC:
-        std::cout << "m_A";
+        std::cout << "A";
         return 1;
 
         case IMM:
@@ -52,11 +67,11 @@ int Debugger::debug_print_val(enum AddressMode mode, int firstByte, int secondBy
         return 7;
 
         case INDX:
-        std::cout << "($" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",m_X)";
+        std::cout << "($" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",X)";
         return 7;
 
         case INDY:
-        std::cout << "($" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << "),m_Y";
+        std::cout << "($" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << "),Y";
         return 7;
 
         case REL:
@@ -67,11 +82,11 @@ int Debugger::debug_print_val(enum AddressMode mode, int firstByte, int secondBy
         return 3;
 
         case ZRPX:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",m_X";
+        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",X";
         return 5;
         
         case ZRPY:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",m_Y";
+        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",Y";
         return 5;
         
         default:
@@ -80,7 +95,7 @@ int Debugger::debug_print_val(enum AddressMode mode, int firstByte, int secondBy
     }
 }
 
-void Debugger::print_debug_line(NES * nesSystem) {
+void Debugger::print_debug_line() {
 
     bool pass = false;
 
@@ -258,9 +273,74 @@ void Debugger::print_debug_line(NES * nesSystem) {
 
 }
 
-void Debugger::shell() {
+bool Debugger::shell(bool * quit, bool * draw) {
 
-    std::cout << "XeNes > ";
+    std::cout << "XeNes (0x";
+    std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << nesSystem->m_nesCPU.m_PC;
+    std::cout << ") > ";
 
-    getchar();
+    std::string input = "";
+    getline(std::cin, input);
+
+    if (input.compare("l 1") == 0) {
+        log = true;
+    } else if (input.compare("l 0") == 0) {
+        log = false;
+    } else if (input.compare("r") == 0) {
+        return false;
+    } else if (input.compare("q") == 0) {
+        *quit = true;
+        return false;
+    } else if (input[0] == 'd') {
+
+        int instructions;
+
+        if (input.length() == 1 || input.length() == 2) {
+            instructions = 10;
+        } else {
+
+            bool valid = true;
+            for (unsigned int i = 2; i < input.length(); i++) {
+
+                if (input[i] < '0' || input[i] > '9') {
+                    std::cout << "Invalid number of instructions." << std::endl;
+                    return true;
+                }
+
+            }
+
+            if (valid == false) {
+                instructions = 10;
+            } else {
+                instructions = std::stoi (input.substr(2, std::string::npos), nullptr, 10);
+            }
+        }
+
+        for (int i = 0; i < instructions; i++) {
+
+            print_debug_line();
+
+            //execute one cpu opcode
+            nesSystem->m_nesCPU.execute_next_opcode();
+            //ppu catches up
+            nesSystem->m_nesCPU.m_nesPPU.tick(&(nesSystem->m_nesCPU.m_NMI), &(nesSystem->m_nesCPU.m_cpuClock));
+
+            if (nesSystem->m_nesCPU.m_nesPPU.m_draw) {
+                *draw = true;
+            }
+
+        }
+
+
+    } else {
+
+        if (input.compare("") != 0) {
+            std::cout << "Command not recognized" << std::endl;
+        }
+
+    }
+
+    return true;
+
+
 }

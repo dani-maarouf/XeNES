@@ -1,6 +1,7 @@
 #include <iostream>
-#include <cstdlib>
 #include <ctime>
+#include <unistd.h>
+
 #include "NES.hpp"
 #include "gameLoop.hpp"
 
@@ -17,13 +18,14 @@ int main(int argc, char ** argv) {
         return EXIT_FAILURE;
     }
 
-    srand (time(NULL));     //for audio noise channel
+    
 
 
     /*
     todo:
 
     debugger:
+    set controller input until 'x'
     waveform visualizer
     change speed
     breakpoints
@@ -36,6 +38,10 @@ int main(int argc, char ** argv) {
     fix sprite rendering, output pixel alignment, sprite 0 hits and ppu even and odd frame timing
     
     */
+
+
+
+    srand (time(NULL));     //for audio noise channel
 
     NES nesSystem;
 

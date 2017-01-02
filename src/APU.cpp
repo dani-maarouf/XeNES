@@ -3,9 +3,6 @@
 #include "APU.hpp"
 #include "NES.hpp"
 
-
-#include <iostream>     //DEBUG
-
 #define get_bit(num, bit)    (bit == 0) ? (num & 0x1) : (bit == 1) ? (num & 0x2) : \
     (bit == 2) ? (num & 0x4) : (bit == 3) ? (num & 0x8) :   \
     (bit == 4) ? (num & 0x10) : (bit == 5) ? (num & 0x20) : \
@@ -299,8 +296,6 @@ void APU::fill_buffer(NES * nesSystem, bool * IRQ) {
 
             }
 
-            //std::cout << (int) m_dmcOut << std::endl;
-
             m_audioBuffer[i * 2] += (64 - m_dmcOut) * 200;
             m_audioBuffer[i * 2 + 1] += (64 - m_dmcOut) * 200;
 
@@ -310,8 +305,6 @@ void APU::fill_buffer(NES * nesSystem, bool * IRQ) {
     } else {
         //PCM always outputs
         for (int i = 0; i < 800; i++) {
-
-            //std::cout << (int) m_dmcOut << " off" << std::endl;
 
             m_audioBuffer[i * 2] += (64 - m_dmcOut) * 200;
             m_audioBuffer[i * 2 + 1] += (64 - m_dmcOut) * 200;
