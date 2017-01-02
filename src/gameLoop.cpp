@@ -2,6 +2,7 @@
 #include <chrono>
 #include <thread>
 #include <SDL2/SDL.h>
+
 #include "NES.hpp"
 #include "debugger.hpp"
 
@@ -76,17 +77,30 @@ void loop(NES nesSystem, const char * fileLoc) {
             break;
         }
 
+        if (debugger.toDisassemble != 0) {
+            paused = false;
+        }
+
         //2 logic
         if (!paused) {
             do {
 
-                debugger.perform_events();
+                bool breakPointHit = false;
+
+                if (debugger.perform_events(&breakPointHit)) {
+                    paused = true;
+                }
+
+                if (breakPointHit) {
+                    paused = true;
+                    break;
+                }
 
                 //execute one cpu opcode
                 nesSystem.m_nesCPU.execute_next_opcode();
                 //ppu catches up
                 nesSystem.m_nesCPU.m_nesPPU.tick(&nesSystem.m_nesCPU.m_NMI, &nesSystem.m_nesCPU.m_cpuClock);
-            } while (!nesSystem.m_nesCPU.m_nesPPU.m_draw);
+            } while (!nesSystem.m_nesCPU.m_nesPPU.m_draw && !paused);
 
             
             //3.1 audio
@@ -101,8 +115,9 @@ void loop(NES nesSystem, const char * fileLoc) {
 
             bool quit = false;
             bool doDraw = false;
+            bool bringFocus = false;
 
-            while (debugger.shell(&quit, &doDraw)) {
+            while (!debugger.shell(&quit, &doDraw, &bringFocus)) {
                 if (doDraw) {
                     draw(nesSystem.m_nesCPU.m_nesPPU.m_pixels);
                 }
@@ -113,7 +128,12 @@ void loop(NES nesSystem, const char * fileLoc) {
             }
 
             paused = false;
-            SDL_SetWindowInputFocus(window);
+
+            if (bringFocus) {
+                SDL_RaiseWindow(window);
+            
+            }
+            
 
         }
 
@@ -331,6 +351,10 @@ static bool process_events(SDL_Event * event, uint8_t * controller, bool * pause
 
                     case SDLK_d:    //right
                     (*controller) |= 0x80;
+                    break;
+
+                    case SDLK_ESCAPE:
+                    *paused = true;
                     break;
 
                     default:

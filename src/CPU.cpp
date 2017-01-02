@@ -10,6 +10,7 @@ const int lengthTable[] = {
     12, 16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30,
 };
 
+//DMC sample playback rate
 const int rateTable[] = {
     428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106,  84,  72,  54
 };
@@ -142,7 +143,9 @@ u8 CPU::get_cpu_byte(u16 memAddress, bool silent) {
                 }
 
             } else if (address == 0x7) {
-                return m_nesPPU.return_2007();
+
+                //add a silent mode for this!!!!
+                return m_nesPPU.return_2007(silent);
             }
 
         }

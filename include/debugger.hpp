@@ -3,26 +3,32 @@
 #include <cstdint>
 #include <cstdbool>
 #include "NES.hpp"
+#include <vector>
 
 
 class Debugger {
 
 private:
 
+    bool log;
+    
+    std::vector<uint16_t> breakpoints;
+    std::vector<uint16_t> watchpoints;
+
+    bool ignoreNextBreaks;
     NES * nesSystem;
 
-    bool log;
-
-    void print_byte(uint8_t);
+    void print_hex(u16, int);
     int debug_print_val(enum AddressMode, int, int);
-    
 
 public:
 
+    int toDisassemble;
+
     Debugger(NES *);
-    void print_debug_line();
-    bool shell(bool *, bool *);
-    void perform_events();
+    void peek_next_instruction(bool, bool *);
+    bool shell(bool *, bool *, bool *);
+    bool perform_events(bool *);
 
 };
 

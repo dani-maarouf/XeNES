@@ -72,6 +72,6 @@ public:
     PPU();
     void tick(bool *, uintmax_t *);      //one PPU tick is executed
     void free_pointers();                //free memory
-    u8 return_2007();               //return ppudata for 'cpu get byte'
+    u8 return_2007(bool);               //return ppudata for 'cpu get byte'
 
 };

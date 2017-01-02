@@ -350,17 +350,20 @@ inline void PPU::ppu_flag_update(bool * NMI) {
 }
 
 //SILENT MODE?
-u8 PPU::return_2007() {
+u8 PPU::return_2007(bool silent) {
 
     //if screen off
     //if ((nesPPU.m_ppuRegisters[0x2] & 0x80) || ((nesPPU.m_ppuRegisters[0x1] & 0x18) == 0) || true) {
 
     u8 ppuByte;
 
-    m_v &= 0x3FFF;
+    if (!silent) {
+        m_v &= 0x3FFF;
+    }
+    
 
 
-    if (m_v % 0x4000 < 0x3F00) {
+    if ( (m_v & 0x3FFF) % 0x4000 < 0x3F00) {
         ppuByte = m_readBuffer;
         m_readBuffer = get_ppu_byte( m_v );
     } else {
@@ -368,9 +371,11 @@ u8 PPU::return_2007() {
         m_readBuffer = get_ppu_byte( m_v - 0x1000);
     }
 
-    m_v += (m_ppuRegisters[0] & 0x04) ? 32 : 1;
-
-    m_v &= 0x7FFF;
+    if (!silent) {
+        m_v += (m_ppuRegisters[0] & 0x04) ? 32 : 1;
+        m_v &= 0x7FFF;
+    }
+    
 
 
 

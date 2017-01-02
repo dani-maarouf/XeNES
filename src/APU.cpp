@@ -37,9 +37,7 @@ APU::APU() {
     return;
 }
 
-
 void APU::fill_buffer(NES * nesSystem, bool * IRQ) {
-    
 
     int lastValue = m_audioBuffer[1599];
 
@@ -47,8 +45,6 @@ void APU::fill_buffer(NES * nesSystem, bool * IRQ) {
         m_audioBuffer[x] = 0;
     }
 
-    
-    
     if (m_registers[0x15] & 0x1) {
 
         if (m_lengthCounterPulse1 > 0) {

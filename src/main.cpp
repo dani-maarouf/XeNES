@@ -1,6 +1,5 @@
 #include <iostream>
 #include <ctime>
-#include <unistd.h>
 
 #include "NES.hpp"
 #include "gameLoop.hpp"
@@ -18,28 +17,17 @@ int main(int argc, char ** argv) {
         return EXIT_FAILURE;
     }
 
-    
-
-
     /*
     todo:
 
-    debugger:
-    set controller input until 'x'
-    waveform visualizer
-    change speed
-    breakpoints
-    memory view
-    disassembler
-    nametables and pattern tables view
+    state snapshot
 
+    figure out better way to handle pausing and activating debugger
+
+    add debugger features
     automated testing: hash pixel buffer and compare to known good result
-
     fix sprite rendering, output pixel alignment, sprite 0 hits and ppu even and odd frame timing
-    
     */
-
-
 
     srand (time(NULL));     //for audio noise channel
 

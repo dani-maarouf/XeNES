@@ -19,20 +19,38 @@ static const char * opnames[] = {
 
 Debugger::Debugger(NES * nes) {
     log = false;
+    toDisassemble = 0;
+    ignoreNextBreaks = false;
     this->nesSystem = nes;
 }
 
-void Debugger::perform_events() {
+bool Debugger::perform_events(bool * breakpointHit) {
 
     if (log) {
-        print_debug_line();
+        peek_next_instruction(true, breakpointHit);
+    } else if (toDisassemble > 0) {
+
+        toDisassemble--;
+        peek_next_instruction(true, breakpointHit);
+        if (toDisassemble == 0) {
+            return true;
+        }
+
+    } else {
+
+        peek_next_instruction(false, breakpointHit);
+
     }
 
-    return;
+    if (*breakpointHit) {
+        toDisassemble = 0;
+    }
+
+    return false;
 }
 
-void Debugger::print_byte(u8 byte) {
-    std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) byte;
+void Debugger::print_hex(u16 num, int width) {
+    std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(width) << (int) num;
     return;
 }
 
@@ -95,7 +113,7 @@ int Debugger::debug_print_val(enum AddressMode mode, int firstByte, int secondBy
     }
 }
 
-void Debugger::print_debug_line() {
+void Debugger::peek_next_instruction(bool print, bool * pauseExecution) {
 
     bool pass = false;
 
@@ -111,7 +129,6 @@ void Debugger::print_debug_line() {
     if (opAddressMode != ACC && opAddressMode != IMM && opAddressMode != REL && opAddressMode != IMP) {
         address = nesSystem->m_nesCPU.retrieve_cpu_address(opAddressMode, &pass, iByte2, iByte3, true);
     }
-
 
     u8 m_A = nesSystem->m_nesCPU.m_A;
     u8 m_X = nesSystem->m_nesCPU.m_X;
@@ -145,25 +162,51 @@ void Debugger::print_debug_line() {
         }
     }
 
+    if (ignoreNextBreaks) {
+        ignoreNextBreaks = false;
+    } else {
+        for (unsigned int i = 0; i < breakpoints.size(); i++) {
+            if (breakpoints[i] == m_PC) {
+                *pauseExecution = true;
+                ignoreNextBreaks = true;
+                return;
+            }
+        }
+
+        for (unsigned int i = 0; i < watchpoints.size(); i++) {
+            if (address == watchpoints[i]) {
+                *pauseExecution = true;
+                ignoreNextBreaks = true;
+                return;
+            }
+        }
+
+    }
+
+
+    if (!print) {
+        return;
+    }
+
     std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << (int) m_PC << "  ";
 
     if (opAddressMode == IMP || opAddressMode == ACC) {
-        print_byte(opcode);
+        print_hex(opcode, 2);
         std::cout << "       ";
     } else if (opAddressMode == ZRP || opAddressMode == ZRPX || opAddressMode == ZRPY
         || opAddressMode == REL || opAddressMode == IMM
         || opAddressMode == INDX || opAddressMode == INDY) {
-        print_byte(opcode);
+        print_hex(opcode, 2);
         std::cout << ' ';
-        print_byte(iByte2);
+        print_hex(iByte2, 2);
         std::cout << "    ";
     } else if (opAddressMode == ABS || opAddressMode == ABSX
         || opAddressMode == ABSY || opAddressMode == IND) {
-        print_byte(opcode);
+        print_hex(opcode, 2);
         std::cout << ' ';
-        print_byte(iByte2);
+        print_hex(iByte2, 2);
         std::cout << ' ';
-        print_byte(iByte3);
+        print_hex(iByte3, 2);
         std::cout << ' ';
     } else {
         std::cout << "         ";
@@ -177,8 +220,6 @@ void Debugger::print_debug_line() {
     whiteSpace = 28;
 
     std::cout << opnames[opnameMap[opcode]] << ' ';
-
-    
 
     if (opAddressMode == REL) {
         std::cout << '$';
@@ -268,69 +309,224 @@ void Debugger::print_debug_line() {
     std::cout << std::dec << scanLines;
     std::cout << std::endl;
     
-
     return;
 
 }
 
-bool Debugger::shell(bool * quit, bool * draw) {
+bool valid_digits(std::string string, bool hex, int start, int end) {
 
-    std::cout << "XeNes (0x";
+    if (hex) {
+        for (int i = start; i < end; i++) {
+
+            if (!(string[i] >= '0' && string[i] <= '9') && !(string[i] >= 'A' && string[i] <= 'F')) {
+                return false;
+            }
+        }
+    } else {
+
+        for (int i = start; i < end; i++) {
+            if (string[i] < '0' || string[i] > '9') {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+bool valid_digits(std::string string, bool hex, int start) {
+    return valid_digits(string, hex, start, string.length());
+}
+
+bool Debugger::shell(bool * quit, bool * draw, bool * focus) {
+
+    /*
+    add features:
+    set controller input until 'x'
+
+    view code
+
+    waveform visualizer
+    change speed
+    breakpoints (mem reads, writes, until next frame, NMI, IRQ, etc)
+    memory view
+    disassembler
+    nametables and pattern tables view
+
+    stack related breakpoints?
+
+
+    */
+
+    std::cout << "XeNES (0x";
     std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << nesSystem->m_nesCPU.m_PC;
     std::cout << ") > ";
 
     std::string input = "";
     getline(std::cin, input);
 
-    if (input.compare("l 1") == 0) {
+    if (input.compare("l 1") == 0 || input.compare("l1") == 0 || input.compare("l true") == 0 ) {
         log = true;
-    } else if (input.compare("l 0") == 0) {
+    } else if (input.compare("l 0") == 0 || input.compare("l0") == 0 || input.compare("l false") == 0) {
         log = false;
-    } else if (input.compare("r") == 0) {
-        return false;
-    } else if (input.compare("q") == 0) {
+    } else if (input.compare("run") == 0 || input.compare("r") == 0) {
+        *focus = true;
+        return true;
+    } else if (input.compare("q") == 0 || input.compare("quit") == 0) {
         *quit = true;
-        return false;
-    } else if (input[0] == 'd') {
+        return true;
+    } else if ((input[0] == 'd' || input[0] == 'j' || input[0] == 'm') && input[1] == ' ') {
 
-        int instructions;
 
         if (input.length() == 1 || input.length() == 2) {
-            instructions = 10;
+            std::cout << "Invalid command" << std::endl;
+            return false;
         } else {
 
-            bool valid = true;
-            for (unsigned int i = 2; i < input.length(); i++) {
+            if (input[0] == 'd') {
 
-                if (input[i] < '0' || input[i] > '9') {
-                    std::cout << "Invalid number of instructions." << std::endl;
-                    return true;
+                if (!valid_digits(input, false, 2)) {
+                    std::cout << "Invalid number" << std::endl;
+                    return false;
                 }
 
-            }
+                toDisassemble = std::stoi (input.substr(2, std::string::npos), nullptr, 10);
+                return true;
+            } else if (input[0] == 'j') {
 
-            if (valid == false) {
-                instructions = 10;
+                if (!valid_digits(input, true, 2)) {
+                    std::cout << "Invalid number" << std::endl;
+                    return false;
+                }
+
+                nesSystem->m_nesCPU.m_PC = std::stoi (input.substr(2, std::string::npos), nullptr, 16);
+                return false;
             } else {
-                instructions = std::stoi (input.substr(2, std::string::npos), nullptr, 10);
+
+                if (!valid_digits(input, true, 2, 6)) {
+                    std::cout << "Invalid first number" << std::endl;
+                    return false;
+                }
+
+                uint16_t memLoc = std::stoi (input.substr(2, 6), nullptr, 16);
+
+                if (input[6] != ' ') {
+                    std::cout << "Invalid command" << std::endl;
+                    return false;
+                }
+
+                if (!valid_digits(input, false, 7)) {
+                    std::cout << "Invalid second number" << std::endl;
+                    return false;
+                }
+
+                int numBytes = std::stoi(input.substr(7, std::string::npos), nullptr, 10);
+
+                int numRows = ((numBytes / 16) + 1);
+
+                memLoc &= ~0xF;
+
+                for (int x = 0; x < numRows; x++) {
+
+                    print_hex(memLoc + x * 0x10, 4);
+                    std::cout << "   ";
+
+                    for (int y = 0; y < 16; y++) {
+                        print_hex(nesSystem->m_nesCPU.get_cpu_byte(memLoc + x * 0x10 + y, true), 2);
+                        std::cout << " ";
+                    }
+
+                    std::cout << std::endl;
+
+
+                }
             }
         }
 
-        for (int i = 0; i < instructions; i++) {
+    } else if ((input[0] == 'b' || input[0] == 'w') && (input[1] == 'a' || input[1] == 'r')) {
 
-            print_debug_line();
-
-            //execute one cpu opcode
-            nesSystem->m_nesCPU.execute_next_opcode();
-            //ppu catches up
-            nesSystem->m_nesCPU.m_nesPPU.tick(&(nesSystem->m_nesCPU.m_NMI), &(nesSystem->m_nesCPU.m_cpuClock));
-
-            if (nesSystem->m_nesCPU.m_nesPPU.m_draw) {
-                *draw = true;
-            }
-
+        if (input.length() != 7) {
+            std::cout << "Invalid command" << std::endl;
+            return false;
         }
 
+        if (!valid_digits(input, true, 3)) {
+            std::cout << "Invalid number" << std::endl;
+            return false;
+        }
+
+        uint16_t num = std::stoi (input.substr(3, std::string::npos), nullptr, 16);
+
+        if (input[1] == 'a') {
+
+            if (input[0] == 'b') {
+                breakpoints.push_back(num);
+            } else {
+                watchpoints.push_back(num);
+            }
+
+        } else {
+
+            if (input[0] == 'b') {
+
+                bool found = false;
+
+                for (unsigned int i = 0; i < breakpoints.size(); i++) {
+                    if (breakpoints[i] == num) {
+                        breakpoints.erase(breakpoints.begin() + i);
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    std::cout << "Breakpoint not found" << std::endl;
+                }
+
+            } else {
+
+                bool found = false;
+
+                for (unsigned int i = 0; i < watchpoints.size(); i++) {
+                    if (watchpoints[i] == num) {
+                        watchpoints.erase(watchpoints.begin() + i);
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    std::cout << "Watchpoint not found" << std::endl;
+                }
+            }
+
+            return false;
+        }
+
+    } else if ((input[0] == 'b' || input[0] == 'w') && (input[1] == 'v')) {
+
+        std::vector<uint16_t> temp = (input[0] == 'b') ? breakpoints : watchpoints;
+
+        if (temp.size() != 0) {
+            for (int i = 0; i < (int) temp.size(); i++) {
+
+                std::cout << "0x";
+                print_hex(temp[i], 4);
+
+                if (i != (int) temp.size() - 1) {
+                    std::cout << ", ";  
+                }
+                
+
+            }
+            std::cout << std::endl;
+        } else {
+            std::cout << "None" << std::endl;
+        }
+
+    } else if (input.compare("h") == 0 || input.compare("help") == 0) {
+
+        std::cout << "print help prompt" << std::endl;
 
     } else {
 
@@ -340,7 +536,7 @@ bool Debugger::shell(bool * quit, bool * draw) {
 
     }
 
-    return true;
+    return false;
 
 
 }
