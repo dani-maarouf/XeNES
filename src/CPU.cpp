@@ -1,8 +1,8 @@
 #include <iostream>
-#include <cstring>
-#include <iomanip>
 #include "CPU.hpp"
 #include "mappers.hpp"
+
+#include "debugger.hpp"
 
 //used for setting length on APU
 const int lengthTable[] = {
@@ -27,61 +27,7 @@ enum InstructionType {
     R_M_W  = 2,     //read from mem address, modify byte, write byte (read modify write)
     WRITE2 = 3,     //illegal opcodes
     OTHER  = 4,     //note: above 4 are not applicable to every opcode
-};
-
-//memory addressing mode for each opcode
-static const enum AddressMode addressModes[] = {
-  //0    1    2    3    4    5    6    7    8    9    m_A    B    C    D    E    F
-    IMP, INDX,NONE,INDX,ZRP ,ZRP ,ZRP ,ZRP ,IMP, IMM, ACC, NONE,ABS, ABS ,ABS, ABS,   //0
-    REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //1
-    ABS, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, ACC, NONE,ABS, ABS, ABS, ABS,   //2
-    REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //3
-    IMP, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, ACC, NONE,ABS, ABS, ABS, ABS,   //4
-    REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //5
-    IMP, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, ACC, NONE,IND, ABS, ABS, ABS,   //6
-    REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //7
-    IMM, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, NONE,IMP, NONE,ABS, ABS, ABS, ABS,   //8
-    REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPY,ZRPY,IMP, ABSY,IMP, NONE,NONE,ABSX,NONE,NONE,  //9
-    IMM, INDX,IMM, INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, IMP, NONE,ABS, ABS, ABS, ABS,   //m_A
-    REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPY,ZRPY,IMP, ABSY,IMP, NONE,ABSX,ABSX,ABSY,ABSY,  //B
-    IMM, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, IMP, NONE,ABS, ABS, ABS, ABS,   //C
-    REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //D
-    IMM, INDX,NONE,INDX,ZRP, ZRP, ZRP, ZRP, IMP, IMM, IMP, IMM, ABS, ABS, ABS, ABS,   //E
-    REL, INDY,NONE,INDY,ZRPX,ZRPX,ZRPX,ZRPX,IMP, ABSY,IMP, ABSY,ABSX,ABSX,ABSX,ABSX,  //F
 }; 
-
-//opcode mapping to assembly mnemonics and instruction type
-static const int opnameMap[] = {
-   //0  1  2  3  4  5  6  7  8  9  m_A  B  C  D  E  F
-    11,39, 0,56,38,39, 3,56,41,39, 3, 0,38,39, 3,56,  //0
-    10,39, 0,56,38,39, 3,56,14,39,38,56,38,39, 3,56,  //1
-    31, 2, 0,44, 7, 2,45,44,43, 2,45, 0, 7, 2,45,44,  //2
-     8, 2, 0,44,38, 2,45,44,53, 2,38,44,38, 2,45,44,  //3
-    48,25, 0,57,38,25,36,57,40,25,36, 0,30,25,36,57,  //4
-    12,25, 0,57,38,25,36,57,16,25,38,57,38,25,36,57,  //5
-    49, 1, 0,47,38, 1,46,47,42, 1,46, 0,30, 1,46,47,  //6
-    13, 1, 0,47,38, 1,46,47,55, 1,38,47,38, 1,46,47,  //7
-    38,58, 0,50,60,58,59,50,24, 0,64, 0,60,58,59,50,  //8
-     4,58, 0, 0,60,58,59,50,66,58,65, 0, 0,58, 0, 0,  //9
-    35,33,34,32,35,33,34,32,62,33,61, 0,35,33,34,32,  //m_A
-     5,33, 0,32,35,33,34,32,17,33,63, 0,35,33,34,32,  //B
-    20,18, 0,21,20,18,22,21,28,18,23, 0,20,18,22,21,  //C
-     9,18, 0,21,38,18,22,21,15,18,38,21,38,18,22,21,  //D
-    19,52, 0,29,19,52,26,29,27,52,37,51,19,52,26,29,  //E
-     6,52, 0,29,38,52,26,29,54,52,38,29,38,52,26,29,  //F
-};
-
-//opcode mnemonics for debugging
-static const char * opnames[] = {
-    //0     1      2      3      4      5      6      7      8      9
-    "$$$", "ADC", "AND", "ASL", "BCC", "BCS", "BEQ", "BIT", "BMI", "BNE", //0
-    "BPL", "BRK", "BVC", "BVS", "CLC", "CLD", "CLI", "CLV", "CMP", "CPX", //1
-    "CPY","*DCP", "DEC", "DEX", "DEY", "EOR", "INC", "INX", "INY","*ISB", //2
-    "JMP", "JSR","*LAX", "LDA", "LDX", "LDY", "LSR", "NOP","*NOP", "ORA", //3
-    "PHA", "PHP", "PLA", "PLP","*RLA", "ROL", "ROR","*RRA", "RTI", "RTS", //4
-   "*SAX","*SBC", "SBC", "SEC", "SED", "SEI","*SLO","*SRE", "STA", "STX", //5
-    "STY", "TAX", "TAY", "TSX", "TXA", "TXS", "TYA"                       //6
-};      
 
 //opcode types for tick calculation
 static const enum InstructionType opInstrTypes[] = {
@@ -108,12 +54,6 @@ static const int cycles[] = {
                                    //0,1,2,3,4,5,6,7,8,9,m_A,B,C,D,E,F
 static const int opcodeLens[0x20] = {2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3,  //0 2 4 6 8 m_A C E
                                      2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3}; //1 3 5 7 9 B D F
-
-static inline u8 get_psw_byte(bool *);
-static inline void get_psw_from_byte(bool * m_PS, u8 byte);
-static void print_byte(u8);
-static int debug_print_val(enum AddressMode, int, int);
-static void print_debug_line(u16, u8, u8, u8, enum AddressMode, u16, u8, u8, u8, u8, u8, bool *, int);
 
 CPU::CPU() {
 
@@ -147,7 +87,7 @@ void CPU::free_pointers() {
     return;
 }
 
-inline bool CPU::return_controller_bit() {
+bool CPU::return_controller_bit() {
 
     if (m_currentControllerBit < 8) {
         m_currentControllerBit++;
@@ -160,13 +100,12 @@ inline bool CPU::return_controller_bit() {
 
 }
 
-inline u8 CPU::get_cpu_byte(u16 memAddress, bool silent) {
+u8 CPU::get_cpu_byte(u16 memAddress, bool silent) {
 
     if (memAddress < 0x2000) {
         return m_RAM[memAddress % 0x800];
     } else if (memAddress < 0x4000) {
-        u16 address;
-        address = (memAddress - 0x2000) % 8;
+        u16 address = (memAddress - 0x2000) % 8;
 
         if (!silent) {
             m_nesPPU.m_readFlag = address;
@@ -217,7 +156,16 @@ inline u8 CPU::get_cpu_byte(u16 memAddress, bool silent) {
 
         } else if (memAddress == 0x4016) {
             if (m_readController) {
-                return return_controller_bit();
+                if (!silent) {
+                    return return_controller_bit();
+                } else {
+                    if (m_currentControllerBit < 8) {
+                        return get_bit(m_storedControllerByte, m_currentControllerBit);
+                    } else {
+                        return 1;
+                    }
+
+                }
             }
         }
         
@@ -238,7 +186,7 @@ inline u8 CPU::get_cpu_byte(u16 memAddress, bool silent) {
     }
 }
 
-inline void CPU::set_cpu_byte(u16 memAddress, u8 byte) {
+void CPU::set_cpu_byte(u16 memAddress, u8 byte) {
 
     if (memAddress < 0x2000) {
 
@@ -334,8 +282,8 @@ inline void CPU::set_cpu_byte(u16 memAddress, u8 byte) {
     return;
 }
 
-inline u16 CPU::retrieve_cpu_address(enum AddressMode mode, bool * pagePass,
-    u8 firstByte, u8 secondByte) {
+u16 CPU::retrieve_cpu_address(enum AddressMode mode, bool * pagePass,
+    u8 firstByte, u8 secondByte, bool silent) {
 
     *pagePass = false;
 
@@ -368,20 +316,20 @@ inline u16 CPU::retrieve_cpu_address(enum AddressMode mode, bool * pagePass,
         }
 
         case IND: {
-            u8 low = get_cpu_byte((firstByte | (secondByte << 8)), false);
-            u8 high = get_cpu_byte(((firstByte + 1) & 0xFF) | (secondByte << 8), false);
+            u8 low = get_cpu_byte((firstByte | (secondByte << 8)), silent);
+            u8 high = get_cpu_byte(((firstByte + 1) & 0xFF) | (secondByte << 8), silent);
             return ((high << 8) | low);
         }
 
         case INDX: {
-            u8 low = get_cpu_byte((firstByte + m_X) & 0xFF, false);
-            u8 high = get_cpu_byte((firstByte + 1 + m_X) & 0xFF, false);
+            u8 low = get_cpu_byte((firstByte + m_X) & 0xFF, silent);
+            u8 high = get_cpu_byte((firstByte + 1 + m_X) & 0xFF, silent);
             return ((high << 8) | low);
         }
         
         case INDY: {
-            u8 low = (get_cpu_byte(firstByte, false));
-            u8 high = (get_cpu_byte((firstByte + 1) & 0xFF, false));
+            u8 low = (get_cpu_byte(firstByte, silent));
+            u8 high = (get_cpu_byte((firstByte + 1) & 0xFF, silent));
             u16 before = (low | (high << 8));
             u16 after = ((before + m_Y) & 0xFFFF);
             if (( before/ 256) != (after/256)) *pagePass = true;
@@ -395,7 +343,7 @@ inline u16 CPU::retrieve_cpu_address(enum AddressMode mode, bool * pagePass,
     }
 }
 
-void CPU::execute_next_opcode(bool debug) {
+void CPU::execute_next_opcode() {
 
     if (m_NMI) {
 
@@ -469,7 +417,7 @@ void CPU::execute_next_opcode(bool debug) {
 
     u16 address = 0;
     if (opAddressMode != ACC && opAddressMode != IMM && opAddressMode != REL && opAddressMode != IMP) {
-        address = retrieve_cpu_address(opAddressMode, &pass, iByte2, iByte3);
+        address = retrieve_cpu_address(opAddressMode, &pass, iByte2, iByte3, false);
     }
 
     enum InstructionType instrType = opInstrTypes[opnameMap[opcode]];
@@ -517,11 +465,13 @@ void CPU::execute_next_opcode(bool debug) {
         }
     }
 
+    /*
     if (debug) {
         print_debug_line(address, opcode, iByte2, iByte3, opAddressMode, 
             m_PC, memoryByte, m_A, m_X, m_Y, m_SP, m_PS, m_nesPPU.m_ppuClock);
         std::cout << std::endl;
     }
+    */
     
     m_PC += opcodeLens[opcode % 0x20];    //increment program counter
     if (opcode == 0xA2) m_PC += 2;        //irregular opcode
@@ -1113,7 +1063,7 @@ void CPU::execute_next_opcode(bool debug) {
     return;
 }
 
-static inline u8 get_psw_byte(bool * m_PS) {
+u8 get_psw_byte(bool * m_PS) {
     u8 P;
     P = 0x20;
     if (m_PS[C]) P |= 0x1;
@@ -1125,7 +1075,7 @@ static inline u8 get_psw_byte(bool * m_PS) {
     return P;
 }
 
-static inline void get_psw_from_byte(bool * m_PS, u8 byte) {
+void get_psw_from_byte(bool * m_PS, u8 byte) {
     m_PS[N] = get_bit(byte, 7);
     m_PS[V] = get_bit(byte, 6);
     m_PS[D] = get_bit(byte, 3);
@@ -1135,200 +1085,3 @@ static inline void get_psw_from_byte(bool * m_PS, u8 byte) {
     return;
 }
 
-//debugging
-static void print_byte(u8 byte) {
-    std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) byte;
-    return;
-}
-
-//note:ugly, for debugging
-static int debug_print_val(enum AddressMode mode, int firstByte, int secondByte) {
-
-    switch (mode) {
-        case ABS:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte;
-        return 5;
-
-        case ABSX:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ",m_X";
-        return 7;
-
-        case ABSY:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ",m_Y";
-        return 7;
-
-        case ACC:
-        std::cout << "m_A";
-        return 1;
-
-        case IMM:
-        std::cout << "#$" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte;
-        return 4;
-
-        case IMP:
-        return 0;
-
-        case IND:
-        std::cout << "($" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ')';
-        return 7;
-
-        case INDX:
-        std::cout << "($" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",m_X)";
-        return 7;
-
-        case INDY:
-        std::cout << "($" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << "),m_Y";
-        return 7;
-
-        case REL:
-        return 0;
-
-        case ZRP:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte;
-        return 3;
-
-        case ZRPX:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",m_X";
-        return 5;
-        
-        case ZRPY:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",m_Y";
-        return 5;
-        
-        default:
-        std::cerr << "Unrecognized address mode" << std::endl;
-        return 0;
-    }
-}
-
-//note:ugly, for debugging, matches nintendulator log
-static void print_debug_line(u16 address, u8 opcode, u8 iByte2,
- u8 iByte3, enum AddressMode opAddressMode, u16 m_PC, u8 memByte, 
- u8 m_A, u8 m_X, u8 m_Y, u8 m_SP, bool * m_PS, int m_ppuClock) {
-
-    std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << (int) m_PC << "  ";
-
-    if (opAddressMode == IMP || opAddressMode == ACC) {
-        print_byte(opcode);
-        std::cout << "       ";
-    } else if (opAddressMode == ZRP || opAddressMode == ZRPX || opAddressMode == ZRPY
-        || opAddressMode == REL || opAddressMode == IMM
-        || opAddressMode == INDX || opAddressMode == INDY) {
-        print_byte(opcode);
-        std::cout << ' ';
-        print_byte(iByte2);
-        std::cout << "    ";
-    } else if (opAddressMode == ABS || opAddressMode == ABSX
-        || opAddressMode == ABSY || opAddressMode == IND) {
-        print_byte(opcode);
-        std::cout << ' ';
-        print_byte(iByte2);
-        std::cout << ' ';
-        print_byte(iByte3);
-        std::cout << ' ';
-    } else {
-        std::cout << "         ";
-    }
-
-    if (strlen(opnames[opnameMap[opcode]]) == 3) {
-        std::cout << ' ';
-    }
-
-    int whiteSpace;
-    whiteSpace = 28;
-
-    std::cout << opnames[opnameMap[opcode]] << ' ';
-
-    
-
-    if (opAddressMode == REL) {
-        std::cout << '$';
-        std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << (int) m_PC + (int8_t) iByte2 + 2;
-        whiteSpace -= 5;
-    } else {
-        int addressLen;
-
-        addressLen = debug_print_val(addressModes[opcode], iByte2, iByte3);
-        whiteSpace -= addressLen;
-    }
-
-    if (opnameMap[opcode] == 58 || opnameMap[opcode] == 59 || opnameMap[opcode] == 50 || 
-        opnameMap[opcode] == 60 || opnameMap[opcode] == 7  || opnameMap[opcode] == 34 ||
-        opnameMap[opcode] == 35 || opnameMap[opcode] == 33 || opnameMap[opcode] == 32 ||
-        opnameMap[opcode] == 39 || opnameMap[opcode] == 2  || opnameMap[opcode] == 25 ||
-        opnameMap[opcode] == 1  || opnameMap[opcode] == 18 || opnameMap[opcode] == 51 ||
-        opnameMap[opcode] == 52 || opnameMap[opcode] == 19 || opnameMap[opcode] == 20 ||
-        opnameMap[opcode] == 36 || opnameMap[opcode] == 3  || opnameMap[opcode] == 45 ||
-        opnameMap[opcode] == 46 || opnameMap[opcode] == 26 || opnameMap[opcode] == 22 ||
-        opnameMap[opcode] == 30 || opnameMap[opcode] == 38 || opnameMap[opcode] == 21 ||
-        opnameMap[opcode] == 29 || opnameMap[opcode] == 56 || opnameMap[opcode] == 47 ||
-        opnameMap[opcode] == 57 || opnameMap[opcode] == 44) {
-
-        if ((opAddressMode == ZRP || opAddressMode == ABS) && (opnameMap[opcode] != 30)) {
-            whiteSpace-=5;
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) memByte;
-        } else if (opAddressMode == INDX) {
-            whiteSpace -= 17;
-
-            std::cout << " @ " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) ((iByte2 + m_X) & 0xFF);
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << address;
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) memByte;
-        } else if (opAddressMode == INDY) {
-
-            whiteSpace -= 19;
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << ((address - m_Y) & 0xFFFF);
-            std::cout << " @ " << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << address;
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) memByte;
-        } else if (opAddressMode == IND) {
-
-            whiteSpace-=7;
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << address;
-
-
-        } else if (opAddressMode == ABSX || opAddressMode == ABSY) {
-            whiteSpace -= 12;
-
-            std::cout << " @ " << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << address;
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) memByte;
-
-        } else if (opAddressMode == ZRPX || opAddressMode == ZRPY) {
-
-            whiteSpace -= 10;
-
-            std::cout << " @ " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) address;
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) memByte;
-
-
-        }
-    }
-
-    for (int x = 0; x < whiteSpace; x++) {
-        std::cout << ' ';
-    }
-
-    std::cout << "m_A:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) m_A << ' ';
-    std::cout << "m_X:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) m_X << ' ';
-    std::cout << "m_Y:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) m_Y << ' ';
-    std::cout << "P:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) get_psw_byte(m_PS) << ' ';
-    std::cout << "m_SP:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) m_SP << ' ';
-
-    std::cout << "CYC:";
-    
-    int count = m_ppuClock % 341;
-    int scanLines = (m_ppuClock % (341 * 262)) / 341; 
-
-    if (count < 10) {
-        std::cout << "  ";
-    } else if (count < 100) {
-        std::cout << " ";
-    }
-    std::cout << std::dec << count;
-
-    
-    std::cout << " SL:";
-    std::cout << std::dec << scanLines;
-    
-
-    return;
-
-}

@@ -351,6 +351,7 @@ inline void PPU::ppu_flag_update(bool * NMI) {
 
 }
 
+//SILENT MODE?
 u8 PPU::return_2007() {
 
     //if screen off

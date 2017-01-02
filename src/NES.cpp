@@ -191,7 +191,7 @@ bool NES::open_cartridge(const char * fileLoc) {
     m_nesCPU.m_nesPPU.m_numRomBanks = chr_rom_size;
 
     m_nesCPU.m_PC = m_nesCPU.get_cpu_byte(0xFFFC, false) | (m_nesCPU.get_cpu_byte(0xFFFD, false) << 8);
-
+    
     romFile.close();
     return true;
 }

@@ -3,6 +3,7 @@
 #include <thread>
 #include <SDL2/SDL.h>
 #include "NES.hpp"
+#include "debugger.hpp"
 
 //obtained from blargg's Full Palette demo
 const uint32_t paletteTable [] = {
@@ -28,7 +29,6 @@ const uint32_t paletteTable [] = {
 const double MILLISECONDS_PER_FRAME = 1000.0/60.0; //60FPS
 const int SCALE_FACTOR = 3;                  //size of each NES display pixel in real pixels
 const bool REMOVE_OVERSCAN = true;
-const bool DEBUG = false;
 
 /* SDL video */
 SDL_Window * window = NULL;     //SDL window
@@ -58,6 +58,9 @@ void loop(NES nesSystem, const char * fileLoc) {
         return;
     }
 
+    Debugger debugger;
+    bool log = true;
+
     //game loop variables
     double frequency = SDL_GetPerformanceFrequency();
     uintmax_t startTime = SDL_GetPerformanceCounter();
@@ -78,8 +81,13 @@ void loop(NES nesSystem, const char * fileLoc) {
         //2 logic
         if (!paused) {
             do {
+
+                if (log) {
+                    debugger.print_debug_line(&nesSystem);
+                }
+
                 //execute one cpu opcode
-                nesSystem.m_nesCPU.execute_next_opcode(DEBUG);
+                nesSystem.m_nesCPU.execute_next_opcode();
                 //ppu catches up
                 nesSystem.m_nesCPU.m_nesPPU.tick(&nesSystem.m_nesCPU.m_NMI, &nesSystem.m_nesCPU.m_cpuClock);
             } while (!nesSystem.m_nesCPU.m_nesPPU.m_draw);
