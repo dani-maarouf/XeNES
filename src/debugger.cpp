@@ -1,7 +1,10 @@
 #include <iostream>
 #include <cstring>
 #include <iomanip>
+
 #include <string>
+#include <sstream>
+
 
 #include "debugger.hpp"
 
@@ -49,7 +52,7 @@ bool Debugger::perform_events(bool * breakpointHit) {
     return false;
 }
 
-void Debugger::print_hex(u16 num, int width) {
+void print_hex(u16 num, int width) {
     std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(width) << (int) num;
     return;
 }
@@ -133,6 +136,12 @@ int Debugger::debug_print_val(enum AddressMode mode, int firstByte, int secondBy
         std::cerr << "Unrecognized address mode" << std::endl;
         return 0;
     }
+}
+
+bool Debugger::disassemble(u16 * temp_PC) {
+
+
+    return false;
 }
 
 void Debugger::peek_next_instruction(bool print, bool * pauseExecution) {
@@ -372,6 +381,40 @@ bool valid_digits(std::string string, bool hex, int start) {
     return valid_digits(string, hex, start, string.length());
 }
 
+std::vector<std::string> split(std::string s) {
+    std::stringstream ss(s);
+
+    std::string temp;
+
+    std::vector<std::string> tokens;
+
+    while (ss >> temp) {
+        tokens.push_back(temp);
+    }
+
+    return tokens;
+
+}
+
+void list_hex(std::vector<uint16_t> v) {
+
+    if (v.size() != 0) {
+        for (int i = 0; i < (int) v.size(); i++) {
+
+            std::cout << "0x";
+            print_hex(v[i], 4);
+
+            if (i != (int) v.size() - 1) {
+                std::cout << ", ";  
+            }
+        }
+        std::cout << std::endl;
+    } else {
+        std::cout << "None" << std::endl;
+    }
+
+}
+
 bool Debugger::shell(bool * quit, bool * draw, bool * focus) {
 
     /*
@@ -379,6 +422,8 @@ bool Debugger::shell(bool * quit, bool * draw, bool * focus) {
     set controller input until 'x'
 
     view code
+
+    change memory and registers
 
     waveform visualizer
     change speed
@@ -393,68 +438,126 @@ bool Debugger::shell(bool * quit, bool * draw, bool * focus) {
     */
 
     std::cout << "XeNES (0x";
-    std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << nesSystem->m_nesCPU.m_PC;
+    print_hex(nesSystem->m_nesCPU.m_PC, 4);
     std::cout << ") > ";
 
     std::string input = "";
     getline(std::cin, input);
 
-    if (input.compare("l 1") == 0 || input.compare("l1") == 0 || input.compare("l true") == 0 ) {
-        log = true;
-    } else if (input.compare("l 0") == 0 || input.compare("l0") == 0 || input.compare("l false") == 0) {
-        log = false;
-    } else if (input.compare("run") == 0 || input.compare("r") == 0) {
-        *focus = true;
-        return true;
-    } else if (input.compare("q") == 0 || input.compare("quit") == 0) {
-        *quit = true;
-        return true;
-    } else if ((input[0] == 'd' || input[0] == 'j' || input[0] == 'm') && input[1] == ' ') {
+    std::vector<std::string> tokens = split(input);
 
+    switch(tokens.size()) {
 
-        if (input.length() == 1 || input.length() == 2) {
-            std::cout << "Invalid command" << std::endl;
-            return false;
-        } else {
+        case 0:
+        break;
 
-            if (input[0] == 'd') {
+        case 1: {
 
-                if (!valid_digits(input, false, 2)) {
-                    std::cout << "Invalid number" << std::endl;
-                    return false;
-                }
-
-                toDisassemble = std::stoi (input.substr(2, std::string::npos), nullptr, 10);
+            if (tokens[0].compare("run") == 0 || tokens[0].compare("r") == 0) {
+                *focus = true;
                 return true;
-            } else if (input[0] == 'j') {
+            } else if (tokens[0].compare("quit") == 0 || tokens[0].compare("q") == 0) {
+                *quit = true;
+                return true;
+            } else if (tokens[0].compare("help") == 0 || tokens[0].compare("h") == 0) {
+                std::cout << "print help prompt" << std::endl;
+            } else if (tokens[0].compare("bv")) {
+                list_hex(breakpoints);
+            } else if (tokens[0].compare("wv")) {
+                list_hex(watchpoints);
+            } else {
+                std::cout << "Command not recognized" << std::endl;
+            }
 
-                if (!valid_digits(input, true, 2)) {
-                    std::cout << "Invalid number" << std::endl;
-                    return false;
+            break;
+        }
+
+        case 2: {
+
+            if (tokens[0].compare("log") == 0 || tokens[0].compare("l") == 0) {
+
+                if (tokens[1].compare("true") == 0 || tokens[1].compare("t") == 0 || tokens[1].compare("1") == 0) {
+                    log = true;
+                } else if (tokens[1].compare("false") == 0 || tokens[1].compare("f") == 0 || tokens[1].compare("0") == 0) {
+                    log = false;
+                } else {
+                    std::cout << "Command not recognized" << std::endl;
                 }
 
-                nesSystem->m_nesCPU.m_PC = std::stoi (input.substr(2, std::string::npos), nullptr, 16);
-                return false;
             } else {
 
-                if (!valid_digits(input, true, 2, 6)) {
-                    std::cout << "Invalid first number" << std::endl;
-                    return false;
+                if (!valid_digits(tokens[1], true, 0)) {
+                    std::cout << "Invalid second operand (must be a number)" << std::endl;
+                    break;
                 }
 
-                uint16_t memLoc = std::stoi (input.substr(2, 6), nullptr, 16);
+                uint16_t num = std::stoi (tokens[1], nullptr, 16);
 
-                if (input[6] != ' ') {
-                    std::cout << "Invalid command" << std::endl;
-                    return false;
+                if (tokens[0].compare("d") == 0 || tokens[0].compare("dis") == 0 || tokens[0].compare("disassemble") == 0) {
+                    toDisassemble = num;
+                    return true;
+                } else if (tokens[0].compare("j") == 0 || tokens[0].compare("jump") == 0 || tokens[0].compare("jmp") == 0) {
+                    nesSystem->m_nesCPU.m_PC = num;
+                } else if (tokens[0].compare("ba") == 0) {
+                    breakpoints.push_back(num);
+                } else if (tokens[0].compare("wa") == 0) {
+                    watchpoints.push_back(num);
+                } else if (tokens[0].compare("br") == 0) {
+
+                    bool found = false;
+
+                    for (unsigned int i = 0; i < breakpoints.size(); i++) {
+                        if (breakpoints[i] == num) {
+                            breakpoints.erase(breakpoints.begin() + i);
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found) {
+                        std::cout << "Breakpoint not found" << std::endl;
+                    }
+
+                } else if (tokens[0].compare("wr") == 0) {
+
+                    bool found = false;
+
+                    for (unsigned int i = 0; i < watchpoints.size(); i++) {
+                        if (watchpoints[i] == num) {
+                            watchpoints.erase(watchpoints.begin() + i);
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found) {
+                        std::cout << "Watchpoint not found" << std::endl;
+                    }
+
+                } else {
+                    std::cout << "Command not recognized" << std::endl;
+                }
+            }
+
+            break;   
+        }
+
+        case 3: {
+
+            if (tokens[0].compare("memory") == 0 || tokens[0].compare("mem") == 0 || tokens[0].compare("m") == 0) {
+
+                if (!valid_digits(tokens[1], true, 0)) {
+                    std::cout << "Invalid second operand (must be a number)" << std::endl;
+                    break;
                 }
 
-                if (!valid_digits(input, false, 7)) {
-                    std::cout << "Invalid second number" << std::endl;
-                    return false;
+                if (!valid_digits(tokens[2], true, 0)) {
+                    std::cout << "Invalid third operand (must be a number)" << std::endl;
+                    break;
                 }
 
-                int numBytes = std::stoi(input.substr(7, std::string::npos), nullptr, 10);
+                uint16_t memLoc = std::stoi (tokens[1], nullptr, 16);
+                uint16_t numBytes = std::stoi (tokens[2], nullptr, 16);
 
                 int numRows = ((numBytes / 16) + 1);
 
@@ -472,101 +575,22 @@ bool Debugger::shell(bool * quit, bool * draw, bool * focus) {
 
                     std::cout << std::endl;
 
-
-                }
-            }
-        }
-
-    } else if ((input[0] == 'b' || input[0] == 'w') && (input[1] == 'a' || input[1] == 'r')) {
-
-        if (input.length() != 7) {
-            std::cout << "Invalid command" << std::endl;
-            return false;
-        }
-
-        if (!valid_digits(input, true, 3)) {
-            std::cout << "Invalid number" << std::endl;
-            return false;
-        }
-
-        uint16_t num = std::stoi (input.substr(3, std::string::npos), nullptr, 16);
-
-        if (input[1] == 'a') {
-
-            if (input[0] == 'b') {
-                breakpoints.push_back(num);
-            } else {
-                watchpoints.push_back(num);
-            }
-
-        } else {
-
-            if (input[0] == 'b') {
-
-                bool found = false;
-
-                for (unsigned int i = 0; i < breakpoints.size(); i++) {
-                    if (breakpoints[i] == num) {
-                        breakpoints.erase(breakpoints.begin() + i);
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found) {
-                    std::cout << "Breakpoint not found" << std::endl;
                 }
 
             } else {
-
-                bool found = false;
-
-                for (unsigned int i = 0; i < watchpoints.size(); i++) {
-                    if (watchpoints[i] == num) {
-                        watchpoints.erase(watchpoints.begin() + i);
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found) {
-                    std::cout << "Watchpoint not found" << std::endl;
-                }
+                std::cout << "Command not recognized" << std::endl;
             }
 
-            return false;
+
+            break;
         }
 
-    } else if ((input[0] == 'b' || input[0] == 'w') && (input[1] == 'v')) {
-
-        std::vector<uint16_t> temp = (input[0] == 'b') ? breakpoints : watchpoints;
-
-        if (temp.size() != 0) {
-            for (int i = 0; i < (int) temp.size(); i++) {
-
-                std::cout << "0x";
-                print_hex(temp[i], 4);
-
-                if (i != (int) temp.size() - 1) {
-                    std::cout << ", ";  
-                }
-            }
-            std::cout << std::endl;
-        } else {
-            std::cout << "None" << std::endl;
-        }
-
-    } else if (input.compare("h") == 0 || input.compare("help") == 0) {
-
-        std::cout << "print help prompt" << std::endl;
-
-    } else {
-
-        if (input.compare("") != 0) {
-            std::cout << "Command not recognized" << std::endl;
-        }
+        default:
+        std::cout << "Command not recognized" << std::endl;
+        break;
 
     }
 
     return false;
+
 }

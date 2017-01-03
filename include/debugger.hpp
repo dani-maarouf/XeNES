@@ -9,7 +9,6 @@
 class Debugger {
 
 private:
-
     
     std::vector<uint16_t> breakpoints;
     std::vector<uint16_t> watchpoints;
@@ -17,8 +16,8 @@ private:
     bool ignoreNextBreaks;
     NES * nesSystem;
 
-    void print_hex(u16, int);
     int debug_print_val(enum AddressMode, int, int);
+    bool disassemble(u16 *);
 
 public:
 
