@@ -58,15 +58,23 @@ int Debugger::debug_print_val(enum AddressMode mode, int firstByte, int secondBy
 
     switch (mode) {
         case ABS:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte;
+        std::cout << '$';
+        print_hex(secondByte, 2);
+        print_hex(firstByte, 2);
         return 5;
 
         case ABSX:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ",X";
+        std::cout << '$';
+        print_hex(secondByte, 2);
+        print_hex(firstByte, 2);
+        std::cout <<  ",X";
         return 7;
 
         case ABSY:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ",Y";
+        std::cout << '$';
+        print_hex(secondByte, 2);
+        print_hex(firstByte, 2);
+        std::cout <<  ",Y";
         return 7;
 
         case ACC:
@@ -74,37 +82,51 @@ int Debugger::debug_print_val(enum AddressMode mode, int firstByte, int secondBy
         return 1;
 
         case IMM:
-        std::cout << "#$" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte;
+        std::cout << "#$";
+        print_hex(firstByte, 2);
         return 4;
 
         case IMP:
         return 0;
 
         case IND:
-        std::cout << "($" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << secondByte << std::setfill('0') << std::setw(2) << firstByte << ')';
+        std::cout << "($";
+        print_hex(secondByte, 2);
+        print_hex(firstByte, 2);
+        std::cout << ')';
         return 7;
 
         case INDX:
-        std::cout << "($" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",X)";
+        std::cout << "($";
+        print_hex(firstByte, 2);
+        std::cout << ",X)";
+
         return 7;
 
         case INDY:
-        std::cout << "($" << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << "),Y";
+        std::cout << "($";
+        print_hex(firstByte, 2);
+        std::cout << "),Y";
         return 7;
 
         case REL:
         return 0;
 
         case ZRP:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte;
+        std::cout << '$';
+        print_hex(firstByte, 2);
         return 3;
 
         case ZRPX:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",X";
+        std::cout << '$';
+        print_hex(firstByte, 2);
+        std::cout << ",X";
         return 5;
         
         case ZRPY:
-        std::cout << '$' << std::uppercase << std::hex << std::setfill('0') << std::setw(2) << firstByte << ",Y";
+        std::cout << '$';
+        print_hex(firstByte, 2);
+        std::cout << ",Y";
         return 5;
         
         default:
@@ -115,31 +137,29 @@ int Debugger::debug_print_val(enum AddressMode mode, int firstByte, int secondBy
 
 void Debugger::peek_next_instruction(bool print, bool * pauseExecution) {
 
-    bool pass = false;
+    u16 PC = nesSystem->m_nesCPU.m_PC;
 
-    u16 m_PC = nesSystem->m_nesCPU.m_PC;
-
-    u8 opcode = nesSystem->m_nesCPU.get_cpu_byte(m_PC, true);
-    u8 iByte2 = nesSystem->m_nesCPU.get_cpu_byte(m_PC + 1, true);
-    u8 iByte3 = nesSystem->m_nesCPU.get_cpu_byte(m_PC + 2, true);
+    u8 opcode = nesSystem->m_nesCPU.get_cpu_byte(PC, true);
+    u8 instruction2 = nesSystem->m_nesCPU.get_cpu_byte(PC + 1, true);
+    u8 instruction3 = nesSystem->m_nesCPU.get_cpu_byte(PC + 2, true);
     enum AddressMode opAddressMode = addressModes[opcode];
-
+    u8 A = nesSystem->m_nesCPU.m_A;
+    u8 X = nesSystem->m_nesCPU.m_X;
+    u8 Y = nesSystem->m_nesCPU.m_Y;
+    u8 SP = nesSystem->m_nesCPU.m_SP;
+    bool * PS = nesSystem->m_nesCPU.m_PS;
+    int m_ppuClock = nesSystem->m_nesCPU.m_nesPPU.m_ppuClock;
 
     u16 address = 0;
     if (opAddressMode != ACC && opAddressMode != IMM && opAddressMode != REL && opAddressMode != IMP) {
-        address = nesSystem->m_nesCPU.retrieve_cpu_address(opAddressMode, &pass, iByte2, iByte3, true);
+        bool valid = true;
+        bool pass = false;
+        address = nesSystem->m_nesCPU.retrieve_cpu_address(opAddressMode, &pass, &valid, instruction2, instruction3, true);
     }
-
-    u8 m_A = nesSystem->m_nesCPU.m_A;
-    u8 m_X = nesSystem->m_nesCPU.m_X;
-    u8 m_Y = nesSystem->m_nesCPU.m_Y;
-    u8 m_SP = nesSystem->m_nesCPU.m_SP;
-    bool * m_PS = nesSystem->m_nesCPU.m_PS;
-    int m_ppuClock = nesSystem->m_nesCPU.m_nesPPU.m_ppuClock;
 
     u8 memByte;
     if (opAddressMode == IMM) {
-        memByte = iByte2;
+        memByte = instruction2;
     } else if (opAddressMode == NONE || opAddressMode == ACC
         || opAddressMode == IMP || opAddressMode == REL) {
         memByte = 0;
@@ -154,9 +174,6 @@ void Debugger::peek_next_instruction(bool print, bool * pauseExecution) {
             break;
 
             default:
-            /* this is needed to prevent spurious reads to $2007, $4014 and
-            other registers which trigger a flag that tells the PPU
-            to process the read which changes the state of the ppu */
             memByte = nesSystem->m_nesCPU.get_cpu_byte(address, true);
             break;
         }
@@ -166,7 +183,7 @@ void Debugger::peek_next_instruction(bool print, bool * pauseExecution) {
         ignoreNextBreaks = false;
     } else {
         for (unsigned int i = 0; i < breakpoints.size(); i++) {
-            if (breakpoints[i] == m_PC) {
+            if (breakpoints[i] == PC) {
                 *pauseExecution = true;
                 ignoreNextBreaks = true;
                 return;
@@ -180,15 +197,14 @@ void Debugger::peek_next_instruction(bool print, bool * pauseExecution) {
                 return;
             }
         }
-
     }
 
+    if (!print) return;
 
-    if (!print) {
-        return;
-    }
 
-    std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << (int) m_PC << "  ";
+
+    print_hex(PC, 4);
+    std::cout << "  ";
 
     if (opAddressMode == IMP || opAddressMode == ACC) {
         print_hex(opcode, 2);
@@ -198,15 +214,15 @@ void Debugger::peek_next_instruction(bool print, bool * pauseExecution) {
         || opAddressMode == INDX || opAddressMode == INDY) {
         print_hex(opcode, 2);
         std::cout << ' ';
-        print_hex(iByte2, 2);
+        print_hex(instruction2, 2);
         std::cout << "    ";
     } else if (opAddressMode == ABS || opAddressMode == ABSX
         || opAddressMode == ABSY || opAddressMode == IND) {
         print_hex(opcode, 2);
         std::cout << ' ';
-        print_hex(iByte2, 2);
+        print_hex(instruction2, 2);
         std::cout << ' ';
-        print_hex(iByte3, 2);
+        print_hex(instruction3, 2);
         std::cout << ' ';
     } else {
         std::cout << "         ";
@@ -216,19 +232,17 @@ void Debugger::peek_next_instruction(bool print, bool * pauseExecution) {
         std::cout << ' ';
     }
 
-    int whiteSpace;
-    whiteSpace = 28;
+    int whiteSpace = 28;
 
     std::cout << opnames[opnameMap[opcode]] << ' ';
 
     if (opAddressMode == REL) {
         std::cout << '$';
-        std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << (int) m_PC + (int8_t) iByte2 + 2;
+        print_hex((int) PC + (int8_t) instruction2 + 2, 4);
         whiteSpace -= 5;
     } else {
         int addressLen;
-
-        addressLen = debug_print_val(addressModes[opcode], iByte2, iByte3);
+        addressLen = debug_print_val(addressModes[opcode], instruction2, instruction3);
         whiteSpace -= addressLen;
     }
 
@@ -246,38 +260,50 @@ void Debugger::peek_next_instruction(bool print, bool * pauseExecution) {
 
         if ((opAddressMode == ZRP || opAddressMode == ABS) && (opnameMap[opcode] != 30)) {
             whiteSpace-=5;
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) memByte;
+            std::cout << " = ";
+            print_hex(memByte, 2);
         } else if (opAddressMode == INDX) {
             whiteSpace -= 17;
 
-            std::cout << " @ " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) ((iByte2 + m_X) & 0xFF);
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << address;
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) memByte;
+            std::cout << " @ ";
+            print_hex(((instruction2 + X) & 0xFF), 2);
+            std::cout << " = ";
+            print_hex(address, 4);
+            std::cout << " = ";
+            print_hex(memByte, 2);
+
         } else if (opAddressMode == INDY) {
 
             whiteSpace -= 19;
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << ((address - m_Y) & 0xFFFF);
-            std::cout << " @ " << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << address;
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) memByte;
+            std::cout << " = ";
+            print_hex(((address - Y) & 0xFFFF), 4);
+            std::cout << " @ ";
+            print_hex(address, 4);
+            std::cout << " = ";
+            print_hex(memByte, 2);
+
         } else if (opAddressMode == IND) {
 
             whiteSpace-=7;
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << address;
+            std::cout << " = ";
+            print_hex(address, 4);
 
 
         } else if (opAddressMode == ABSX || opAddressMode == ABSY) {
             whiteSpace -= 12;
 
-            std::cout << " @ " << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << address;
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) memByte;
+            std::cout << " @ ";
+            print_hex(address, 4);
+            std::cout << " = ";
+            print_hex(memByte, 2);
 
         } else if (opAddressMode == ZRPX || opAddressMode == ZRPY) {
 
             whiteSpace -= 10;
-
-            std::cout << " @ " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) address;
-            std::cout << " = " << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) memByte;
-
+            std::cout << " @ ";
+            print_hex(address, 2);
+            std::cout << " = ";
+            print_hex(memByte, 2);
 
         }
     }
@@ -286,11 +312,21 @@ void Debugger::peek_next_instruction(bool print, bool * pauseExecution) {
         std::cout << ' ';
     }
 
-    std::cout << "A:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) m_A << ' ';
-    std::cout << "X:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) m_X << ' ';
-    std::cout << "Y:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) m_Y << ' ';
-    std::cout << "P:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) get_psw_byte(m_PS) << ' ';
-    std::cout << "SP:" << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (int) m_SP << ' ';
+    std::cout << "A:";
+    print_hex(A, 2);
+    std::cout << ' ';
+    std::cout << "X:";
+    print_hex(X, 2);
+    std::cout << ' ';
+    std::cout << "Y:";
+    print_hex(Y, 2);
+    std::cout << ' ';
+    std::cout << "P:";
+    print_hex(get_psw_byte(PS), 2);
+    std::cout << ' ';
+    std::cout << "SP:";
+    print_hex(SP, 2);
+    std::cout << ' ';
 
     std::cout << "CYC:";
     
@@ -305,9 +341,7 @@ void Debugger::peek_next_instruction(bool print, bool * pauseExecution) {
     std::cout << std::dec << count;
 
     
-    std::cout << " SL:";
-    std::cout << std::dec << scanLines;
-    std::cout << std::endl;
+    std::cout << " SL:" << std::dec << scanLines <<std::endl;
     
     return;
 
@@ -318,7 +352,7 @@ bool valid_digits(std::string string, bool hex, int start, int end) {
     if (hex) {
         for (int i = start; i < end; i++) {
 
-            if (!(string[i] >= '0' && string[i] <= '9') && !(string[i] >= 'A' && string[i] <= 'F')) {
+            if (!(string[i] >= '0' && string[i] <= '9') && !((string[i] >= 'A' && string[i] <= 'F') || (string[i] >= 'a' && string[i] <= 'f'))) {
                 return false;
             }
         }
@@ -516,8 +550,6 @@ bool Debugger::shell(bool * quit, bool * draw, bool * focus) {
                 if (i != (int) temp.size() - 1) {
                     std::cout << ", ";  
                 }
-                
-
             }
             std::cout << std::endl;
         } else {
@@ -537,6 +569,4 @@ bool Debugger::shell(bool * quit, bool * draw, bool * focus) {
     }
 
     return false;
-
-
 }

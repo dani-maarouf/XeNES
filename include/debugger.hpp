@@ -10,7 +10,6 @@ class Debugger {
 
 private:
 
-    bool log;
     
     std::vector<uint16_t> breakpoints;
     std::vector<uint16_t> watchpoints;
@@ -22,6 +21,8 @@ private:
     int debug_print_val(enum AddressMode, int, int);
 
 public:
+
+    bool log;
 
     int toDisassemble;
 

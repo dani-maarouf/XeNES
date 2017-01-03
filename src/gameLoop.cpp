@@ -63,7 +63,10 @@ void loop(NES nesSystem, const char * fileLoc) {
     //game loop variables
     double frequency = SDL_GetPerformanceFrequency();
     uintmax_t startTime = SDL_GetPerformanceCounter();
-    bool paused = false;
+
+    bool paused = true;
+    debugger.log = false;
+
     SDL_Event event;
 
     for (int x = 0; x < 256 * 240; x++) localPixels[x] = 0;
@@ -78,7 +81,7 @@ void loop(NES nesSystem, const char * fileLoc) {
         }
 
         if (debugger.toDisassemble != 0) {
-            paused = false;
+            //paused = false;
         }
 
         //2 logic
@@ -302,11 +305,11 @@ static bool process_events(SDL_Event * event, uint8_t * controller, bool * pause
                 switch(event->window.event) {
 
                     case SDL_WINDOWEVENT_FOCUS_LOST:
-                    *paused = true;
+                    //*paused = true;
                     break;
 
                     case SDL_WINDOWEVENT_FOCUS_GAINED:
-                    *paused = false;
+                    //*paused = false;
                     break;
 
                     default:

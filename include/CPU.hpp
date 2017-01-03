@@ -125,6 +125,6 @@ public:
     void free_pointers();    //deinitialize
     void execute_next_opcode();
     u8 get_cpu_byte(u16, bool);       //get byte from CPU address space
-    u16 retrieve_cpu_address(enum AddressMode, bool *, u8, u8, bool);  //get address based on address mode
+    u16 retrieve_cpu_address(enum AddressMode, bool *, bool *, u8, u8, bool);  //get address based on address mode
 
 };

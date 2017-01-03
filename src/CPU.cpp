@@ -12,7 +12,7 @@ const int lengthTable[] = {
 
 //DMC sample playback rate
 const int rateTable[] = {
-    428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106,  84,  72,  54
+    428,380,340,320,286,254,226,214,190,160,142,128,106, 84, 72, 54
 };
 
 
@@ -255,7 +255,7 @@ void CPU::set_cpu_byte(u16 memAddress, u8 byte) {
             
         } else if (memAddress == 0x4016) {
             if ((byte & 0x1)) {
-                //controller state is read into shift registers
+                //controller state is read into shift register
                 m_storedControllerByte = m_controllerByte;
                 m_readController = false;
             } else {
@@ -285,10 +285,11 @@ void CPU::set_cpu_byte(u16 memAddress, u8 byte) {
     return;
 }
 
-u16 CPU::retrieve_cpu_address(enum AddressMode mode, bool * pagePass,
+u16 CPU::retrieve_cpu_address(enum AddressMode mode, bool * pagePass, bool * valid,
     u8 firstByte, u8 secondByte, bool silent) {
 
     *pagePass = false;
+    *valid = true;
 
     switch (mode) {
 
@@ -340,8 +341,7 @@ u16 CPU::retrieve_cpu_address(enum AddressMode mode, bool * pagePass,
         }
 
         default:
-        std::cerr << "Fatal error. Addressing type not recognized" << std::endl;
-        exit(EXIT_FAILURE);
+        *valid = false;
         return 0;
     }
 }
@@ -376,8 +376,6 @@ void CPU::execute_next_opcode() {
 
     if (m_IRQ) {
 
-        //std::cout << "caught m_IRQ" << std::endl;
-
         m_IRQ = false;
 
         if (m_PS[I] == false) {
@@ -403,10 +401,6 @@ void CPU::execute_next_opcode() {
 
             return;
         }
-
-
-
-
     }
 
     /* PREPARE TO EXECUTE OPCODE */
@@ -420,7 +414,12 @@ void CPU::execute_next_opcode() {
 
     u16 address = 0;
     if (opAddressMode != ACC && opAddressMode != IMM && opAddressMode != REL && opAddressMode != IMP) {
-        address = retrieve_cpu_address(opAddressMode, &pass, iByte2, iByte3, false);
+        bool valid = true;
+        address = retrieve_cpu_address(opAddressMode, &pass, &valid, iByte2, iByte3, false);
+        if (!valid) {
+            std::cout << "Invalid address!" << std::endl;
+            exit(EXIT_FAILURE);
+        }
     }
 
     enum InstructionType instrType = opInstrTypes[opnameMap[opcode]];

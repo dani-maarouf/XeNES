@@ -349,7 +349,6 @@ inline void PPU::ppu_flag_update(bool * NMI) {
 
 }
 
-//SILENT MODE?
 u8 PPU::return_2007(bool silent) {
 
     //if screen off
@@ -361,8 +360,6 @@ u8 PPU::return_2007(bool silent) {
         m_v &= 0x3FFF;
     }
     
-
-
     if ( (m_v & 0x3FFF) % 0x4000 < 0x3F00) {
         ppuByte = m_readBuffer;
         m_readBuffer = get_ppu_byte( m_v );
@@ -375,9 +372,6 @@ u8 PPU::return_2007(bool silent) {
         m_v += (m_ppuRegisters[0] & 0x04) ? 32 : 1;
         m_v &= 0x7FFF;
     }
-    
-
-
 
     return ppuByte;
 }
