@@ -18,20 +18,20 @@ private:
 
     bool crashImminent;
 
-    bool disassemble(u16 *);
+    bool disassemble(u16, int);
     bool memDemp(u16, int);
 
 public:
 
     bool log;
 
-    int toDisassemble;
+    int instrsToLog;
 
     Debugger(NES *);
     bool check_breaks();
     u16 print_next_instr(u16, bool, bool *);
-    bool cmd(bool *, bool *, bool *);
-    bool perform_events();
+    int cmd();
+    int perform_events();
 
 };
 

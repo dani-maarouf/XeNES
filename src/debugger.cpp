@@ -22,28 +22,28 @@ static const char * opnames[] = {
 
 Debugger::Debugger(NES * nes) {
     log = false;
-    toDisassemble = 0;
+    instrsToLog = 0;
     ignoreNextBreaks = false;
     crashImminent = false;
     this->nesSystem = nes;
 }
 
-bool Debugger::perform_events() {
+int Debugger::perform_events() {
 
     bool temp = true;
 
     if (check_breaks()) {
-        toDisassemble = 0;
-        return true;
+        instrsToLog = 0;
+        return 1;
     }
 
-    if (toDisassemble > 0) {
+    if (instrsToLog > 0) {
 
         print_next_instr(nesSystem->m_nesCPU.m_PC, true, &temp);
 
-        toDisassemble--;
-        if (toDisassemble == 0) {
-            return true;
+        instrsToLog--;
+        if (instrsToLog == 0) {
+            return 2;
         }
 
     } else if (log) {
@@ -52,10 +52,10 @@ bool Debugger::perform_events() {
 
     if (!temp) {
         crashImminent = true;
-        return true;
+        return 3;
     }
 
-    return false;
+    return 0;
 }
 
 void print_hex(u16 num, int width) {
@@ -457,7 +457,7 @@ bool add_value(std::vector<uint16_t> * nums, uint16_t toAdd) {
 bool Debugger::memDemp(uint16_t address, int rows) {
 
     int test = (address & ~0xF) + rows * 0x10;
-    if (test > 0xFFFF) {
+    if (test > 0x10000) {
         return false;
     }
 
@@ -480,7 +480,98 @@ bool Debugger::memDemp(uint16_t address, int rows) {
     return true;
 }
 
-bool Debugger::cmd(bool * quit, bool * draw, bool * focus) {
+bool Debugger::disassemble(u16 PC, int numIntrs) {
+
+    bool valid = true;
+
+    for (int x = 0; x < numIntrs; x++) {
+        PC = print_next_instr(PC, false, &valid);
+        if (!valid) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void print_debugger_help() {
+
+    std::cout << "~~[Debugger commands]~~" << std::endl << std::endl;
+
+    std::cout << "Press esc while playing to enter debugger console" << std::endl;
+
+    std::cout << "Command     : 'run', 'r'" << std::endl;
+    std::cout << "Arguments   : 0" << std::endl;
+    std::cout << "Description : Leave debugger console, continue executing and return focus to emulator window" << std::endl << std::endl;
+
+    std::cout << "Command     : 'quit', 'q'" << std::endl;
+    std::cout << "Arguments   : 0" << std::endl;
+    std::cout << "Description : Terminate program" << std::endl << std::endl;
+
+    std::cout << "Command     : 'help', 'h'" << std::endl;
+    std::cout << "Arguments   : 0" << std::endl;
+    std::cout << "Description : Print information about debugger commands" << std::endl << std::endl;
+
+    std::cout << "Command     : 'reg', 'registers'" << std::endl;
+    std::cout << "Arguments   : 0" << std::endl;
+    std::cout << "Description : Print the state of all registers" << std::endl << std::endl;
+
+    std::cout << "Command     : 'log', 'l'" << std::endl;
+    std::cout << "Arguments   : 1" << std::endl;
+    std::cout << "'on','true'   - enable logging" << std::endl;
+    std::cout << "'off','false' - disable logging" << std::endl;
+    std::cout << "{number}      - log next {number} instructions and return to debugger console" << std::endl;
+    std::cout << "Description : Detailed instruction information to stdout" << std::endl << std::endl;
+
+    std::cout << "Command     : 'jump', 'jmp', 'j'" << std::endl;
+    std::cout << "Arguments   : 1:" << std::endl;
+    std::cout << "{number} - change program counter to {number}" << std::endl;
+    std::cout << "Description : Change execution location" << std::endl << std::endl;
+
+    std::cout << "Command     : 'disassemble', 'dis', 'd'" << std::endl;
+    std::cout << "Arguments   : 1 or 2:" << std::endl;
+    std::cout << "If one argument:" << std::endl;
+    std::cout << "{number} - disassemble {number} instructions starting from current PC" << std::endl;
+    std::cout << "If two arguments:" << std::endl;
+    std::cout << "{number 1} and {number 2} - disassemble {number 2} instructions starting from {number 1}" << std::endl;
+    std::cout << "Description : Interpret bytes as instructions (view only, not execute)" << std::endl << std::endl;
+
+    std::cout << "Command     : 'memory','mem', 'm'" << std::endl;
+    std::cout << "Arguments   : 2:" << std::endl;
+    std::cout << "{number 1} and {number 2} - dump {number 2} bytes starting at {number 1}" << std::endl;
+    std::cout << "Description : Dump memory to stdout" << std::endl << std::endl;
+
+    std::cout << "Command     : 'ba'" << std::endl;
+    std::cout << "Arguments   : 1:" << std::endl;
+    std::cout << "{number} - set breakpoint at {number}" << std::endl;
+    std::cout << "Description : Stop execution before PC reaches these memory locations" << std::endl << std::endl;
+
+    std::cout << "Command     : 'br'" << std::endl;
+    std::cout << "Arguments   : 1:" << std::endl;
+    std::cout << "{number} - remove breakpoint at {number}" << std::endl;
+    std::cout << "Description : Stop execution before PC reaches these memory locations" << std::endl << std::endl;
+
+    std::cout << "Command     : 'bv'" << std::endl;
+    std::cout << "Arguments   : 0" << std::endl;
+    std::cout << "Description : Print all active breakpoints" << std::endl << std::endl;
+
+    std::cout << "Command     : 'wa'" << std::endl;
+    std::cout << "Arguments   : 1:" << std::endl;
+    std::cout << "{number} - set watchpoint at {number}" << std::endl;
+    std::cout << "Description : Stop execution before these memory locations are accessed" << std::endl << std::endl;
+
+    std::cout << "Command     : 'wr'" << std::endl;
+    std::cout << "Arguments   : 1:" << std::endl;
+    std::cout << "{number} - remove watchpoint at {number}" << std::endl;
+    std::cout << "Description : Stop execution before these memory locations are accessed" << std::endl << std::endl;
+
+    std::cout << "Command     : 'wv'" << std::endl;
+    std::cout << "Arguments   : 0" << std::endl;
+    std::cout << "Description : Print all active watchpoints" << std::endl << std::endl;
+
+}
+
+int Debugger::cmd() {
 
     /*
     add features:
@@ -520,13 +611,11 @@ bool Debugger::cmd(bool * quit, bool * draw, bool * focus) {
         case 1: {
 
             if (tokens[0].compare("run") == 0 || tokens[0].compare("r") == 0) {
-                *focus = true;
-                return true;
+                return 3;
             } else if (tokens[0].compare("quit") == 0 || tokens[0].compare("q") == 0) {
-                *quit = true;
-                return true;
+                return 2;
             } else if (tokens[0].compare("help") == 0 || tokens[0].compare("h") == 0) {
-                std::cout << "print help prompt" << std::endl;
+                print_debugger_help();
             } else if (tokens[0].compare("bv") == 0) {
                 list_hex(breakpoints);
             } else if (tokens[0].compare("wv") == 0) {
@@ -544,60 +633,58 @@ bool Debugger::cmd(bool * quit, bool * draw, bool * focus) {
 
         case 2: {
 
-            if (tokens[0].compare("log") == 0 || tokens[0].compare("l") == 0) {
+            bool argIsNumber = valid_digits(tokens[1], true, 0);
+            uint16_t num = (argIsNumber) ? std::stoi (tokens[1], nullptr, 16) : 0;
 
-                if (tokens[1].compare("true") == 0 || tokens[1].compare("t") == 0 || tokens[1].compare("1") == 0) {
+            if ((tokens[0].compare("log") == 0 || tokens[0].compare("l") == 0) && !argIsNumber) {
+                if (tokens[1].compare("true") == 0 || tokens[1].compare("on") == 0) {
                     log = true;
-                } else if (tokens[1].compare("false") == 0 || tokens[1].compare("f") == 0 || tokens[1].compare("0") == 0) {
+                } else if (tokens[1].compare("false") == 0 || tokens[1].compare("off") == 0) {
                     log = false;
                 } else {
                     std::cout << "Command not recognized" << std::endl;
                 }
 
-            } else {
+            } else if ((tokens[0].compare("log") == 0 || tokens[0].compare("l") == 0) && argIsNumber) {
+                instrsToLog = std::stoi (tokens[1], nullptr, 16);
+                return 1;
+            } else if ((tokens[0].compare("j") == 0 || tokens[0].compare("jump") == 0 || tokens[0].compare("jmp") == 0) && argIsNumber) {
+                nesSystem->m_nesCPU.m_PC = num;
+            } else if ((tokens[0].compare("d") == 0 || tokens[0].compare("dis") == 0 || tokens[0].compare("disassemble") == 0) && argIsNumber) {
 
-                if (!valid_digits(tokens[1], true, 0)) {
-                    std::cout << "Invalid second operand (must be a number)" << std::endl;
-                    break;
+                if (!disassemble(nesSystem->m_nesCPU.m_PC, num)) {
+                    std::cout << "Disassembling these bytes leads to crash" << std::endl;
                 }
 
-                uint16_t num = std::stoi (tokens[1], nullptr, 16);
+            } else if (tokens[0].compare("ba") == 0 && argIsNumber) {
 
-                if (tokens[0].compare("d") == 0 || tokens[0].compare("dis") == 0 || tokens[0].compare("disassemble") == 0) {
-                    toDisassemble = std::stoi (tokens[1], nullptr, 16);
-                    return true;
-                } else if (tokens[0].compare("j") == 0 || tokens[0].compare("jump") == 0 || tokens[0].compare("jmp") == 0) {
-                    nesSystem->m_nesCPU.m_PC = num;
-                } else if (tokens[0].compare("ba") == 0) {
-
-                    if (!add_value(&breakpoints, num)) {
-                        std::cout << "Breakpoint already exists" << std::endl;
-                    } else {
-                        ignoreNextBreaks = true;
-                    }
-
-                } else if (tokens[0].compare("wa") == 0) {
-
-                    if (!add_value(&breakpoints, num)) {
-                        std::cout << "Watchpoint already exists" << std::endl;
-                    } else {
-                        ignoreNextBreaks = true;
-                    }
-                } else if (tokens[0].compare("br") == 0) {
-
-                    if (!remove_value(&breakpoints, num)) {
-                        std::cout << "Breakpoint not found" << std::endl;
-                    }
-
-                } else if (tokens[0].compare("wr") == 0) {
-
-                    if (!remove_value(&breakpoints, num)) {
-                        std::cout << "Watchpoint not found" << std::endl;
-                    }
-
+                if (!add_value(&breakpoints, num)) {
+                    std::cout << "Breakpoint already exists" << std::endl;
                 } else {
-                    std::cout << "Command not recognized" << std::endl;
+                    ignoreNextBreaks = true;
                 }
+
+            } else if (tokens[0].compare("wa") == 0 && argIsNumber) {
+
+                if (!add_value(&watchpoints, num)) {
+                    std::cout << "Watchpoint already exists" << std::endl;
+                } else {
+                    ignoreNextBreaks = true;
+                }
+            } else if (tokens[0].compare("br") == 0 && argIsNumber) {
+
+                if (!remove_value(&breakpoints, num)) {
+                    std::cout << "Breakpoint not found" << std::endl;
+                }
+
+            } else if (tokens[0].compare("wr") == 0 && argIsNumber) {
+
+                if (!remove_value(&watchpoints, num)) {
+                    std::cout << "Watchpoint not found" << std::endl;
+                }
+
+            } else {
+                std::cout << "Command not recognized" << std::endl;
             }
 
             break;   
@@ -605,20 +692,13 @@ bool Debugger::cmd(bool * quit, bool * draw, bool * focus) {
 
         case 3: {
 
-            if (!valid_digits(tokens[1], true, 0)) {
-                std::cout << "Invalid second operand (must be a number)" << std::endl;
-                break;
-            }
+            bool firstArgNumber = valid_digits(tokens[1], true, 0);
+            bool secondArgNumber = valid_digits(tokens[2], true, 0);
 
-            if (!valid_digits(tokens[2], true, 0)) {
-                std::cout << "Invalid third operand (must be a number)" << std::endl;
-                break;
-            }
+            uint16_t firstNumber = (firstArgNumber) ? std::stoi(tokens[1], nullptr, 16) : 0;
+            uint16_t secondNumber = (secondArgNumber) ? std::stoi(tokens[2], nullptr, 16) : 0;
 
-            uint16_t firstNumber = std::stoi (tokens[1], nullptr, 16);
-            uint16_t secondNumber = std::stoi (tokens[2], nullptr, 16);
-
-            if (tokens[0].compare("memory") == 0 || tokens[0].compare("mem") == 0 || tokens[0].compare("m") == 0) {
+            if ((tokens[0].compare("memory") == 0 || tokens[0].compare("mem") == 0 || tokens[0].compare("m") == 0) && firstArgNumber && secondArgNumber) {
 
                 if (!valid_digits(tokens[1], true, 0)) {
                     std::cout << "Invalid second operand (must be a number)" << std::endl;
@@ -630,27 +710,14 @@ bool Debugger::cmd(bool * quit, bool * draw, bool * focus) {
                     break;
                 }
 
-                if (!memDemp(firstNumber, ((secondNumber / 16) + 1))) {
+                if (!memDemp(firstNumber, (((secondNumber - 1) / 16) + 1))) {
                     std::cout << "Memory dump out of bounds" << std::endl;
                 }
 
-            } else if (tokens[0].compare("d") == 0 || tokens[0].compare("dis") == 0 || tokens[0].compare("disassemble") == 0) {
-                toDisassemble = secondNumber;
-                nesSystem->m_nesCPU.m_PC = firstNumber;
-                return true;
-            } else if (tokens[0].compare("peek") == 0 || tokens[0].compare("p") == 0) {
+            } else if ((tokens[0].compare("d") == 0 || tokens[0].compare("dis") == 0 || tokens[0].compare("disassemble") == 0) && firstArgNumber && secondArgNumber) {
 
-                u16 temp_PC = firstNumber;
-                bool valid = true;
-
-                for (int x = 0; x < secondNumber; x++) {
-
-                    temp_PC = print_next_instr(temp_PC, false, &valid);
-                    if (!valid) {
-                        std::cout << "Interpreting these bytes as instructions leads to crash" << std::endl;
-                        break;
-                    }
-
+                if (!disassemble(firstNumber, secondNumber)) {
+                    std::cout << "Disassembling these bytes leads to crash" << std::endl;
                 }
 
             } else {
@@ -666,6 +733,6 @@ bool Debugger::cmd(bool * quit, bool * draw, bool * focus) {
 
     }
 
-    return false;
+    return 0;
 
 }

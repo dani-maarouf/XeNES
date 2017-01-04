@@ -65,7 +65,6 @@ void loop(NES nesSystem, const char * fileLoc) {
     uintmax_t startTime = SDL_GetPerformanceCounter();
 
     bool paused = true;
-    debugger.log = false;
 
     SDL_Event event;
 
@@ -80,17 +79,16 @@ void loop(NES nesSystem, const char * fileLoc) {
             break;
         }
 
-        if (debugger.toDisassemble != 0) {
-            //paused = false;
-        }
-
         //2 logic
         if (!paused) {
             do {
 
-                if (debugger.perform_events()) {
+                int debugEventStatus = debugger.perform_events();
+                if (debugEventStatus == 1 || debugEventStatus == 3) {
                     paused = true;
                     break;
+                } else if (debugEventStatus == 2) {
+                    paused = true;
                 }
 
                 //execute one cpu opcode
@@ -110,28 +108,24 @@ void loop(NES nesSystem, const char * fileLoc) {
             
         } else {
 
-            bool quit = false;
-            bool doDraw = false;
-            bool bringFocus = false;
+            int commandStatus;
 
-            while (!debugger.cmd(&quit, &doDraw, &bringFocus)) {
-                if (doDraw) {
-                    draw(nesSystem.m_nesCPU.m_nesPPU.m_pixels);
-                }
-            }
+            do {
 
-            if (quit) {
+                commandStatus = debugger.cmd();
+
+            } while (commandStatus == 0);
+
+            if (commandStatus == 1) {
+                paused = false;
+            } else if (commandStatus == 2) {
+                break;
+            } else if (commandStatus == 3) {
+                paused = false;
+                SDL_RaiseWindow(window);
+            } else {
                 break;
             }
-
-            paused = false;
-
-            if (bringFocus) {
-                SDL_RaiseWindow(window);
-            
-            }
-            
-
         }
 
         //3.2 video
@@ -293,17 +287,17 @@ static bool process_events(SDL_Event * event, uint8_t * controller, bool * pause
             case SDL_QUIT:
             return false;
 
-            
+            /*
             case SDL_WINDOWEVENT: {
                 
                 switch(event->window.event) {
 
                     case SDL_WINDOWEVENT_FOCUS_LOST:
-                    //*paused = true;
+                    *paused = true;
                     break;
 
                     case SDL_WINDOWEVENT_FOCUS_GAINED:
-                    //*paused = false;
+                    *paused = false;
                     break;
 
                     default:
@@ -313,6 +307,7 @@ static bool process_events(SDL_Event * event, uint8_t * controller, bool * pause
 
                 break;
             }
+            */
             
 
             case SDL_KEYDOWN: {
