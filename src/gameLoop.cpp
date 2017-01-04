@@ -83,11 +83,11 @@ void loop(NES nesSystem, const char * fileLoc) {
         if (!paused) {
             do {
 
-                int debugEventStatus = debugger.perform_events();
-                if (debugEventStatus == 1 || debugEventStatus == 3) {
+                enum DebuggerEventStatus debugEventStatus = debugger.perform_events();
+                if (debugEventStatus == BREAK_HIT || debugEventStatus == CRASH_IMMINENT) {
                     paused = true;
                     break;
-                } else if (debugEventStatus == 2) {
+                } else if (debugEventStatus == DONE_LOGGED_EXECUTION) {
                     paused = true;
                 }
 
@@ -108,19 +108,19 @@ void loop(NES nesSystem, const char * fileLoc) {
             
         } else {
 
-            int commandStatus;
+            enum DebuggerCommandStatus commandStatus;
 
             do {
 
                 commandStatus = debugger.cmd();
 
-            } while (commandStatus == 0);
+            } while (commandStatus == CONTINUE_DEBUG);
 
-            if (commandStatus == 1) {
+            if (commandStatus == RUN_NO_FOCUS) {
                 paused = false;
-            } else if (commandStatus == 2) {
+            } else if (commandStatus == QUIT) {
                 break;
-            } else if (commandStatus == 3) {
+            } else if (commandStatus == RUN_RETURN_FOCUS) {
                 paused = false;
                 SDL_RaiseWindow(window);
             } else {

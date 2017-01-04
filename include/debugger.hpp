@@ -5,6 +5,19 @@
 #include "NES.hpp"
 #include <vector>
 
+enum DebuggerCommandStatus {
+    RUN_RETURN_FOCUS,
+    RUN_NO_FOCUS,
+    QUIT,
+    CONTINUE_DEBUG
+};
+
+enum DebuggerEventStatus {
+    BREAK_HIT,
+    DONE_LOGGED_EXECUTION,
+    CRASH_IMMINENT,
+    NO_EVENT
+};
 
 class Debugger {
 
@@ -15,23 +28,19 @@ private:
 
     bool ignoreNextBreaks;
     NES * nesSystem;
-
-    bool crashImminent;
+    bool log;
+    int instrsToLog;
 
     bool disassemble(u16, int);
-    bool memDemp(u16, int);
+    bool mem_dump(u16, int);
+    u16 print_next_instr(u16, bool, bool *);
+    bool check_breaks();
 
 public:
 
-    bool log;
-
-    int instrsToLog;
-
     Debugger(NES *);
-    bool check_breaks();
-    u16 print_next_instr(u16, bool, bool *);
-    int cmd();
-    int perform_events();
+    enum DebuggerCommandStatus cmd();
+    enum DebuggerEventStatus perform_events();
 
 };
 

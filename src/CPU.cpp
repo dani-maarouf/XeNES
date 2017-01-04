@@ -103,6 +103,12 @@ u8 CPU::get_cpu_byte(u16 memAddress, bool silent) {
     } else if (memAddress < 0x4000) {
         u16 address = (memAddress - 0x2000) % 8;
 
+        /*
+        
+        fix silent reading these registers
+
+        */
+
         if (!silent) {
             m_nesPPU.m_readFlag = address;
 
@@ -138,8 +144,6 @@ u8 CPU::get_cpu_byte(u16 memAddress, bool silent) {
                 }
 
             } else if (address == 0x7) {
-
-                //add a silent mode for this!!!!
                 return m_nesPPU.return_2007(silent);
             }
 
@@ -196,6 +200,8 @@ void CPU::set_cpu_byte(u16 memAddress, u8 byte) {
         address = (memAddress - 0x2000) % 8;
         m_nesPPU.m_writeFlag = address;
         m_nesPPU.m_ppuRegisters[address] = byte;
+
+        //process this immediately?
 
     } else if (memAddress < 0x4020) { 
 
