@@ -16,8 +16,10 @@ private:
     bool ignoreNextBreaks;
     NES * nesSystem;
 
-    int debug_print_val(enum AddressMode, int, int);
+    bool crashImminent;
+
     bool disassemble(u16 *);
+    bool memDemp(u16, int);
 
 public:
 
@@ -26,9 +28,10 @@ public:
     int toDisassemble;
 
     Debugger(NES *);
-    void peek_next_instruction(bool, bool *);
-    bool shell(bool *, bool *, bool *);
-    bool perform_events(bool *);
+    bool check_breaks();
+    u16 print_next_instr(u16, bool, bool *);
+    bool cmd(bool *, bool *, bool *);
+    bool perform_events();
 
 };
 

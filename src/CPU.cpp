@@ -51,11 +51,6 @@ static const int cycles[] = {
     0,0,0,0,0,0,0,0,0,0,0,0,0,  //other
 };
 
-//table of opcode lengths for advancing m_PC
-                                   //0,1,2,3,4,5,6,7,8,9,m_A,B,C,D,E,F
-static const int opcodeLens[0x20] = {2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3,  //0 2 4 6 8 m_A C E
-                                     2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3}; //1 3 5 7 9 B D F
-
 CPU::CPU() {
 
     m_nesPPU = PPU();

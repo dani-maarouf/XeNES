@@ -88,13 +88,7 @@ void loop(NES nesSystem, const char * fileLoc) {
         if (!paused) {
             do {
 
-                bool breakPointHit = false;
-
-                if (debugger.perform_events(&breakPointHit)) {
-                    paused = true;
-                }
-
-                if (breakPointHit) {
+                if (debugger.perform_events()) {
                     paused = true;
                     break;
                 }
@@ -120,7 +114,7 @@ void loop(NES nesSystem, const char * fileLoc) {
             bool doDraw = false;
             bool bringFocus = false;
 
-            while (!debugger.shell(&quit, &doDraw, &bringFocus)) {
+            while (!debugger.cmd(&quit, &doDraw, &bringFocus)) {
                 if (doDraw) {
                     draw(nesSystem.m_nesCPU.m_nesPPU.m_pixels);
                 }

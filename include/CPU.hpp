@@ -73,6 +73,11 @@ static const int opnameMap[] = {
      6,52, 0,29,38,52,26,29,54,52,38,29,38,52,26,29,  //F
 };  
 
+//table of opcode lengths for advancing program counter
+                                   //0,1,2,3,4,5,6,7,8,9,m_A,B,C,D,E,F
+static const int opcodeLens[0x20] = {2,2,0,2,2,2,2,2,1,2,1,2,3,3,3,3,  //0 2 4 6 8 A C E
+                                     2,2,0,2,2,2,2,2,1,3,1,3,3,3,3,3}; //1 3 5 7 9 B D F
+
 class CPU {
 
 friend class Debugger;
