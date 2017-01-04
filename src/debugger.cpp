@@ -3,6 +3,10 @@
 #include <iomanip>
 #include <string>
 #include <sstream>
+#include <algorithm>
+
+
+
 
 #include "debugger.hpp"
 
@@ -35,9 +39,14 @@ Debugger::Debugger(NES * nes) {
     instrsToLog = 0;
     ignoreNextBreaks = false;
     this->nesSystem = nes;
+
+    for (int x = 0; x < 0x10000; x++) {
+        memSieve[x] = false;
+        memorySnapshot[x] = 0;
+    }
 }
 
-enum DebuggerEventStatus Debugger::perform_events() {
+enum DebuggerEventStatus Debugger::pre_instr_events() {
 
     bool temp = true;
 
@@ -183,6 +192,14 @@ bool Debugger::mem_dump(uint16_t address, int rows) {
 
     address &= ~0xF;
 
+
+    std::cout << "       ";
+    for (int x = 0; x < 0x10; x++) {
+        print_hex(x, 1);
+        std::cout << "  ";
+    }
+    std::cout << std::endl;
+
     for (int x = 0; x < rows; x++) {
 
         print_hex(address + x * 0x10, 4);
@@ -214,28 +231,46 @@ bool Debugger::disassemble(u16 PC, int numIntrs) {
     return true;
 }
 
+void Debugger::update_seive(std::function<bool(uint8_t,uint8_t)> func) {
+
+    for (int x = 0; x < 0x10000; x++) {
+        if (func(memorySnapshot[x], nesSystem->m_nesCPU.get_cpu_byte(x, true))) {
+            memSieve[x] = false;
+        }
+    }
+
+    for (int x = 0; x < 0x10000; x++) memorySnapshot[x] = nesSystem->m_nesCPU.get_cpu_byte(x, true);
+}
+
+static int count_watching(bool * sieve) {
+    int totalWatching = 0;
+    for (int i = 0; i < 0x10000; i++) {
+        totalWatching += (int) sieve[i];
+    }
+    return totalWatching;
+}
+
+void Debugger::post_instr_events() {
+
+
+    for (int x = 0; x < (int) frozenMemoryAddrs.size(); x++) {
+        nesSystem->m_nesCPU.set_cpu_byte(frozenMemoryAddrs[x].first, frozenMemoryAddrs[x].second);
+    }
+
+}
+
 enum DebuggerCommandStatus Debugger::cmd() {
 
     /*
     add features:
     set controller input until 'x'
-
-    view code
-
-    change memory and registers
-
     waveform visualizer
     change speed
     breakpoints (mem reads, writes, until next frame, NMI, IRQ, etc)
-    memory view
-    disassembler
     nametables and pattern tables view
-
     stack related breakpoints?
     register related breakpoints?
-
-    sieve
-
+    memory sieve
 
     */
 
@@ -245,7 +280,7 @@ enum DebuggerCommandStatus Debugger::cmd() {
 
     std::string input = "";
     getline(std::cin, input);
-
+    std::transform(input.begin(), input.end(), input.begin(), ::tolower);
     std::vector<std::string> tokens = split(input);
 
     switch(tokens.size()) {
@@ -281,7 +316,43 @@ enum DebuggerCommandStatus Debugger::cmd() {
             bool argIsNumber = valid_digits(tokens[1], true, 0);
             uint16_t num = (argIsNumber) ? std::stoi (tokens[1], nullptr, 16) : 0;
 
-            if ((tokens[0].compare("log") == 0 || tokens[0].compare("l") == 0) && !argIsNumber) {
+            if (tokens[0].compare("memscan") == 0 || tokens[0].compare("ms") == 0) {
+
+                if (tokens[1].compare("new") == 0 || tokens[1].compare("n") == 0) {
+                    for (int x = 0; x < 0x10000; x++) {
+                        memSieve[x] = true;
+                        memorySnapshot[x] = nesSystem->m_nesCPU.get_cpu_byte(x, true);
+                    }
+                } else if (tokens[1].compare("changed") == 0 || tokens[1].compare("c") == 0) {
+                    update_seive(std::equal_to<uint8_t>());
+                    std::cout << "Watching " << std::dec << count_watching(memSieve) << " addresses (decimal)" << std::endl;
+                } else if (tokens[1].compare("unchanged") == 0 || tokens[1].compare("u") == 0) {
+                    update_seive(std::not_equal_to<uint8_t>());
+                    std::cout << "Watching " << std::dec << count_watching(memSieve) << " addresses (decimal)" << std::endl;
+                } else if (tokens[1].compare("increased") == 0 || tokens[1].compare("i") == 0 || tokens[1].compare("inc") == 0) {
+                    update_seive(std::greater_equal<uint8_t>());
+                    std::cout << "Watching " << std::dec << count_watching(memSieve) << " addresses (decimal)" << std::endl;
+                } else if (tokens[1].compare("decreased") == 0 || tokens[1].compare("d") == 0 || tokens[1].compare("dec") == 0) {
+                    update_seive(std::less_equal<uint8_t>());
+                    std::cout << "Watching " << std::dec << count_watching(memSieve) << " addresses (decimal)" << std::endl;
+                } else if (tokens[1].compare("view") == 0 || tokens[1].compare("v") == 0) {
+
+                    for (int x = 0; x < 0x10000; x++) {
+                        if (memSieve[x]) {
+                            std::cout << "$";
+                            print_hex(x, 4);
+                            std::cout << " : ";
+                            print_hex(nesSystem->m_nesCPU.get_cpu_byte(x, true), 2);
+                            std::cout << std::endl;
+                        }
+                    }
+                    std::cout << std::endl;
+
+                } else {
+                    std::cout << "Command not recognized" << std::endl;
+                }
+
+            } else if ((tokens[0].compare("log") == 0 || tokens[0].compare("l") == 0) && !argIsNumber) {
                 if (tokens[1].compare("true") == 0 || tokens[1].compare("on") == 0) {
                     log = true;
                 } else if (tokens[1].compare("false") == 0 || tokens[1].compare("off") == 0) {
@@ -300,6 +371,38 @@ enum DebuggerCommandStatus Debugger::cmd() {
                 if (!disassemble(nesSystem->m_nesCPU.m_PC, num)) {
                     std::cout << "Disassembling these bytes leads to crash" << std::endl;
                 }
+
+            } else if (tokens[0].compare("freeze") == 0 || tokens[0].compare("fa") == 0) {
+
+                if (argIsNumber) {
+
+                    frozenMemoryAddrs.push_back(std::make_pair(num, nesSystem->m_nesCPU.get_cpu_byte(num, true)));
+
+                } else if (tokens[1].compare("x") == 0) {
+                    
+                } else if (tokens[1].compare("y") == 0) {
+                    
+                } else if (tokens[1].compare("acu") == 0) {
+                    
+                } else if (tokens[1].compare("p") == 0) {
+                    
+                } else if (tokens[1].compare("sp") == 0) {
+                    
+                } else if (tokens[1].compare("ms") == 0) {
+
+                    for (int x = 0; x < 0x10000; x++) {
+                        if (memSieve[x]) {
+                            frozenMemoryAddrs.push_back(std::make_pair(x, nesSystem->m_nesCPU.get_cpu_byte(x, true)));
+                        }
+                    }
+
+                } else {
+                    std::cout << "Command not recognized" << std::endl;
+                }
+
+            } else if (tokens[0].compare("unfreeze") == 0 || tokens[0].compare("fr") == 0) {
+
+                frozenMemoryAddrs.clear();
 
             } else if (tokens[0].compare("ba") == 0 && argIsNumber) {
 
@@ -339,7 +442,6 @@ enum DebuggerCommandStatus Debugger::cmd() {
 
             bool firstArgNumber = valid_digits(tokens[1], true, 0);
             bool secondArgNumber = valid_digits(tokens[2], true, 0);
-
             uint16_t firstNumber = (firstArgNumber) ? std::stoi(tokens[1], nullptr, 16) : 0;
             uint16_t secondNumber = (secondArgNumber) ? std::stoi(tokens[2], nullptr, 16) : 0;
 
@@ -362,16 +464,24 @@ enum DebuggerCommandStatus Debugger::cmd() {
                     break;
                 }
 
-                if (tokens[1].compare("X") == 0) {
+                if (tokens[1].compare("x") == 0) {
                     nesSystem->m_nesCPU.m_X = secondNumber;
-                } else if (tokens[1].compare("Y") == 0) {
+                } else if (tokens[1].compare("y") == 0) {
                     nesSystem->m_nesCPU.m_Y = secondNumber;
-                } else if (tokens[1].compare("ACCU") == 0) {
+                } else if (tokens[1].compare("acu") == 0) {
                     nesSystem->m_nesCPU.m_A = secondNumber;
-                } else if (tokens[1].compare("P") == 0) {
+                } else if (tokens[1].compare("p") == 0) {
                     get_psw_from_byte(nesSystem->m_nesCPU.m_PS, secondNumber);
-                } else if (tokens[1].compare("SP") == 0) {
+                } else if (tokens[1].compare("sp") == 0) {
                     nesSystem->m_nesCPU.m_SP = secondNumber;
+                } else if (tokens[1].compare("ms") == 0) {
+
+                    for (int x = 0; x < 0x10000; x++) {
+                        if (memSieve[x]) {
+                            nesSystem->m_nesCPU.set_cpu_byte(x, secondNumber);
+                        }
+                    }
+
                 } else {
                     std::cout << "Command not recognized" << std::endl;
                 }
@@ -773,5 +883,12 @@ static void print_debugger_help() {
     std::cout << "Description : Print all active watchpoints" << std::endl << std::endl;
 
     std::cout << "Command     : 'set', 's'" << std::endl;
+
+    std::cout << "Command     : 'zero','z'" << std::endl;
+
+    std::cout << "Command     : 'memscan','ms'" << std::endl;
+
+    std::cout << "Command     : 'freeze','f'" << std::endl;
+
 
 }

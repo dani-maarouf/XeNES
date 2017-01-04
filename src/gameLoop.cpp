@@ -83,7 +83,7 @@ void loop(NES nesSystem, const char * fileLoc) {
         if (!paused) {
             do {
 
-                enum DebuggerEventStatus debugEventStatus = debugger.perform_events();
+                enum DebuggerEventStatus debugEventStatus = debugger.pre_instr_events();
                 if (debugEventStatus == BREAK_HIT || debugEventStatus == CRASH_IMMINENT) {
                     paused = true;
                     break;
@@ -93,11 +93,15 @@ void loop(NES nesSystem, const char * fileLoc) {
 
                 //execute one cpu opcode
                 nesSystem.m_nesCPU.execute_next_opcode();
+
+                debugger.post_instr_events();
+
+
+
                 //ppu catches up
                 nesSystem.m_nesCPU.m_nesPPU.tick(&nesSystem.m_nesCPU.m_NMI, &nesSystem.m_nesCPU.m_cpuClock);
             } while (!nesSystem.m_nesCPU.m_nesPPU.m_draw && !paused);
 
-            
             //3.1 audio
             nesSystem.m_nesCPU.m_nesAPU.fill_buffer(&nesSystem, &nesSystem.m_nesCPU.m_IRQ);
             if (SDL_GetQueuedAudioSize(sdlAudioDevice) > (unsigned int) nesSystem.m_nesCPU.m_nesAPU.m_audioBufferSize * 10) {
@@ -111,10 +115,10 @@ void loop(NES nesSystem, const char * fileLoc) {
             enum DebuggerCommandStatus commandStatus;
 
             do {
-
                 commandStatus = debugger.cmd();
-
             } while (commandStatus == CONTINUE_DEBUG);
+
+            //SDL_FlushEvents(SDL_USEREVENT, SDL_LASTEVENT);
 
             if (commandStatus == RUN_NO_FOCUS) {
                 paused = false;
